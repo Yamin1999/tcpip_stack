@@ -165,10 +165,10 @@ build_simple_l2_switch_topo(void){
     node_set_loopback_address(H4, "122.1.1.4");
     node_set_intf_ip_address(H4, "eth7", "10.1.1.3", 24);
     
-    node_set_intf_l2_mode(L2SW, "eth1", LAN_ACCESS_MODE);
-    node_set_intf_l2_mode(L2SW, "eth2", LAN_ACCESS_MODE);
-    node_set_intf_l2_mode(L2SW, "eth3", LAN_ACCESS_MODE);
-    node_set_intf_l2_mode(L2SW, "eth4", LAN_ACCESS_MODE);
+    node_set_intf_switchport(L2SW, "eth1");
+    node_set_intf_switchport(L2SW, "eth2");
+    node_set_intf_switchport(L2SW, "eth3");
+    node_set_intf_switchport(L2SW, "eth4");
 
     node_set_intf_vlan_membership(L2SW, "eth1", 10);
     node_set_intf_vlan_membership(L2SW, "eth2", 10);
@@ -338,24 +338,24 @@ build_dualswitch_topo(void){
     node_set_intf_ip_address(H5, "eth8",  "10.1.1.5", 24);
     node_set_intf_ip_address(H6, "eth11", "10.1.1.6", 24);
 
-    node_set_intf_l2_mode(L2SW1, "eth2", LAN_ACCESS_MODE);
+    node_set_intf_switchport(L2SW1, "eth2");
     node_set_intf_vlan_membership(L2SW1, "eth2", 10);
-    node_set_intf_l2_mode(L2SW1, "eth7", LAN_ACCESS_MODE);
+    node_set_intf_switchport(L2SW1, "eth7");
     node_set_intf_vlan_membership(L2SW1, "eth7", 10);
-    node_set_intf_l2_mode(L2SW1, "eth5", LAN_TRUNK_MODE);
+    node_set_intf_switchport(L2SW1, "eth5");
     node_set_intf_vlan_membership(L2SW1, "eth5", 10);
     //node_set_intf_vlan_membership(L2SW1, "eth5", 10);
-    node_set_intf_l2_mode(L2SW1, "eth6", LAN_ACCESS_MODE);
+    node_set_intf_switchport(L2SW1, "eth6");
     node_set_intf_vlan_membership(L2SW1, "eth6", 10);
 
-    node_set_intf_l2_mode(L2SW2, "eth7", LAN_TRUNK_MODE);
+    node_set_intf_switchport(L2SW2, "eth7");
     node_set_intf_vlan_membership(L2SW2, "eth7", 10);
     //node_set_intf_vlan_membership(L2SW2, "eth7", 10);
-    node_set_intf_l2_mode(L2SW2, "eth9", LAN_ACCESS_MODE);
+    node_set_intf_switchport(L2SW2, "eth9");
     node_set_intf_vlan_membership(L2SW2, "eth9", 10);
-    node_set_intf_l2_mode(L2SW2, "eth10", LAN_ACCESS_MODE);
+    node_set_intf_switchport(L2SW2, "eth10");
     node_set_intf_vlan_membership(L2SW2, "eth10", 10);
-    node_set_intf_l2_mode(L2SW2, "eth12", LAN_ACCESS_MODE);
+    node_set_intf_switchport(L2SW2, "eth12");
     node_set_intf_vlan_membership(L2SW2, "eth12", 10);
 
     return topo;

@@ -25,6 +25,7 @@
 #include "InterfacEnums.h"
 #include "../tcp_ip_trace.h"
 #include "../net.h"
+#include <vector>
 
 typedef struct node_ node_t;
 typedef struct linkage_ linkage_t;
@@ -175,6 +176,30 @@ class VirtualInterface : public Interface {
 
 
 /* ************ */
+
+class VlanInterface : public VirtualInterface {
+
+    private:
+    protected:
+    public:
+        uint32_t vlan_id;
+        uint32_t ip_addr;
+        uint8_t mask;
+        /* Number of access mode interfaces using this LAN*/
+        uint8_t access_intf_ref_count;
+        VlanInterface(uint16_t vlan_id);
+         ~VlanInterface();
+        virtual void PrintInterfaceDetails ();
+        virtual void InterfaceSetIpAddressMask(uint32_t ip_addr, uint8_t mask) final;
+        virtual void InterfaceGetIpAddressMask(uint32_t *ip_addr, uint8_t *mask) final;
+        virtual bool IsIpConfigured() final;
+        virtual uint32_t GetVlanId() final;
+        virtual bool IsSameSubnet(uint32_t ip_addr) final;
+        std::vector<TransportService *> member_trans_svc;
+        static Interface *VlanInterfaceLookUp(node_t *node, uint32_t vlan_id);
+};
+
+
 class GRETunnelInterface : public VirtualInterface {
 
 private:

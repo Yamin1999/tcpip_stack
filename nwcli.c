@@ -66,7 +66,8 @@ extern void prefix_list_cli_show_tree(param_t *param) ;
 extern void time_range_config_cli_tree (param_t *root) ;
 extern void Interface_config_cli_tree (param_t *root);
 extern void access_list_print_bitmap(node_t *node, c_string access_list_name);
-extern int config_node_build_transport_svc_cli_tree (param_t *param) ;
+extern void config_node_build_transport_svc_cli_tree (param_t *param) ;
+extern void show_node_transport_svc_cli_tree (param_t *param) ;
 
 extern int
 isis_show_handler (int cmdcode,
@@ -857,6 +858,8 @@ nw_init_cli(){
                      network_object_build_show_cli (&node_name);
                      /* Object Group Show CLIs*/
                      object_group_build_show_cli (&node_name);
+                     /* show CLIs for TSPs*/
+                     show_node_transport_svc_cli_tree(&node_name);
                  }
 
 				 {

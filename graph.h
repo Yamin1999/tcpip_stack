@@ -40,12 +40,14 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <string>
 #include "gluethread/glthread.h"
 #include "net.h"
 #include "tcp_ip_trace.h"
 #include "Layer3/netfilter.h"
 #include "EventDispatcher/event_dispatcher.h"
 #include "PostgresLibpq/postgresLib.h"
+#include <unordered_map>
 
 #define NODE_NAME_SIZE   24
 #define IF_NAME_SIZE     16
@@ -55,6 +57,7 @@
 typedef struct node_ node_t;
 typedef struct link_ link_t;
 class Interface;
+class TransportService;
 
 typedef struct spf_data_ spf_data_t;
 typedef struct pkt_tracer_ pkt_tracer_t;
@@ -64,7 +67,7 @@ struct node_ {
 
     char node_name[NODE_NAME_SIZE];
     Interface *intf[MAX_INTF_PER_NODE];
-
+    
     /* For Network Sockets */
     unsigned int udp_port_number;
     int udp_sock_fd;
@@ -105,16 +108,16 @@ struct node_ {
     hashtable_t *object_network_ght;
      /* Object Group Hashtable */
     hashtable_t *object_group_ght;
-    
+    /* Transport Svc profiles DB*/
+    std::unordered_map<std::string , TransportService *> *TransPortSvcDB;
+    /* Vlan Interface Created*/
+     std::unordered_map<std::uint16_t , VlanInterface *> *vlan_intf_db;
     /* List of route-maps created on this node*/
     glthread_t route_map_headtype;
-
     /* Packet Tracer Object */
     pkt_tracer_t *pkt_tracer;
-
     /* config DB connection */
     PGconn* conn;
-
     glthread_t graph_glue;
 };
 GLTHREAD_TO_STRUCT(graph_glue_to_node, node_t, graph_glue);
