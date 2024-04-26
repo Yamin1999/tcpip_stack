@@ -444,7 +444,7 @@ void PhysicalInterface::PrintInterfaceDetails()
 void PhysicalInterface::InterfaceSetIpAddressMask(uint32_t ip_addr, uint8_t mask)
 {
 
-    if (this->switchport)
+    if (this->switchport && ip_addr)
     {
         cprintf("Error : Remove L2 Config first\n");
         return;
@@ -586,8 +586,7 @@ void PhysicalInterface::SetL2Mode(IntfL2Mode l2_mode)
         return;
     }
     
-    if (this->trans_svc && 
-            l2_mode == LAN_ACCESS_MODE) {
+    if (this->trans_svc) {
 
         cprintf("Error : Intf being used in Transport Service\n");
         return;
@@ -614,7 +613,7 @@ PhysicalInterface::IntfConfigTransportSvc(std::string& trans_svc_name) {
         return false;
     }
 
-    TransportService *trans_svc_obj = TransportServiceLookUp (trans_svc_name);
+    TransportService *trans_svc_obj = TransportServiceLookUp (this->att_node->TransPortSvcDB, trans_svc_name);
     
     if (!trans_svc_obj) {
         printf ("Error : Transport Svc do not exist\n");
@@ -625,13 +624,10 @@ PhysicalInterface::IntfConfigTransportSvc(std::string& trans_svc_name) {
 
     /* Remove old Transport svc if any*/
     if (this->trans_svc) {
-
         this->trans_svc->DeAttachInterface(this);
-        this->trans_svc = NULL;
     }
 
     trans_svc_obj->AttachInterface(this);
-    this->trans_svc = trans_svc_obj;
     return true;
 }
 
@@ -639,7 +635,7 @@ bool
 PhysicalInterface::IntfUnConfigTransportSvc(std::string& trans_svc_name) {
 
     if (!this->trans_svc) return true;
-    TransportService *trans_svc_obj = TransportServiceLookUp (trans_svc_name);
+    TransportService *trans_svc_obj = TransportServiceLookUp (this->att_node->TransPortSvcDB, trans_svc_name);
     if (!trans_svc_obj) return true;
     if (this->trans_svc != trans_svc_obj) return true;
     this->trans_svc->DeAttachInterface (this);
@@ -662,60 +658,28 @@ PhysicalInterface::IntfConfigVlan(uint32_t vlan_id, bool add)
 
     if (add)
     {
-        switch (this->l2_mode)
-        {
-        case LAN_MODE_NONE:
-            cprintf("Error : Interface Not in Access Or Trunk Mode\n");
+        if (this->GetL2Mode() == LAN_TRUNK_MODE) {
+            cprintf ("Error : Cannot configure Access Vlan to Interface in Trunk Mode\n");
             return false;
+        }
 
-        case LAN_ACCESS_MODE:
-            if (this->vlans[0])
+        if (this->vlans[0])
             {
                 cprintf("Error : Access Mode Interface already in vlan %u\n", this->vlans[0]);
                 return false;
             }
             this->vlans[0] = vlan_id;
+            this->l2_mode = LAN_ACCESS_MODE;
             return true;
-        case LAN_TRUNK_MODE:
-            for (i = 0; i < INTF_MAX_VLAN_MEMBERSHIP; i++)
-            {
-                if (this->vlans[i])
-                    continue;
-                this->vlans[i] = vlan_id;
-                return true;
-            }
-            cprintf("Error : Interface %s : Max Vlan membership limit reached", this->if_name.c_str());
-            return false;
-        default:;
-        }
     }
     else
     {
-
-        switch (this->l2_mode)
-        {
-        case LAN_MODE_NONE:
-            return false;
-
-        case LAN_ACCESS_MODE:
-            if (this->vlans[0] == vlan_id)
+        if (this->vlans[0] == vlan_id)
             {
                 this->vlans[0] = 0;
+                this->l2_mode = LAN_MODE_NONE;
                 return true;
             }
-            return false;
-
-        case LAN_TRUNK_MODE:
-            for (i = 0; i < INTF_MAX_VLAN_MEMBERSHIP; i++)
-            {
-                if (this->vlans[i] != vlan_id)
-                    continue;
-                this->vlans[i] = 0;
-                return true;
-            }
-            return false;
-        default:;
-        }
     }
     return true;
 }
@@ -962,4 +926,107 @@ int GRETunnelInterface::SendPacketOut(pkt_block_t *pkt_block)
     pkt = pkt_block_get_pkt(pkt_block, &pkt_size);
     tcp_ip_send_ip_data(node, (c_string)pkt, (uint32_t)pkt_size, GRE_HDR, this->tunnel_dst_ip);
     return 0;
+}
+
+/* ************ VlanInterface ************ */
+
+VlanInterface::VlanInterface(uint16_t vlan_id)
+    : VirtualInterface("null", INTF_TYPE_LAN)
+{
+
+    this->vlan_id = vlan_id;
+    this->ip_addr = 0;
+    this->mask = 0;
+    
+    std::string if_name = "vlan" + std::to_string(vlan_id);
+    this->if_name = if_name;
+}
+
+VlanInterface::~VlanInterface() {
+
+    assert (this->access_intf_ref_count == 0);
+    assert (this->member_trans_svc.empty());
+}
+
+void 
+VlanInterface::PrintInterfaceDetails() {
+
+    int i;
+    int vec_size;
+    byte ip_str[16];
+    TransportService *tsp;
+
+    cprintf("Vlan Id : %u\n", this->vlan_id);\
+
+    if (this->IsIpConfigured()) {
+        cprintf("  IP Addr : %s/%d\n", tcp_ip_covert_ip_n_to_p(this->ip_addr, ip_str), this->mask);
+    }
+
+    cprintf("  Access Intf Ref Count : %u\n", this->access_intf_ref_count);
+
+    /* Print member ports */
+    vec_size = this->member_trans_svc.size();
+
+    for (i = 0; i < vec_size; i++) {
+        tsp = this->member_trans_svc[i];
+        for (auto it = tsp->ifSet.begin(); it != tsp->ifSet.end(); ++it)
+        {
+            cprintf("  %s\n", node_get_intf_by_ifindex(this->att_node, *it)->if_name.c_str());
+        }
+    }
+
+    this->VirtualInterface::PrintInterfaceDetails();
+}
+
+void 
+VlanInterface::InterfaceSetIpAddressMask(uint32_t ip_addr, uint8_t mask) {
+
+    this->ip_addr = ip_addr;
+    this->mask = mask;
+}
+
+void 
+VlanInterface::InterfaceGetIpAddressMask(uint32_t *ip_addr, uint8_t *mask) {
+
+    *ip_addr = this->ip_addr;
+    *mask = this->mask;
+}
+
+bool
+VlanInterface::IsIpConfigured() {
+
+    if (this->ip_addr && this->mask) return true;
+    return false;
+}
+
+bool
+VlanInterface::IsSameSubnet(uint32_t ip_addr) {
+
+    if (!this->IsIpConfigured()) return false;
+    uint32_t subnet_mask = ~0;
+    if (this->mask != 32) {
+        subnet_mask = subnet_mask << (32 - this->mask);
+    }
+    return ((this->ip_addr & subnet_mask) == (ip_addr & subnet_mask));
+}
+
+uint32_t
+VlanInterface::GetVlanId() {
+
+    return (uint32_t)this->vlan_id;
+}
+
+Interface *
+VlanInterface::VlanInterfaceLookUp(node_t *node, uint32_t vlan_id) {
+
+    VlanInterface *vlan_intf = NULL;
+
+    if (!node->vlan_intf_db) return NULL;
+
+    std::unordered_map<std::uint16_t , VlanInterface *>::iterator it;
+    it = node->vlan_intf_db->find(vlan_id);
+    if (it != node->vlan_intf_db->end()) {
+        vlan_intf = it->second;
+    }
+    return vlan_intf;
 }

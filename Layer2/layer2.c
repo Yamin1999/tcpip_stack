@@ -34,6 +34,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <arpa/inet.h> /*for inet_ntop & inet_pton*/
+#include <string>
 #include "../graph.h"
 #include "layer2.h"
 #include "arp.h"
@@ -44,6 +45,7 @@
 #include "../LinuxMemoryManager/uapi_mm.h"
 #include "../pkt_block.h"
 #include "../Interface/InterfaceUApi.h"
+#include "transport_svc.h"
 
 #define ARP_ENTRY_EXP_TIME	30
 
@@ -73,13 +75,25 @@ node_set_intf_l2_mode(node_t *node,
 }
 
 void
+node_set_intf_switchport(node_t *node,
+                                         const char *intf_name) {
+
+    Interface *interface = node_get_intf_by_name(node, intf_name);
+    assert(interface);
+    interface->SetSwitchport(true);
+}
+
+void
 node_set_intf_vlan_membership(node_t *node, 
                                                      const char *intf_name, 
                                                      uint32_t vlan_id){
 
     Interface *interface = node_get_intf_by_name(node, intf_name);
     assert(interface);
-    interface->IntfConfigVlan(vlan_id, true);
+    std::string def_tsp_name(std::string(reinterpret_cast<const char *>(DEFAULT_TSP)));
+    TransportService *tsp = TransportServiceCreate(node, def_tsp_name);
+    tsp->AddVlan(vlan_id);
+    tsp->AttachInterface(interface);
 }
 
 static void
@@ -87,8 +101,6 @@ l2_forward_ip_packet(node_t *node,
                                     uint32_t next_hop_ip,
                                     c_string outgoing_intf,
                                     pkt_block_t *pkt_block){
-
-
 
     pkt_size_t pkt_size;
     Interface *oif = NULL;

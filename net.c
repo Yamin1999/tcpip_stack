@@ -40,6 +40,7 @@
 #include "graph.h"
 #include "Layer3/rt_table/nexthop.h"
 #include "Layer3/layer3.h"
+#include "Layer2/transport_svc.h"
 #include "Interface/InterfaceUApi.h"
 #include "CLIBuilder/libcli.h"
 
@@ -160,19 +161,19 @@ void dump_intf_props (Interface *interface){
     else
     {
         cprintf("\t l2 mode = %s", PhysicalInterface::L2ModeToString(interface->GetL2Mode()).c_str());
-        int i = 0;
+
         PhysicalInterface *phyIntf = dynamic_cast<PhysicalInterface *>(interface);
-        if (phyIntf)
-        {
-            cprintf("\t vlan membership : ");
-            for (; i < INTF_MAX_VLAN_MEMBERSHIP; i++)
-            {
-                if (phyIntf->vlans[i])
-                {
-                    cprintf("%u  ", phyIntf->vlans[i]);
-                }
+
+        if (phyIntf) {
+
+            if (interface->GetL2Mode() == LAN_ACCESS_MODE) {
+                cprintf("\t vlan membership : %u", phyIntf->vlans[0]);
+            }
+            else if (interface->GetL2Mode() == LAN_TRUNK_MODE) {
+                cprintf ("\t transport svc profile : %s", phyIntf->trans_svc->trans_svc.c_str());
             }
         }
+
         cprintf("\n");
     }
 }
