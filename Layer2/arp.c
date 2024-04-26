@@ -135,22 +135,18 @@ process_arp_broadcast_request(node_t *node, Interface *iif,
     arp_hdr_t *arp_hdr = (arp_hdr_t *)(GET_ETHERNET_HDR_PAYLOAD(ethernet_hdr));
 
    /* ARP broadcast request msg has passed MAC Address check*/
+
+    /* Now populate ARP cache using ARP's src mac and src IP address. Here
+        We are overhearing ARP-B request msg to populate our ARP cache */
+    arp_table_update_from_arp_reply( NODE_ARP_TABLE(node), 
+                    (arp_hdr_t *)GET_ETHERNET_HDR_PAYLOAD(ethernet_hdr), iif);    
+
    /* Now, this node need to reply to this ARP Broadcast req
     * msg if Dst ip address in ARP req msg matches iif's ip address*/
 
-    if (arp_hdr->dst_ip != IF_IP(iif)) {
-        
-#if 0
-        tcp_ip_covert_ip_n_to_p(arp_hdr->dst_ip, arp_ip_addr_str);
-        tcp_ip_covert_ip_n_to_p(IF_IP(iif), intf_ip_addr_str);
-
-
-        cprintf("%s : Error : ARP Broadcast req msg dropped, "
-                "Dst IP address %s did not match with interface ip : %s\n", 
-                node->node_name, arp_ip_addr_str, intf_ip_addr_str);
-#endif
+     if (arp_hdr->dst_ip != IF_IP(iif)) {
         return;
-    }
+     }
 
    send_arp_reply_msg(ethernet_hdr, iif);
 }
@@ -341,7 +337,7 @@ arp_table_update_from_arp_reply(arp_table_t *arp_table,
     uint32_t src_ip = 0;
     glthread_t *arp_pending_list = NULL;
 
-    assert(arp_hdr->op_code == ARP_REPLY);
+    //assert(arp_hdr->op_code == ARP_REPLY);
 
     arp_entry_t *arp_entry = ( arp_entry_t *)XCALLOC(0, 1, arp_entry_t);
 
