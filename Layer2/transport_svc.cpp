@@ -54,12 +54,12 @@ bool
 TransportService::AttachInterface(Interface *intf) {
 
     if  (!intf->GetSwitchport() ) {
-        cprintf ("Error : Interface %s is not L2 interface\n", intf->if_name.c_str());
+        cprintf ("\nError : Interface %s is not L2 interface", intf->if_name.c_str());
         return false;
     }
 
     if (intf->GetL2Mode() == LAN_ACCESS_MODE) {
-        cprintf ("Error : Cant attach TSP to interface in Access Mode\n");
+        cprintf ("\nError : Cant attach TSP to interface in Access Mode");
         return false;
     }
 
@@ -74,9 +74,9 @@ TransportService::AttachInterface(Interface *intf) {
     }
 
     this->ifSet.insert (ifindex);
-    this->ref_count++;
     intf->SetL2Mode (LAN_TRUNK_MODE);
     phy_intf->trans_svc = this;
+    this->ref_count++;
     return true;
 }
 
@@ -156,7 +156,7 @@ std::string& svc_name) {
 
     /* Transport Svc must not be applied to any interface*/
     if (trans_svc->InUse()) {
-        cprintf ("Error : Transport Svc in Use, Cannot delete\n");
+        cprintf ("\nError : Transport Svc in Use, Cannot delete");
         return false;
     }
 
@@ -228,7 +228,7 @@ transport_svc_config_handler (int cmdcode,
                 if (enable_or_disable == CONFIG_DISABLE) return 0;
 
                 if ( !(tsp = TransportServiceCreate (node, tsp_name_cplus_string))) {
-                    cprintf ("Error : Failed to Create Transport Service Profile %s\n", tsp_name);
+                    cprintf ("\nError : Failed to Create Transport Service Profile %s", tsp_name);
                     return -1;
                 }
             }
@@ -237,7 +237,8 @@ transport_svc_config_handler (int cmdcode,
                 case CONFIG_ENABLE:
                     rc = tsp->AddVlan(vlan_id);
                     if (!rc) {
-                        printf ("Error : Failed to Add Vlan %d to Transport Service Profile %s\n", vlan_id, tsp_name);
+                        printf ("\nError : Failed to Add Vlan %d to Transport Service Profile %s",
+				vlan_id, tsp_name);
                         return -1;
                     }
                     break;
@@ -260,7 +261,7 @@ transport_svc_config_handler (int cmdcode,
                 if (enable_or_disable == CONFIG_DISABLE) return 0;
 
                 if (!(tsp = TransportServiceCreate (node, tsp_name_cplus_string))) {
-                    cprintf ("Error : Failed to Create Transport Service Profile %s\n", tsp_name);
+                    cprintf ("\nError : Failed to Create Transport Service Profile %s", tsp_name);
                     return -1;
                 }
             }
@@ -269,7 +270,7 @@ transport_svc_config_handler (int cmdcode,
                 case CONFIG_ENABLE:
                     rc = tsp->RemoveVlan(vlan_id);
                     if (!rc) {
-                        printf ("Error : Failed to Delete Vlan %d from Transport Service Profile %s\n", vlan_id, tsp_name);
+                        printf ("\nError : Failed to Delete Vlan %d from Transport Service Profile %s", vlan_id, tsp_name);
                         return -1;
                     }
                     break;
@@ -368,7 +369,6 @@ transport_svc_intf_config_handler (int cmdcode,
                                                          Stack_t *tlv_stack,
                                                          op_mode enable_or_disable) {
     
-    int vlan_id;
     node_t *node;
     tlv_struct_t *tlv;
     c_string tsp_name = NULL;
@@ -391,7 +391,7 @@ transport_svc_intf_config_handler (int cmdcode,
     Interface *intf = node_get_intf_by_name(node, (const char *)intf_name);
 
     if (!intf) {
-        cprintf("\n" "Error : Non Existing Interface Specified" "\n");
+        cprintf("\n" "Error : Non Existing Interface Specified");
         return -1;
     }
 
@@ -399,7 +399,7 @@ transport_svc_intf_config_handler (int cmdcode,
     TransportService *tsp = TransportServiceLookUp (node->TransPortSvcDB, tsp_name_cplus_string);
 
     if (!tsp) {
-        cprintf("\n" "Error : Non Existing Transport Service Profile Specified" "\n");
+        cprintf("\n" "Error : Non Existing Transport Service Profile Specified");
         return -1;
     }
 
@@ -410,14 +410,14 @@ transport_svc_intf_config_handler (int cmdcode,
             switch (enable_or_disable) {
                 case CONFIG_ENABLE:
                     if (!tsp->AttachInterface(intf)) {
-                        cprintf("Error : Failed to Attach Interface %s to Transport Service Profile %s\n", 
+                        cprintf("\nError : Failed to Attach Interface %s to Transport Service Profile %s", 
                             intf->if_name.c_str(), tsp_name);
                         return -1;
                     }
                     break;
                 case CONFIG_DISABLE:
                     if (!tsp->DeAttachInterface(intf)) {
-                        cprintf("Error : Failed to DeAttach Interface %s from Transport Service Profile %s\n",      
+                        cprintf("\nError : Failed to DeAttach Interface %s from Transport Service Profile %s",      
                             intf->if_name.c_str(), tsp_name);
                         return -1;
                     }
@@ -459,7 +459,6 @@ transport_svc_show_handler (int cmdcode,
 
     node_t *node;
     tlv_struct_t *tlv;
-    uint16_t vlan_id;
     c_string node_name = NULL;
     std::unordered_map<std::string , TransportService *> *TransPortSvcDB;
 
@@ -498,6 +497,65 @@ transport_svc_show_handler (int cmdcode,
 }
 
 
+static int
+show_vlan_members (int cmdcode, 
+                                    Stack_t *tlv_stack,
+                                    op_mode enable_or_disable) {
+
+    uint16_t i;
+    node_t *node;
+    tlv_struct_t *tlv;
+    c_string node_name = NULL;
+    std::unordered_map<std::string , TransportService *> *TransPortSvcDB;
+    std::unordered_map<std::uint16_t , VlanInterface *> *vlan_intf_db;
+
+    TLV_LOOP_STACK_BEGIN(tlv_stack, tlv){
+
+        if  (parser_match_leaf_id(tlv->leaf_id, "node-name"))
+            node_name = tlv->value;
+
+    } TLV_LOOP_END;
+
+    node = node_get_node_by_name(topo, node_name);
+   
+    vlan_intf_db = node->vlan_intf_db;
+
+    if (!vlan_intf_db) return 0;
+
+    TransPortSvcDB = node->TransPortSvcDB;
+
+    do {
+               
+        /* Iterate over vlan interface DB*/
+        for (auto it_vlan = vlan_intf_db->begin(); it_vlan != vlan_intf_db->end(); ++it_vlan) {
+
+            i = it_vlan->first;
+            cprintf (" vlan %d\n", i);
+
+            if (!TransPortSvcDB) continue;
+
+            VlanInterface *vlan_intf = it_vlan->second;
+            Interface *member_intf;
+
+            ITERATE_VLAN_MEMBER_PORTS_TRUNK_BEGIN(vlan_intf, member_intf) {
+
+                cprintf("  %s (Trunk)\n", member_intf->if_name.c_str());
+            
+            } ITERATE_VLAN_MEMBER_PORTS_TRUNK_END;
+
+            ITERATE_VLAN_MEMBER_PORTS_ACCESS_BEGIN(vlan_intf, member_intf) {
+
+                cprintf("  %s (Access)\n", member_intf->if_name.c_str());
+
+            } ITERATE_VLAN_MEMBER_PORTS_ACCESS_END;
+
+        }
+
+    } while (0);
+
+    return 0;
+}
+
 void
 show_node_transport_svc_cli_tree (param_t *param) {
 
@@ -507,6 +565,14 @@ show_node_transport_svc_cli_tree (param_t *param) {
         init_param(&transport_svc, CMD, "transport-service-profile", transport_svc_show_handler, 0, INVALID, 0, "transport-service-profile");
         libcli_register_param(param, &transport_svc);
         libcli_set_param_cmd_code(&transport_svc, CMDCODE_SHOW_TRANSPORT_SVC_PROFILE);
+    }
+
+    {
+        /* vlan-members */
+        static param_t vlan_members;
+        init_param(&vlan_members, CMD, "vlan-members", show_vlan_members, 0, INVALID, 0, "show vlan members");
+        libcli_register_param(param, &vlan_members);
+        libcli_set_param_cmd_code(&vlan_members, CMDCODE_SHOW_VLAN_MEMBERS);
     }
 
 }

@@ -126,4 +126,7 @@
 /* config node <node-name> interface vlan <vlan-id> <up|down> */
 #define CMDCODE_CONFIG_INTF_VLAN_UP_DOWN  50
 
+/* show vlan members */
+#define CMDCODE_SHOW_VLAN_MEMBERS   51
+
 #endif /* __CMDCODES__ */

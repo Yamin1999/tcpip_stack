@@ -20,6 +20,8 @@
 #include <memory.h>
 #include <pthread.h>
 #include <stdio.h>
+#include <vector>
+#include <algorithm>
 #include "../tcpconst.h"
 #include "../utils.h"
 #include "../BitOp/bitsop.h"
@@ -663,22 +665,39 @@ PhysicalInterface::IntfConfigVlan(uint32_t vlan_id, bool add)
             return false;
         }
 
-        if (this->vlans[0])
+        if (this->vlans[0] && this->access_vlan_intf)
             {
                 cprintf("Error : Access Mode Interface already in vlan %u\n", this->vlans[0]);
                 return false;
             }
+            
+            this->access_vlan_intf = VlanInterface::VlanInterfaceLookUp(this->att_node, vlan_id);
+            if (!this->access_vlan_intf) {
+                cprintf ("Error : Vlan Interface not found\n");
+                return false;
+            }
+            this->access_vlan_intf->access_member_intf_lst.push_back(this);
             this->vlans[0] = vlan_id;
             this->l2_mode = LAN_ACCESS_MODE;
             return true;
     }
     else
     {
-        if (this->vlans[0] == vlan_id)
+        if (this->vlans[0] == vlan_id &&  
+            this->access_vlan_intf->GetVlanId() == vlan_id)
             {
+                this->access_vlan_intf->access_member_intf_lst.erase(
+                    std::remove (this->access_vlan_intf->access_member_intf_lst.begin(), this->access_vlan_intf->access_member_intf_lst.end(), this),
+                    this->access_vlan_intf->access_member_intf_lst.end());
+
+                this->access_vlan_intf = NULL;
                 this->vlans[0] = 0;
                 this->l2_mode = LAN_MODE_NONE;
                 return true;
+            }
+            {
+                cprintf("Error : Interface not in vlan %u\n", vlan_id);
+                return false;
             }
     }
     return true;
@@ -725,6 +744,9 @@ void VirtualInterface::PrintInterfaceDetails()
 
     this->Interface::PrintInterfaceDetails();
 }
+
+
+
 
 /* ************ GRETunnelInterface ************ */
 GRETunnelInterface::GRETunnelInterface(uint32_t tunnel_id)
@@ -944,8 +966,7 @@ VlanInterface::VlanInterface(uint16_t vlan_id)
 
 VlanInterface::~VlanInterface() {
 
-    assert (this->access_intf_ref_count == 0);
-    assert (this->member_trans_svc.empty());
+    assert (this->access_member_intf_lst.empty());
 }
 
 void 
@@ -955,6 +976,7 @@ VlanInterface::PrintInterfaceDetails() {
     int vec_size;
     byte ip_str[16];
     TransportService *tsp;
+    Interface *member_ports;
 
     cprintf("Vlan Id : %u\n", this->vlan_id);\
 
@@ -962,21 +984,25 @@ VlanInterface::PrintInterfaceDetails() {
         cprintf("  IP Addr : %s/%d\n", tcp_ip_covert_ip_n_to_p(this->ip_addr, ip_str), this->mask);
     }
 
-    cprintf("  Access Intf Ref Count : %u\n", this->access_intf_ref_count);
+    cprintf ("Trunk Member Ports: \n");
 
-    /* Print member ports */
-    vec_size = this->member_trans_svc.size();
+    ITERATE_VLAN_MEMBER_PORTS_TRUNK_BEGIN(this, member_ports) {
 
-    for (i = 0; i < vec_size; i++) {
-        tsp = this->member_trans_svc[i];
-        for (auto it = tsp->ifSet.begin(); it != tsp->ifSet.end(); ++it)
-        {
-            cprintf("  %s\n", node_get_intf_by_ifindex(this->att_node, *it)->if_name.c_str());
-        }
-    }
+        cprintf ("  %s\n", member_ports->if_name.c_str());
+
+    } ITERATE_VLAN_MEMBER_PORTS_TRUNK_END;
+
+    cprintf("  Access Member Ports: \n");
+
+    ITERATE_VLAN_MEMBER_PORTS_ACCESS_BEGIN(this, member_ports) {
+
+        cprintf ("  %s\n", member_ports->if_name.c_str());
+
+    } ITERATE_VLAN_MEMBER_PORTS_ACCESS_END;
 
     this->VirtualInterface::PrintInterfaceDetails();
 }
+
 
 void 
 VlanInterface::InterfaceSetIpAddressMask(uint32_t ip_addr, uint8_t mask) {
@@ -1016,7 +1042,7 @@ VlanInterface::GetVlanId() {
     return (uint32_t)this->vlan_id;
 }
 
-Interface *
+VlanInterface *
 VlanInterface::VlanInterfaceLookUp(node_t *node, uint32_t vlan_id) {
 
     VlanInterface *vlan_intf = NULL;

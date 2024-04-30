@@ -344,13 +344,11 @@ build_dualswitch_topo(void){
     node_set_intf_vlan_membership(L2SW1, "eth7", 10);
     node_set_intf_switchport(L2SW1, "eth5");
     node_set_intf_vlan_membership(L2SW1, "eth5", 10);
-    //node_set_intf_vlan_membership(L2SW1, "eth5", 10);
     node_set_intf_switchport(L2SW1, "eth6");
     node_set_intf_vlan_membership(L2SW1, "eth6", 10);
 
     node_set_intf_switchport(L2SW2, "eth7");
     node_set_intf_vlan_membership(L2SW2, "eth7", 10);
-    //node_set_intf_vlan_membership(L2SW2, "eth7", 10);
     node_set_intf_switchport(L2SW2, "eth9");
     node_set_intf_vlan_membership(L2SW2, "eth9", 10);
     node_set_intf_switchport(L2SW2, "eth10");

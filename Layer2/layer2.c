@@ -94,6 +94,19 @@ node_set_intf_vlan_membership(node_t *node,
     TransportService *tsp = TransportServiceCreate(node, def_tsp_name);
     tsp->AddVlan(vlan_id);
     tsp->AttachInterface(interface);
+
+    /* Create VLAN also*/
+    VlanInterface *vlan_intf =
+                    static_cast<VlanInterface *>(VlanInterface::VlanInterfaceLookUp(node, vlan_id));
+
+    if(!vlan_intf){
+        vlan_intf = new VlanInterface(vlan_id);
+        vlan_intf->att_node = node;
+        if (!node->vlan_intf_db) {
+            node->vlan_intf_db = new std::unordered_map<uint16_t, VlanInterface *>;
+        }
+        node->vlan_intf_db->insert(std::make_pair(vlan_id, vlan_intf));
+    }
 }
 
 static void

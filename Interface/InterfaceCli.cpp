@@ -140,31 +140,10 @@ intf_config_handler(int cmdcode, Stack_t *tlv_stack,
         interface = node_get_intf_by_name(node, (const char *)intf_name);
     }
 
-    switch (cmdcode) {
-        case CMDCODE_INTF_CONFIG_LOOPBACK:
-            switch (enable_or_disable) {
-                case CONFIG_ENABLE:
-                    break;
-                case CONFIG_DISABLE:
-                    if (!interface) {
-                        cprintf("Error : Interface do not exist\n");
-                        return -1;
-                    }
-                    break;
-                default:
-                    break;
-            }
-        break;
-        default:
-            if (!interface) {
-                cprintf("Error : Interface do not exist\n");
-                return -1;
-            }
-            break;
-    }
-
     uint32_t if_change_flags = 0;
+
     switch(cmdcode){
+
         case CMDCODE_INTF_CONFIG_METRIC:
         {
             uint32_t intf_existing_metric = interface->GetIntfCost();
@@ -266,6 +245,10 @@ intf_config_handler(int cmdcode, Stack_t *tlv_stack,
                 if (vlan_intf)
                     return 0;
                 vlan_intf = new VlanInterface(vlan_id);
+                vlan_intf->att_node = node;
+                if (!node->vlan_intf_db) {
+                    node->vlan_intf_db = new std::unordered_map<uint16_t, VlanInterface *>;
+                }
                 node->vlan_intf_db->insert(std::make_pair(vlan_id, vlan_intf));
             }
             break;
@@ -275,7 +258,7 @@ intf_config_handler(int cmdcode, Stack_t *tlv_stack,
                     static_cast<VlanInterface *>(VlanInterface::VlanInterfaceLookUp(node, vlan_id));
                 if (!vlan_intf)
                     return 0;
-                if (vlan_intf->access_intf_ref_count || vlan_intf->member_trans_svc.size())
+                if (!vlan_intf->access_member_intf_lst.empty())
                 {
                     cprintf("Error : Vlan is in use\n");
                     return -1;
@@ -365,7 +348,7 @@ vlan_cli_config_tree(param_t *root)
             static param_t vlan_id;
             init_param(&vlan_id, LEAF, 0, intf_config_handler, validate_vlan_id, INT, "vlan-id", "vlan id(1-4096)");
             libcli_register_param(&vlan, &vlan_id);
-            libcli_set_param_cmd_code(&vlan_id, CMDCODE_INTF_CONFIG_VLAN);
+            libcli_set_param_cmd_code(&vlan_id, CMDCODE_CONFIG_INTF_VLAN_CREATE);
             {
                 /*config node <node-name> interface vlan <vlan-id> ip address <ip-addr> <mask>*/
                 static param_t ip_addr;

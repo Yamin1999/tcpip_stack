@@ -58,6 +58,7 @@ typedef struct node_ node_t;
 typedef struct link_ link_t;
 class Interface;
 class TransportService;
+class VlanInterface;
 
 typedef struct spf_data_ spf_data_t;
 typedef struct pkt_tracer_ pkt_tracer_t;

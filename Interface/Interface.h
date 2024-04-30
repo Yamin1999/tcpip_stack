@@ -110,7 +110,7 @@ class Interface {
 
 
 /* ************ */
-
+class VlanInterface;
 class PhysicalInterface : public Interface {
 
     private:
@@ -128,7 +128,10 @@ class PhysicalInterface : public Interface {
     public:
          uint16_t used_as_underlying_tunnel_intf;
          uint32_t vlans[INTF_MAX_VLAN_MEMBERSHIP];  
+
+        /* Below two are mutually exclusive */
         TransportService *trans_svc;
+        VlanInterface *access_vlan_intf;
 
         PhysicalInterface(std::string ifname, InterfaceType_t iftype, mac_addr_t *mac_add);
         ~PhysicalInterface();
@@ -186,7 +189,7 @@ class VlanInterface : public VirtualInterface {
         uint32_t ip_addr;
         uint8_t mask;
         /* Number of access mode interfaces using this LAN*/
-        uint8_t access_intf_ref_count;
+        std::vector<PhysicalInterface *> access_member_intf_lst;
         VlanInterface(uint16_t vlan_id);
          ~VlanInterface();
         virtual void PrintInterfaceDetails ();
@@ -195,8 +198,7 @@ class VlanInterface : public VirtualInterface {
         virtual bool IsIpConfigured() final;
         virtual uint32_t GetVlanId() final;
         virtual bool IsSameSubnet(uint32_t ip_addr) final;
-        std::vector<TransportService *> member_trans_svc;
-        static Interface *VlanInterfaceLookUp(node_t *node, uint32_t vlan_id);
+        static VlanInterface *VlanInterfaceLookUp(node_t *node, uint32_t vlan_id);
 };
 
 
