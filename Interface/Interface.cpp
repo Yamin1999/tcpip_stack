@@ -180,7 +180,6 @@ SendPacketOutLAN(PhysicalInterface *Intf, pkt_block_t *pkt_block)
         if (pkt_vlan_id &&
             Intf->IsVlanTrunked(pkt_vlan_id))
         {
-
             return send_xmit_out(Intf, pkt_block);
         }
 
@@ -390,7 +389,6 @@ PhysicalInterface::PhysicalInterface(std::string ifname, InterfaceType_t iftype,
         memcpy(this->mac_add.mac, mac_add->mac, sizeof(*mac_add));
     }
     this->l2_mode = LAN_MODE_NONE;
-    memset(vlans, 0, sizeof(vlans));
     this->ip_addr = 0;
     this->mask = 0;
     this->cost = INTF_METRIC_DEFAULT;
@@ -491,23 +489,14 @@ PhysicalInterface::L2ModeToString(IntfL2Mode l2_mode)
 
 bool PhysicalInterface::IsVlanTrunked(uint32_t vlan_id)
 {
-
-    int i;
-
-    if (!this->switchport)
-        return false;
-
-    for (i = 0; i < INTF_MAX_VLAN_MEMBERSHIP; i++)
-    {
-        if (this->vlans[i] == vlan_id)
-            break;
+    TransportService *tsp = this->trans_svc;
+    if (!tsp) return false;
+    for (auto it = tsp->vlanSet.begin(); it != tsp->vlanSet.end(); ++it) {
+        if (*it == vlan_id) return true;
     }
-
-    if (i == INTF_MAX_VLAN_MEMBERSHIP)
-        return false;
-
-    return (this->l2_mode == LAN_TRUNK_MODE);
+    return false;
 }
+
 
 uint32_t
 PhysicalInterface::GetVlanId()
@@ -515,7 +504,7 @@ PhysicalInterface::GetVlanId()
 
     if (this->l2_mode == LAN_MODE_NONE)
         return 0;
-    return this->vlans[0];
+    return this->access_vlan_intf->GetVlanId();
 }
 
 void PhysicalInterface::SetSwitchport(bool enable)
@@ -536,13 +525,11 @@ void PhysicalInterface::SetSwitchport(bool enable)
     {
         this->InterfaceSetIpAddressMask(0, 0);
         this->l2_mode = LAN_MODE_NONE;
-        memset(vlans, 0, sizeof(vlans));
         this->iftype = INTF_TYPE_LAN;
     }
     else
     {
         this->l2_mode = LAN_MODE_NONE;
-        memset(vlans, 0, sizeof(vlans));
         this->iftype = INTF_TYPE_P2P;
     }
 }
@@ -665,9 +652,9 @@ PhysicalInterface::IntfConfigVlan(uint32_t vlan_id, bool add)
             return false;
         }
 
-        if (this->vlans[0] && this->access_vlan_intf)
+        if (this->access_vlan_intf)
             {
-                cprintf("Error : Access Mode Interface already in vlan %u\n", this->vlans[0]);
+                cprintf("Error : Access Mode Interface already in vlan %u\n", this->access_vlan_intf->GetVlanId());
                 return false;
             }
             
@@ -677,21 +664,18 @@ PhysicalInterface::IntfConfigVlan(uint32_t vlan_id, bool add)
                 return false;
             }
             this->access_vlan_intf->access_member_intf_lst.push_back(this);
-            this->vlans[0] = vlan_id;
             this->l2_mode = LAN_ACCESS_MODE;
             return true;
     }
     else
     {
-        if (this->vlans[0] == vlan_id &&  
-            this->access_vlan_intf->GetVlanId() == vlan_id)
+        if (this->access_vlan_intf->GetVlanId() == vlan_id)
             {
                 this->access_vlan_intf->access_member_intf_lst.erase(
                     std::remove (this->access_vlan_intf->access_member_intf_lst.begin(), this->access_vlan_intf->access_member_intf_lst.end(), this),
                     this->access_vlan_intf->access_member_intf_lst.end());
 
                 this->access_vlan_intf = NULL;
-                this->vlans[0] = 0;
                 this->l2_mode = LAN_MODE_NONE;
                 return true;
             }
@@ -1055,4 +1039,51 @@ VlanInterface::VlanInterfaceLookUp(node_t *node, uint32_t vlan_id) {
         vlan_intf = it->second;
     }
     return vlan_intf;
+}
+
+/* Vlan interface can have member ports which are : 
+    1. Physical ports 
+        1.a access mode
+          If Pkt is untagged, drop it
+          If pkt is tagged but with different vlan id, drop it
+          If pkt is tagged with same vlan id, untag it and send it out
+        1.b Trunk mode    
+           If pkt is tagged with vlan id, and vlan id is part of trunk, send it out
+           Else drop the pkt
+*/
+
+int 
+VlanInterface::SendPacketOut(pkt_block_t *pkt_block) {
+
+    pkt_size_t pkt_size;
+    Interface *member_intf;
+    pkt_block_t *dup_pkt_block;
+
+    ethernet_hdr_t *ethernet_hdr =
+        (ethernet_hdr_t *)pkt_block_get_pkt(pkt_block, &pkt_size);
+
+    vlan_8021q_hdr_t *vlan_8021q_hdr = is_pkt_vlan_tagged(ethernet_hdr);
+
+   if (!vlan_8021q_hdr ||
+                (GET_802_1Q_VLAN_ID(vlan_8021q_hdr) !=  this->GetVlanId())) return 0;
+
+   dup_pkt_block = pkt_block_dup(pkt_block);
+
+   untag_pkt_with_vlan_id(dup_pkt_block);
+
+   ITERATE_VLAN_MEMBER_PORTS_ACCESS_BEGIN(this, member_intf)
+   {
+       send_xmit_out(member_intf, dup_pkt_block);
+   }
+   ITERATE_VLAN_MEMBER_PORTS_ACCESS_END;
+
+   pkt_block_free(dup_pkt_block);
+
+   ITERATE_VLAN_MEMBER_PORTS_TRUNK_BEGIN(this, member_intf)
+   {
+       send_xmit_out(member_intf, pkt_block);
+    } 
+    ITERATE_VLAN_MEMBER_PORTS_TRUNK_END;
+
+    return 0;
 }

@@ -127,7 +127,7 @@ process_arp_reply_msg(node_t *node, Interface *iif,
 /* Fn is not suppose to modify the input pkt */
 void
 process_arp_broadcast_request(node_t *node, Interface *iif, 
-                              ethernet_hdr_t *ethernet_hdr){
+                                                    ethernet_hdr_t *ethernet_hdr){
 
     byte intf_ip_addr_str[16];
     byte arp_ip_addr_str[16];
@@ -337,8 +337,6 @@ arp_table_update_from_arp_reply(arp_table_t *arp_table,
     uint32_t src_ip = 0;
     glthread_t *arp_pending_list = NULL;
 
-    //assert(arp_hdr->op_code == ARP_REPLY);
-
     arp_entry_t *arp_entry = ( arp_entry_t *)XCALLOC(0, 1, arp_entry_t);
 
     tcp_ip_covert_ip_n_to_p(arp_hdr->src_ip, arp_entry->ip_addr.ip_addr);
@@ -479,7 +477,7 @@ create_arp_sane_entry(node_t *node,
     add_arp_pending_entry(arp_entry, 
                           pending_arp_processing_callback_function, 
                           pkt_block);
-    assert(arp_table_entry_add(node, arp_table, arp_entry, 0));
+    assert (arp_table_entry_add(node, arp_table, arp_entry, 0));
 }
 
 static void

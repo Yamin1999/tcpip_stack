@@ -167,7 +167,7 @@ void dump_intf_props (Interface *interface){
         if (phyIntf) {
 
             if (interface->GetL2Mode() == LAN_ACCESS_MODE) {
-                cprintf("\t vlan membership : %u", phyIntf->vlans[0]);
+                cprintf("\t vlan membership : %u", phyIntf->access_vlan_intf->GetVlanId());
             }
             else if (interface->GetL2Mode() == LAN_TRUNK_MODE) {
                 cprintf ("\t transport svc profile : %s", phyIntf->trans_svc->trans_svc.c_str());

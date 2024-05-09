@@ -127,7 +127,6 @@ class PhysicalInterface : public Interface {
     protected:
     public:
          uint16_t used_as_underlying_tunnel_intf;
-         uint32_t vlans[INTF_MAX_VLAN_MEMBERSHIP];  
 
         /* Below two are mutually exclusive */
         TransportService *trans_svc;
@@ -199,6 +198,7 @@ class VlanInterface : public VirtualInterface {
         virtual uint32_t GetVlanId() final;
         virtual bool IsSameSubnet(uint32_t ip_addr) final;
         static VlanInterface *VlanInterfaceLookUp(node_t *node, uint32_t vlan_id);
+        virtual int SendPacketOut(pkt_block_t *pkt_block) final;
 };
 
 
