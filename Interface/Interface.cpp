@@ -378,6 +378,13 @@ bool Interface::IsSameSubnet(uint32_t ip_addr)
      TO_BE_OVERRIDDEN_BY_DERIEVED_CLASS;
 }
 
+bool 
+Interface:: IsInterfaceUp(uint16_t vlan_id) {
+
+        TO_BE_OVERRIDDEN_BY_DERIEVED_CLASS;
+}
+
+
 /* ************ PhysicalInterface ************ */
 PhysicalInterface::PhysicalInterface(std::string ifname, InterfaceType_t iftype, mac_addr_t *mac_add)
     : Interface(ifname, iftype)
@@ -501,10 +508,15 @@ bool PhysicalInterface::IsVlanTrunked(uint32_t vlan_id)
 uint32_t
 PhysicalInterface::GetVlanId()
 {
-
     if (this->l2_mode == LAN_MODE_NONE)
         return 0;
-    return this->access_vlan_intf->GetVlanId();
+
+     if (this->l2_mode == LAN_ACCESS_MODE) {
+        return this->access_vlan_intf->GetVlanId();
+     }
+
+     assert (0);
+     return 0;
 }
 
 void PhysicalInterface::SetSwitchport(bool enable)
@@ -519,7 +531,10 @@ void PhysicalInterface::SetSwitchport(bool enable)
         return;
     }
 
-    this->switchport = enable;
+    if (enable && this->IsIpConfigured()) {
+        cprintf("Error : Remove L3 config first\n");
+        return;
+    }
 
     if (enable)
     {
@@ -529,9 +544,15 @@ void PhysicalInterface::SetSwitchport(bool enable)
     }
     else
     {
+        if (this->access_vlan_intf || this->trans_svc) {
+            cprintf("Error : Remove L2 Config first\n");
+            this->switchport = true;
+            return;
+        }
         this->l2_mode = LAN_MODE_NONE;
         this->iftype = INTF_TYPE_P2P;
     }
+    this->switchport = enable;
 }
 
 bool PhysicalInterface::GetSwitchport()
@@ -584,14 +605,14 @@ void PhysicalInterface::SetL2Mode(IntfL2Mode l2_mode)
     if (this->l2_mode == l2_mode)
         return;
 
-    if (this->l2_mode != LAN_MODE_NONE)
+    if (l2_mode != LAN_MODE_NONE &&
+             this->l2_mode != LAN_MODE_NONE)
     {
         cprintf("Error : Remove configured L2 Mode first\n");
         return;
     }
 
     this->l2_mode = l2_mode;
-    this->switchport = true;
 }
 
 bool
@@ -652,20 +673,25 @@ PhysicalInterface::IntfConfigVlan(uint32_t vlan_id, bool add)
             return false;
         }
 
+        if (this->access_vlan_intf && 
+                this->access_vlan_intf->GetVlanId() == vlan_id) return true;
+
         if (this->access_vlan_intf)
-            {
-                cprintf("Error : Access Mode Interface already in vlan %u\n", this->access_vlan_intf->GetVlanId());
-                return false;
-            }
-            
-            this->access_vlan_intf = VlanInterface::VlanInterfaceLookUp(this->att_node, vlan_id);
-            if (!this->access_vlan_intf) {
-                cprintf ("Error : Vlan Interface not found\n");
-                return false;
-            }
-            this->access_vlan_intf->access_member_intf_lst.push_back(this);
-            this->l2_mode = LAN_ACCESS_MODE;
-            return true;
+        {
+            cprintf("Error : Access Mode Interface already in vlan %u\n", this->access_vlan_intf->GetVlanId());
+            return false;
+        }
+
+        this->access_vlan_intf = VlanInterface::VlanInterfaceLookUp(this->att_node, vlan_id);
+        
+        if (!this->access_vlan_intf)
+        {
+            cprintf("Error : Vlan Interface not found\n");
+            return false;
+        }
+        this->access_vlan_intf->access_member_intf_lst.push_back(this);
+        this->l2_mode = LAN_ACCESS_MODE;
+        return true;
     }
     else
     {
@@ -707,6 +733,31 @@ bool PhysicalInterface::IsSameSubnet(uint32_t ip_addr)
     return ((intf_ip_addr & subnet_mask) == (ip_addr & subnet_mask));
 }
 
+bool 
+PhysicalInterface:: IsInterfaceUp(uint16_t vlan_id) {
+
+    if (!this->is_up) return false;
+
+    if (this->IsIpConfigured()) return this->is_up;
+    
+    if (this->switchport && vlan_id) {
+
+        if (this->access_vlan_intf) {
+            return this->access_vlan_intf->IsInterfaceUp(vlan_id);
+        }
+        else {
+            VlanInterface *vlan_intf = VlanInterface::VlanInterfaceLookUp(this->att_node, vlan_id);
+            if (vlan_intf) {
+                return vlan_intf->IsInterfaceUp(vlan_id);
+            }
+        }
+    }
+    return true;
+}
+
+
+
+
 /* ************ Virtual Interface ************ */
 VirtualInterface::VirtualInterface(std::string ifname, InterfaceType_t iftype)
     : Interface(ifname, iftype)
@@ -729,6 +780,11 @@ void VirtualInterface::PrintInterfaceDetails()
     this->Interface::PrintInterfaceDetails();
 }
 
+bool 
+VirtualInterface::IsInterfaceUp(uint16_t vlan_id) {
+
+    TO_BE_OVERRIDDEN_BY_DERIEVED_CLASS;
+}
 
 
 
@@ -934,6 +990,13 @@ int GRETunnelInterface::SendPacketOut(pkt_block_t *pkt_block)
     return 0;
 }
 
+bool 
+GRETunnelInterface::IsInterfaceUp(uint16_t vlan_id) {
+
+    return this->is_up;
+}
+
+
 /* ************ VlanInterface ************ */
 
 VlanInterface::VlanInterface(uint16_t vlan_id)
@@ -1086,4 +1149,10 @@ VlanInterface::SendPacketOut(pkt_block_t *pkt_block) {
     ITERATE_VLAN_MEMBER_PORTS_TRUNK_END;
 
     return 0;
+}
+
+bool 
+VlanInterface::IsInterfaceUp(uint16_t vlan_id) {
+
+    return this->is_up;
 }

@@ -70,7 +70,7 @@ void
 node_set_intf_switchport(node_t *node, const char *intf_name) ;
 
 void
-node_set_intf_vlan_membership(node_t *node, const char *intf_name, uint32_t vlan_id);
+node_set_intf_vlan_membership(node_t *node, const char *intf_name, uint32_t vlan_id, bool IsTrunk);
 
 /*VLAN support*/
 

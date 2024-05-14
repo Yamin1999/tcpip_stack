@@ -86,20 +86,35 @@ node_set_intf_switchport(node_t *node,
 void
 node_set_intf_vlan_membership(node_t *node, 
                                                      const char *intf_name, 
-                                                     uint32_t vlan_id){
+                                                     uint32_t vlan_id,
+                                                     bool Trunk){
 
     Interface *interface = node_get_intf_by_name(node, intf_name);
     assert(interface);
-    std::string def_tsp_name(std::string(reinterpret_cast<const char *>(DEFAULT_TSP)));
-    TransportService *tsp = TransportServiceCreate(node, def_tsp_name);
-    tsp->AddVlan(vlan_id);
-    tsp->AttachInterface(interface);
+
+    if (interface->GetL2Mode() == LAN_ACCESS_MODE &&
+            Trunk == true) {
+         cprintf ("Error : Interface %s already in Access mode, cannot be trunked\n", intf_name);
+        return;
+    }
+
+    if (interface->GetL2Mode() == LAN_TRUNK_MODE &&
+            Trunk == false) {
+         cprintf ("Error : Interface %s already in Trunk mode, cannot be accessed\n", intf_name);
+        return;
+    }
+
+    if (interface->GetSwitchport() == false) {
+         cprintf ("Error : Interface %s is not switchport enabled\n", intf_name);
+        return;
+    }
 
     /* Create VLAN also*/
     VlanInterface *vlan_intf =
                     static_cast<VlanInterface *>(VlanInterface::VlanInterfaceLookUp(node, vlan_id));
 
-    if(!vlan_intf){
+    if(!vlan_intf) {
+
         vlan_intf = new VlanInterface(vlan_id);
         vlan_intf->att_node = node;
         if (!node->vlan_intf_db) {
@@ -107,6 +122,17 @@ node_set_intf_vlan_membership(node_t *node,
         }
         node->vlan_intf_db->insert(std::make_pair(vlan_id, vlan_intf));
     }
+
+    if (Trunk) {
+        std::string def_tsp_name(std::string(reinterpret_cast<const char *>(DEFAULT_TSP)));
+        TransportService *tsp = TransportServiceCreate(node, def_tsp_name);
+        tsp->AddVlan(vlan_id);
+        tsp->AttachInterface(interface);
+    }
+    else {
+        interface->IntfConfigVlan (vlan_id, true);
+    }
+
 }
 
 static void

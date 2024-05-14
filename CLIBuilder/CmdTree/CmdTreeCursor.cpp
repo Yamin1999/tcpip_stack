@@ -858,8 +858,8 @@ cmdt_cursor_process_space (cmd_tree_cursor_t *cmdtc) {
                         (int)GET_CMD_NAME(param)[cmdtc->icursor]);
             }
             /* Disable below line if you dont want to 
-                display next options on auto-completion */
-            cmdtc_cursor_display_options (cmdtc);
+               display next options on auto-completion */
+            //cmdtc_cursor_display_options (cmdtc);
             return cmdt_cursor_no_match_further;
 
 

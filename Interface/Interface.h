@@ -104,6 +104,7 @@ class Interface {
         virtual bool IsSameSubnet (uint32_t ip_addr);
         virtual bool IntfConfigTransportSvc(std::string& trans_svc);
         virtual bool IntfUnConfigTransportSvc(std::string& trans_svc);
+        virtual bool IsInterfaceUp(uint16_t vlan_id);
 };
 
 
@@ -153,6 +154,7 @@ class PhysicalInterface : public Interface {
         virtual bool IsSameSubnet (uint32_t ip_addr) final;
         virtual bool IntfConfigTransportSvc(std::string& trans_svc) final;
         virtual bool IntfUnConfigTransportSvc(std::string& trans_svc) final;
+        virtual bool IsInterfaceUp(uint16_t vlan_id) final;
 };
 
 typedef struct linkage_ {
@@ -172,6 +174,7 @@ class VirtualInterface : public Interface {
         ~VirtualInterface();
     public:
         virtual void PrintInterfaceDetails ();
+        virtual bool IsInterfaceUp(uint16_t vlan_id);
 };
 
 
@@ -199,6 +202,7 @@ class VlanInterface : public VirtualInterface {
         virtual bool IsSameSubnet(uint32_t ip_addr) final;
         static VlanInterface *VlanInterfaceLookUp(node_t *node, uint32_t vlan_id);
         virtual int SendPacketOut(pkt_block_t *pkt_block) final;
+        virtual bool IsInterfaceUp(uint16_t vlan_id) final;
 };
 
 
@@ -241,6 +245,7 @@ public:
     virtual bool IsIpConfigured() final;
     virtual bool IsSameSubnet(uint32_t ip_addr);
     virtual mac_addr_t * GetMacAddr() final;
+    virtual bool IsInterfaceUp(uint16_t vlan_id) final;
 };
 
 
