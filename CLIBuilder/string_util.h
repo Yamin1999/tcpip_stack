@@ -61,6 +61,9 @@ grep (char string[], int string_size, char pattern[]);
 uint64_t
 string_fetch_integer(char *string, int string_size, int index);
 
+void 
+string_fetch_string(char *string, int string_size, int index, char *buff_out);
+
 #define PRINT_TABS(n)     \
 do{                       \
    unsigned short _i = 0; \

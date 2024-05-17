@@ -298,6 +298,35 @@ string_fetch_integer(char *string, int string_size, int index) {
     return 0;
 }
 
+void 
+string_fetch_string(char *string, int string_size, int index, char *buff_out) {
+
+    int count = 0;
+    char *token;
+    buff_out[0] = '\0';
+    
+    if (!string_size) return;
+
+    char *temp_buff = (char *)calloc(1, string_size);
+    memcpy(temp_buff, string, string_size);
+    
+    token = strtok(temp_buff, " ");
+
+    while (token) {
+
+        count++;
+        if (index == count) {
+            strncpy(buff_out, token, strlen(token));
+            free(temp_buff);
+            return;
+        }
+        
+        token = strtok(NULL, " ");
+    }
+    free(temp_buff);
+    return;
+} 
+
 #if 0
 int 
 main(int argc, char **argv) {

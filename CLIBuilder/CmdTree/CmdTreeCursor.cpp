@@ -1481,9 +1481,9 @@ void
 cmd_tree_post_cli_trigger (cmd_tree_cursor_t *cmdtc) {
 
     if (cmdtc->success) {
-        attron (COLOR_PAIR(GREEN_ON_BLACK));
-        printw ("\nParse Success\n");
-        attroff (COLOR_PAIR(GREEN_ON_BLACK));
+        //attron (COLOR_PAIR(GREEN_ON_BLACK));
+        //printw ("\nParse Success\n");
+        //attroff (COLOR_PAIR(GREEN_ON_BLACK));
     }
     else {
         attron (COLOR_PAIR(RED_ON_BLACK));

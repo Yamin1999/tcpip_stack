@@ -1025,7 +1025,7 @@ VlanInterface::PrintInterfaceDetails() {
     TransportService *tsp;
     Interface *member_ports;
 
-    cprintf("Vlan Id : %u\n", this->vlan_id);\
+    cprintf("Vlan Id : %u\n", this->vlan_id);
 
     if (this->IsIpConfigured()) {
         cprintf("  IP Addr : %s/%d\n", tcp_ip_covert_ip_n_to_p(this->ip_addr, ip_str), this->mask);
