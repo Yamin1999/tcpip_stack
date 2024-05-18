@@ -5,8 +5,7 @@
 #include "../LinuxMemoryManager/uapi_mm.h"
 #include "prefixlst.h"
 #include "../utils.h"
-#include "../CommandParser/libcli.h"
-#include "../CommandParser/cmdtlv.h"
+#include "../CLIBuilder/libcli.h"
 #include "../cmdcodes.h"
 
 extern graph_t *topo;
@@ -88,7 +87,7 @@ prefix_list_add_rule (prefix_list_t *prefix_lst,
     if (pfx_lst_node_existing) {
         XFREE(pfx_lst_node);
         pfx_lst_node = NULL;
-        printf ("Error : This Prefix list rule already exists\n");
+        cprintf ("Error : This Prefix list rule already exists\n");
         return false;
     }
 
@@ -124,11 +123,12 @@ prefix_list_del_rule (prefix_list_t *prefix_lst,
 }
 
 static void
-print_pfx_lst_node ( pfx_lst_node_t *pfx_lst_node) {
+print_pfx_lst_node ( prefix_list_t *prefix_lst, pfx_lst_node_t *pfx_lst_node) {
 
     unsigned char out_buff[16];
 
-    printf ("%s %u %s/%d ge %d le %d (hit-count = %lu)\n",  
+    cprintf ("prefix-list %s %s %u %s/%d ge %d le %d (hit-count = %lu)\n",  
+        prefix_lst->name,
         pfx_lst_node->res == PFX_LST_DENY ? "deny" : "permit",
         pfx_lst_node->seq_no,
         tcp_ip_covert_ip_n_to_p(pfx_lst_node->pfx,  out_buff),
@@ -148,9 +148,7 @@ prefix_list_show (prefix_list_t *prefix_lst) {
     ITERATE_GLTHREAD_BEGIN(&prefix_lst->pfx_lst_head, curr) {
 
         pfx_lst_node = glue_to_pfx_lst_node(curr);
-
-        printf ("prefix-list %s ", prefix_lst->name);
-        print_pfx_lst_node (pfx_lst_node);
+        print_pfx_lst_node (prefix_lst, pfx_lst_node);
 
      } ITERATE_GLTHREAD_END(&prefix_lst->pfx_lst_head, curr);
 }
@@ -221,8 +219,8 @@ prefix_list_evaluate (uint32_t prefix, uint8_t len, prefix_list_t *prefix_lst) {
 }
 
 static int
-prefix_lst_config_handler (param_t *param, 
-                                           ser_buff_t *tlv_buf,
+prefix_lst_config_handler (int cmdcode,
+                                           Stack_t *tlv_stack,
                                            op_mode enable_or_disable){
 
     bool new_pfx_lst;
@@ -236,7 +234,7 @@ prefix_lst_config_handler (param_t *param,
 
     char *nw_prefix = NULL;
 
-    TLV_LOOP_BEGIN(tlv_buf, tlv){
+    TLV_LOOP_STACK_BEGIN(tlv_stack, tlv){
 
         if(parser_match_leaf_id(tlv->leaf_id, "node-name"))
             node_name = tlv->value; 
@@ -275,7 +273,7 @@ prefix_lst_config_handler (param_t *param,
                     {
                         remove_glthread(&prefix_lst->glue);
                         prefix_list_dereference(prefix_lst);
-                        printf("Delete Successful.\n");
+                        cprintf("Delete Successful.\n");
                     }
                 }
                 return 0;
@@ -285,27 +283,23 @@ prefix_lst_config_handler (param_t *param,
             if (!prefix_list_is_in_use(prefix_lst)) {
                 remove_glthread(&prefix_lst->glue);
                 prefix_list_dereference(prefix_lst);
-                printf ("Delete Successful.\n");
+                cprintf ("Delete Successful.\n");
             }
             else {
-                printf ("Error : Prefix List in Use, cannot delete\n");
+                cprintf ("Error : Prefix List in Use, cannot delete\n");
             }
         }
         return 0;
     }
     /* Handle negation CLI Done */
 
-    if (nw_prefix == NULL || res_str == NULL) {
-        printf ("Error : Incomplete Prefix List\n");
+    if (res_str == NULL) {
+        cprintf ("Error : Incomplete Prefix List\n");
         return -1;
     }
 
     pfx_lst_result_t res = (strcmp (res_str, "permit") == 0) ? PFX_LST_PERMIT : PFX_LST_DENY;
 
-    if (nw_prefix == NULL) {
-        printf ("Error : Incomplete Prefix List\n");
-        return -1;
-    }
 
     if (!prefix_lst) {
 
@@ -317,10 +311,10 @@ prefix_lst_config_handler (param_t *param,
     if (!prefix_list_add_rule (prefix_lst,
                                              seq_no,
                                              res, 
-                                             tcp_ip_covert_ip_p_to_n(nw_prefix),
+                                             nw_prefix ? tcp_ip_covert_ip_p_to_n(nw_prefix) : 0,
                                              len, lb, ub)) {
         
-        printf ("Error : Rule Could not be configured\n");
+        cprintf ("Error : Rule Could not be configured\n");
 
         if (new_pfx_lst) {
             XFREE(prefix_lst);
@@ -341,16 +335,16 @@ prefix_lst_config_handler (param_t *param,
 }
 
 static int
-prefix_lst_validate_input_result_value(char *value) {
+prefix_lst_validate_input_result_value(Stack_t *tlv_stack, char *value) {
 
     if (strcmp(value, "permit") == 0 || 
             strcmp(value, "deny") == 0) {
 
-        return VALIDATION_SUCCESS;
+        return LEAF_VALIDATION_SUCCESS;
     }
 
-    printf ("Mention either : permit Or deny. Case sensitive\n");
-    return VALIDATION_FAILED;
+    cprintf ("Mention either : permit Or deny. Case sensitive\n");
+    return LEAF_VALIDATION_FAILED;
 }
 
 
@@ -364,9 +358,8 @@ void prefix_list_cli_config_tree(param_t *param)
         libcli_register_param(param, &prefix_lst);
         {
             static param_t prefix_lst_name;
-            init_param(&prefix_lst_name, LEAF, NULL, prefix_lst_config_handler, NULL, STRING, "pfxlst-name", "prefix-list Name");
+            init_param(&prefix_lst_name, LEAF, NULL, NULL, NULL, STRING, "pfxlst-name", "prefix-list Name");
             libcli_register_param(&prefix_lst, &prefix_lst_name);
-            set_param_cmd_code(&prefix_lst_name, CMDCODE_CONFIG_PREFIX_LST);
             {
                 static param_t res;
                 init_param(&res, LEAF, NULL, NULL, prefix_lst_validate_input_result_value, STRING, "permit|deny", "prefix-list result [permit | deny]");
@@ -375,7 +368,7 @@ void prefix_list_cli_config_tree(param_t *param)
                     static param_t seq_no;
                     init_param(&seq_no, LEAF, NULL, prefix_lst_config_handler, NULL, INT, "seq-no", "prefix-list Sequence No");
                     libcli_register_param(&res, &seq_no);
-                    set_param_cmd_code(&seq_no, CMDCODE_CONFIG_PREFIX_LST);
+                    libcli_set_param_cmd_code(&seq_no, CMDCODE_CONFIG_PREFIX_LST);
                     {
                         static param_t nw_ip;
                         init_param(&nw_ip, LEAF, 0, 0, 0, IPV4, "nw-ip", "specify Network IPV4 Address");
@@ -384,7 +377,7 @@ void prefix_list_cli_config_tree(param_t *param)
                             static param_t nw_mask;
                             init_param(&nw_mask, LEAF, NULL, prefix_lst_config_handler, NULL, INT, "nw-mask", "specify IPV4 Mask");
                             libcli_register_param(&nw_ip, &nw_mask);
-                            set_param_cmd_code(&nw_mask, CMDCODE_CONFIG_PREFIX_LST);
+                            libcli_set_param_cmd_code(&nw_mask, CMDCODE_CONFIG_PREFIX_LST);
                             {
                                 static param_t ge;
                                 init_param(&ge, CMD, "ge", 0, 0, INVALID, 0, "specify greater than equal ");
@@ -393,7 +386,7 @@ void prefix_list_cli_config_tree(param_t *param)
                                     static param_t gen;
                                     init_param(&gen, LEAF, NULL, prefix_lst_config_handler, NULL, INT, "ge-n", "greater than equal Number");
                                     libcli_register_param(&ge, &gen);
-                                    set_param_cmd_code(&gen, CMDCODE_CONFIG_PREFIX_LST);
+                                    libcli_set_param_cmd_code(&gen, CMDCODE_CONFIG_PREFIX_LST);
                                     {
                                         static param_t le;
                                         init_param(&le, CMD, "le", 0, 0, INVALID, 0, "specify less than equal ");
@@ -402,7 +395,7 @@ void prefix_list_cli_config_tree(param_t *param)
                                             static param_t len;
                                             init_param(&len, LEAF, NULL, prefix_lst_config_handler, NULL, INT, "le-n", "less than equal Number");
                                             libcli_register_param(&le, &len);
-                                            set_param_cmd_code(&len, CMDCODE_CONFIG_PREFIX_LST);
+                                            libcli_set_param_cmd_code(&len, CMDCODE_CONFIG_PREFIX_LST);
                                         }
                                     }
                                 }
@@ -415,7 +408,7 @@ void prefix_list_cli_config_tree(param_t *param)
                                     static param_t len;
                                     init_param(&len, LEAF, NULL, prefix_lst_config_handler, NULL, INT, "le-n", "less than equal Number");
                                     libcli_register_param(&le, &len);
-                                    set_param_cmd_code(&len, CMDCODE_CONFIG_PREFIX_LST);
+                                    libcli_set_param_cmd_code(&len, CMDCODE_CONFIG_PREFIX_LST);
                                 }
                             }
                         }
@@ -428,8 +421,8 @@ void prefix_list_cli_config_tree(param_t *param)
 
 
 static int
-prefix_lst_show_handler (param_t *param, 
-                                           ser_buff_t *tlv_buf,
+prefix_lst_show_handler (int cmdcode,
+                                          Stack_t *tlv_stack,
                                            op_mode enable_or_disable){
 
     c_string node_name = NULL;
@@ -437,9 +430,7 @@ prefix_lst_show_handler (param_t *param,
     node_t *node;
     tlv_struct_t *tlv = NULL;
 
-    int cmdcode = EXTRACT_CMD_CODE(tlv_buf);
-
-    TLV_LOOP_BEGIN(tlv_buf, tlv){
+    TLV_LOOP_STACK_BEGIN(tlv_stack, tlv){
 
         if(parser_match_leaf_id(tlv->leaf_id, "node-name"))
             node_name = tlv->value; 
@@ -484,22 +475,21 @@ void prefix_list_cli_show_tree(param_t *param) {
         static param_t prefix_lst;
         init_param(&prefix_lst, CMD, "prefix-list",prefix_lst_show_handler, NULL, INVALID, NULL, "prefix-list");
         libcli_register_param(param, &prefix_lst);
-        set_param_cmd_code(&prefix_lst, CMDCODE_SHOW_PREFIX_LST_ALL);
+        libcli_set_param_cmd_code(&prefix_lst, CMDCODE_SHOW_PREFIX_LST_ALL);
         {
             static param_t prefix_lst_name;
             init_param(&prefix_lst_name, LEAF, NULL, prefix_lst_show_handler, NULL, STRING, "pfxlst-name", "prefix-list Name");
             libcli_register_param(&prefix_lst, &prefix_lst_name);
-            set_param_cmd_code(&prefix_lst_name, CMDCODE_SHOW_PREFIX_LST_ONE);
+            libcli_set_param_cmd_code(&prefix_lst_name, CMDCODE_SHOW_PREFIX_LST_ONE);
         }
     }
 }
 
 /* Prefix-list change notification */
 typedef void (*prefix_list_change_cbk)(node_t *, prefix_list_t *);
-
 extern void isis_prefix_list_change(node_t *node, prefix_list_t *pfx_lst);
-
-static prefix_list_change_cbk notif_arr[] = { isis_prefix_list_change,
+static prefix_list_change_cbk notif_arr[] = { 
+                                                                        isis_prefix_list_change,
                                                                         /*add_mode_callbacks_here,*/
                                                                         0,
                                                                         };

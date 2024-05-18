@@ -34,11 +34,15 @@
 #include <string.h>
 #include <stdio.h>
 #include <memory.h>
+#include <ctype.h>
+#include "configdb.h"
 #include "graph.h"
 #include "tcp_ip_trace.h"
 #include "FireWall/acl/acldb.h"
 #include "packet-tracer/packet_tracer.h"
 #include "c-hashtable/hashtable.h"
+#include "Interface/InterfaceUApi.h"
+
 
 void
 insert_link_between_two_nodes(node_t *node1,
@@ -47,41 +51,33 @@ insert_link_between_two_nodes(node_t *node1,
         const char *to_if_name,
         unsigned int cost){
 
-    link_t *link = (link_t *)calloc(1, sizeof(link_t));
-
-    /*Set interface properties*/
-    string_copy((char *)link->intf1.if_name, from_if_name, IF_NAME_SIZE);
-    link->intf1.if_name[IF_NAME_SIZE - 1] = '\0';
-    string_copy((char *)link->intf2.if_name, to_if_name, IF_NAME_SIZE);
-    link->intf2.if_name[IF_NAME_SIZE - 1] = '\0';
+    linkage_t *link = (linkage_t *)calloc(1, sizeof(linkage_t));
+    link->Intf1 = new PhysicalInterface(std::string (from_if_name) , INTF_TYPE_P2P, NULL);
+    link->Intf2 = new PhysicalInterface(std::string (to_if_name) , INTF_TYPE_P2P, NULL);
     
-    link->intf1.link= link; /*set back pointer to link*/
-    link->intf2.link= link; /*set back pointer to link*/
+    link->Intf1->link = link;
+    link->Intf2->link = link;
 
-    link->intf1.att_node = node1;
-    link->intf2.att_node = node2;
-    link->cost = cost;
+    link->Intf1->att_node = node1;
+    link->Intf2->att_node = node2;
 
     int empty_intf_slot;
 
     /*Plugin interface ends into Node*/
-    empty_intf_slot = get_node_intf_available_slot(node1);
-    node1->intf[empty_intf_slot] = &link->intf1;
+    empty_intf_slot = node_get_intf_available_slot(node1);
+    node1->intf[empty_intf_slot] = link->Intf1;
 
-    empty_intf_slot = get_node_intf_available_slot(node2);
-    node2->intf[empty_intf_slot] = &link->intf2;
-
-    init_intf_nw_prop(&link->intf1.intf_nw_props);
-    init_intf_nw_prop(&link->intf2.intf_nw_props);
+    empty_intf_slot = node_get_intf_available_slot(node2);
+    node2->intf[empty_intf_slot] = link->Intf2;
 
     /*Now Assign Random generated Mac address to the Interfaces*/
-    interface_assign_mac_address(&link->intf1);
-    interface_assign_mac_address(&link->intf2);
-
+    interface_assign_mac_address(link->Intf1);
+    interface_assign_mac_address(link->Intf2);
+ 
     //intf_init_bit_rate_sampling_timer(&link->intf1);
 
-    tcp_ip_init_intf_log_info(&link->intf1);
-    tcp_ip_init_intf_log_info(&link->intf2);
+    tcp_ip_init_intf_log_info(link->Intf1);
+    tcp_ip_init_intf_log_info(link->Intf2);
 }
 
 graph_t *
@@ -170,6 +166,8 @@ create_graph_node(graph_t *graph, const c_string node_name){
 
     pkt_tracer_init (&node->pkt_tracer);
     
+    node_config_db_init (node);
+
     glthread_add_next(&graph->node_list, &node->graph_glue);
     return node;
 }
@@ -179,7 +177,7 @@ void dump_graph(graph_t *graph){
     node_t *node;
     glthread_t *curr;
     
-    printf("Topology Name = %s\n", graph->topology_name);
+    cprintf("Topology Name = %s\n", graph->topology_name);
 
     ITERATE_GLTHREAD_BEGIN(&graph->node_list, curr){
 
@@ -191,10 +189,10 @@ void dump_graph(graph_t *graph){
 void dump_node(node_t *node){
 
     unsigned int i = 0;
-    interface_t *intf;
+    Interface *intf;
 
-    printf("Node Name = %s UDP Port # : %u\n",
-        node->node_name, node->udp_port_number);
+    cprintf("Node Name = %s(%p) UDP Port # : %u\n",
+        node->node_name, node, node->udp_port_number);
 
     for( ; i < MAX_INTF_PER_NODE; i++){
         
@@ -204,51 +202,37 @@ void dump_node(node_t *node){
     }
 }
 
-void dump_interface(interface_t *interface){
+void dump_interface(Interface *interface){
 
-   link_t *link = interface->link;
-   node_t *nbr_node = get_nbr_node(interface);
-
-   printf("Interface Name = %s\n\tNbr Node %s, Local Node : %s, cost = %u, ifindex = %u\n", 
-            interface->if_name,
-            nbr_node->node_name, 
-            interface->att_node->node_name, 
-            link->cost, IF_INDEX(interface));
-
-    if (interface->intf_nw_props.l3_ingress_acc_lst) {
-        printf ("\tIn Access List: %s\n", interface->intf_nw_props.l3_ingress_acc_lst->name);
-    }
-    if (interface->intf_nw_props.l3_egress_acc_lst) {
-        printf ("\tOut Access List: %s\n", interface->intf_nw_props.l3_egress_acc_lst->name);
-    }
+    interface->PrintInterfaceDetails();
 }
 
-interface_t *
+Interface *
 node_get_intf_by_name(node_t *node, const char *if_name){
 
     int i ;
-    interface_t *intf;
+    Interface *intf;
 
     for( i = 0 ; i < MAX_INTF_PER_NODE; i++){
         intf = node->intf[i];
         if(!intf) return NULL;
-        if(string_compare(intf->if_name, if_name, IF_NAME_SIZE) == 0){
+        if(string_compare(intf->if_name.c_str(), if_name, IF_NAME_SIZE) == 0){
             return intf;
         }
-    }
+    }   
     return NULL;
 }
 
-interface_t *
+Interface *
 node_get_intf_by_ifindex(node_t *node, uint32_t ifindex) {
 
     int i ;
-    interface_t *intf;
+    Interface *intf;
 
     for( i = 0 ; i < MAX_INTF_PER_NODE; i++){
         intf = node->intf[i];
         if(!intf) return NULL;
-        if (intf->intf_nw_props.ifindex == ifindex)
+        if (intf->ifindex == ifindex)
             return intf;
     }
     return NULL;

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
+#include <stdarg.h>
 #include "tcp_public.h"
 
 extern graph_t *topo;
@@ -224,7 +225,7 @@ tcp_dump_ethernet_hdr(char *buff,
             pkt_block = pkt_block_get_new(
                                             (uint8_t *)GET_ETHERNET_HDR_PAYLOAD(eth_hdr),
                                            (pkt_size_t)payload_size);
-            pkt_block_set_starting_hdr_type(pkt_block, ETH_HDR);
+            pkt_block_set_starting_hdr_type(pkt_block, MISC_APP_HDR);
             pkt_block_reference(pkt_block);
 
             rc += nfc_pkt_trace_invoke_notif_to_sbscribers(
@@ -323,11 +324,13 @@ tcp_dump(int sock_fd,
 void
 tcp_dump_recv_logger(
               node_t *node,
-              interface_t *intf,
+              Interface *intf,
               pkt_block_t *pkt_block,
               hdr_type_t hdr_type){
 
     int rc = 0 ;
+    acl_action_t acl_action;
+
     if(node->log_info.all || 
         node->log_info.recv ||
         intf->log_info.recv){
@@ -340,6 +343,20 @@ tcp_dump_recv_logger(
         FILE *log_file2 = (intf->log_info.recv || intf->log_info.all) ?
                 intf->log_info.log_file : NULL;
 
+        if (log_file1 && 
+             node->log_info.acc_lst_filter ) {
+
+            acl_action = access_list_evaluate_pkt_block (node->log_info.acc_lst_filter, pkt_block);
+           if (acl_action == ACL_DENY) log_file1 = NULL;
+        }
+
+        if (log_file2 && 
+             intf->log_info.acc_lst_filter ) {
+
+            acl_action = access_list_evaluate_pkt_block (intf->log_info.acc_lst_filter, pkt_block);
+           if (acl_action == ACL_DENY) log_file2 = NULL;
+        }
+
         if(sock_fd == -1 && 
             !log_file1 && !log_file2){
             return;
@@ -347,7 +364,7 @@ tcp_dump_recv_logger(
    
         rc = sprintf (TCP_GET_NODE_RECV_LOG_BUFFER(node), 
                         "\n%s(%s) <-- \n", 
-                        node->node_name, intf->if_name);
+                        node->node_name, intf->if_name.c_str());
 
         tcp_dump(sock_fd,                  /*Write the log to the FD*/
                  log_file1,                /*Write the log to the node's log file*/
@@ -389,11 +406,12 @@ tcp_dump_l3_fwding_logger(node_t *node,
 }
 
 void
-tcp_dump_send_logger(node_t *node, interface_t *intf,
+tcp_dump_send_logger(node_t *node, Interface *intf,
               pkt_block_t *pkt_block,
               hdr_type_t hdr_type){
 
     int rc = 0;
+    acl_action_t acl_action;
 
     if(node->log_info.all || 
          node->log_info.send ||
@@ -406,7 +424,21 @@ tcp_dump_send_logger(node_t *node, interface_t *intf,
                 node->log_info.log_file : NULL;
         FILE *log_file2 = (intf->log_info.send || intf->log_info.all) ? 
                 intf->log_info.log_file : NULL;
-        
+
+        if (log_file1 && 
+             node->log_info.acc_lst_filter ) {
+
+            acl_action = access_list_evaluate_pkt_block (node->log_info.acc_lst_filter, pkt_block);
+           if (acl_action == ACL_DENY) log_file1 = NULL;
+        }
+
+        if (log_file2 && 
+             intf->log_info.acc_lst_filter ) {
+
+            acl_action = access_list_evaluate_pkt_block (intf->log_info.acc_lst_filter, pkt_block);
+           if (acl_action == ACL_DENY) log_file2 = NULL;
+        }
+
         if(sock_fd == -1 && 
             !log_file1 && !log_file2){
             return;
@@ -416,7 +448,7 @@ tcp_dump_send_logger(node_t *node, interface_t *intf,
         
         rc = sprintf(TCP_GET_NODE_SEND_LOG_BUFFER(node),
                 "\n%s(%s) --> \n", 
-                node->node_name, intf->if_name);
+                node->node_name, intf->if_name.c_str());
 
         tcp_dump(sock_fd,                  /*Write the log to the FD*/
                  log_file1,                /*Write the log to the node's log file*/
@@ -440,7 +472,7 @@ initialize_node_log_file(node_t *node){
     FILE *fptr = fopen(file_name, "w");
 
     if(!fptr){
-        printf("Error : Could not open log file %s, errno = %d\n", 
+        cprintf("Error : Could not open log file %s, errno = %d\n", 
             file_name, errno);
         return 0;
     }
@@ -449,7 +481,7 @@ initialize_node_log_file(node_t *node){
 }
 
 static FILE *
-initialize_interface_log_file(interface_t *intf){
+initialize_interface_log_file(Interface *intf){
 
     char file_name[64];
 
@@ -457,12 +489,12 @@ initialize_interface_log_file(interface_t *intf){
 
     node_t *node = intf->att_node;
 
-    sprintf(file_name, "logs/%s-%s.txt", node->node_name, intf->if_name);
+    sprintf(file_name, "logs/%s-%s.txt", node->node_name, intf->if_name.c_str());
 
     FILE *fptr = fopen(file_name, "w");
 
     if(!fptr){
-        printf("Error : Could not open log file %s, errno = %d\n", 
+        cprintf("Error : Could not open log file %s, errno = %d\n", 
             file_name, errno);
         return 0;
     }
@@ -480,6 +512,7 @@ tcp_ip_init_node_log_info(node_t *node){
     log_info->is_stdout = false;
     log_info->l3_fwd    = false;
     log_info->log_file  = initialize_node_log_file(node); 
+    log_info->acc_lst_filter = NULL;
 }
 
 void
@@ -495,7 +528,7 @@ tcp_ip_set_all_log_info_params(log_t *log_info, bool status){
 
 
 void
-tcp_ip_init_intf_log_info(interface_t *intf){
+tcp_ip_init_intf_log_info(Interface *intf){
     
     log_t *log_info     = &intf->log_info;
     log_info->all       = false;
@@ -503,19 +536,20 @@ tcp_ip_init_intf_log_info(interface_t *intf){
     log_info->send      = false;
     log_info->is_stdout = false;
     log_info->log_file  = initialize_interface_log_file(intf);
+    log_info->acc_lst_filter = NULL;
 }
 
-static void display_expected_flag(param_t *param, ser_buff_t *tlv_buf){
+static void display_expected_flag(param_t *param, Stack_t *tlv_stack){
 
-    printf(" : all | no-all\n");
-    printf(" : recv | no-recv\n");
-    printf(" : send | no-send\n");
-    printf(" : stdout | no-stdout\n");
-    printf(" : l3-fwd | no-l3-fwd\n");
+    cprintf(" : all | no-all\n");
+    cprintf(" : recv | no-recv\n");
+    cprintf(" : send | no-send\n");
+    cprintf(" : stdout | no-stdout\n");
+    cprintf(" : l3-fwd | no-l3-fwd\n");
 }
 
-int
-validate_flag_values(c_string value){
+static int
+validate_flag_values(stack_t *tlv_stack, c_string value){
 
     int k = 0;
     int len = strlen((const char *)value);
@@ -530,55 +564,59 @@ validate_flag_values(c_string value){
         (string_compare(value, "no-stdout",k = strlen("no-stdout")) ==   0   && k  == len)          ||
         (string_compare(value, "l3-fwd",   k = strlen("l3-fwd"))    ==   0   && k  == len)          ||
         (string_compare(value, "no-l3-fwd",k = strlen("no-l3-fwd")) ==   0   && k  == len)){
-        return VALIDATION_SUCCESS;
+        return LEAF_VALIDATION_SUCCESS;
     }
-    return VALIDATION_FAILED;
+    return LEAF_VALIDATION_FAILED;
 }
 
 
 void tcp_ip_show_log_status(node_t *node){
 
     int i = 0;
-    interface_t *intf;
+    Interface *intf;
     log_t *log_info = &node->log_info;
     
-    printf("Log Status : Device : %s\n", node->node_name);
+    cprintf("Log Status : Device : %s\n", node->node_name);
 
-    printf("\tall     : %s\n", log_info->all ? "ON" : "OFF");
-    printf("\trecv    : %s\n", log_info->recv ? "ON" : "OFF");
-    printf("\tsend    : %s\n", log_info->send ? "ON" : "OFF");
-    printf("\tstdout  : %s\n", log_info->is_stdout ? "ON" : "OFF");
-    printf("\tl3_fwd  : %s\n", log_info->l3_fwd ? "ON" : "OFF");
+    cprintf("\tall     : %s\n", log_info->all ? "ON" : "OFF");
+    cprintf("\trecv    : %s\n", log_info->recv ? "ON" : "OFF");
+    cprintf("\tsend    : %s\n", log_info->send ? "ON" : "OFF");
+    cprintf("\tstdout  : %s\n", log_info->is_stdout ? "ON" : "OFF");
+    cprintf("\tl3_fwd  : %s\n", log_info->l3_fwd ? "ON" : "OFF");
+    cprintf ("\taccess list filter : %s\n", 
+            log_info->acc_lst_filter->name ? log_info->acc_lst_filter->name : "none");
 
     for( ; i < MAX_INTF_PER_NODE; i++){
         intf = node->intf[i];
         if(!intf) continue;
 
         log_info = &intf->log_info;
-        printf("\tLog Status : %s(%s)\n", intf->if_name, IF_IS_UP(intf) ? "UP" : "DOWN");
-        printf("\t\tall     : %s\n", log_info->all ? "ON" : "OFF");
-        printf("\t\trecv    : %s\n", log_info->recv ? "ON" : "OFF");
-        printf("\t\tsend    : %s\n", log_info->send ? "ON" : "OFF");
-        printf("\t\tstdout  : %s\n", log_info->is_stdout ? "ON" : "OFF");
+        cprintf("\tLog Status : %s(%s)\n", intf->if_name.c_str(), intf->is_up ? "UP" : "DOWN");
+        cprintf("\t\tall     : %s\n", log_info->all ? "ON" : "OFF");
+        cprintf("\t\trecv    : %s\n", log_info->recv ? "ON" : "OFF");
+        cprintf("\t\tsend    : %s\n", log_info->send ? "ON" : "OFF");
+        cprintf("\t\tstdout  : %s\n", log_info->is_stdout ? "ON" : "OFF");
+        cprintf ("\t\taccess list filter : %s\n", 
+            log_info->acc_lst_filter->name ? log_info->acc_lst_filter->name : "none");
     }
 }
 
-int traceoptions_handler(param_t *param, 
-        ser_buff_t *tlv_buf, 
+int traceoptions_handler(int cmdcode, 
+        Stack_t *tlv_stack, 
         op_mode enable_or_disable){
 
     node_t *node;
     c_string node_name;
     c_string if_name;
     uint32_t flags;
-    interface_t *intf;
-    int cmdcode = -1;
+    Interface *intf;
     c_string flag_val;
+    access_list_t *access_list;
     log_t *log_info = NULL;
     tlv_struct_t *tlv = NULL;
-    int CMDCODE = EXTRACT_CMD_CODE(tlv_buf);
+    c_string access_list_name = NULL;
 
-    TLV_LOOP_BEGIN(tlv_buf, tlv){
+    TLV_LOOP_STACK_BEGIN(tlv_stack, tlv){
         
         if     (parser_match_leaf_id(tlv->leaf_id, "node-name"))
             node_name = tlv->value;
@@ -586,11 +624,11 @@ int traceoptions_handler(param_t *param,
             if_name =  tlv->value;
         else if(parser_match_leaf_id(tlv->leaf_id, "flag-val"))
             flag_val = tlv->value;
-        else
-            assert(0);
+         else if(parser_match_leaf_id(tlv->leaf_id, "access-list-name"))
+            access_list_name = tlv->value;
     }TLV_LOOP_END;
 
-    switch(CMDCODE){
+    switch(cmdcode){
         case CMDCODE_DEBUG_GLOBAL_STDOUT:
             topo->gstdout = true;
             break;
@@ -606,17 +644,116 @@ int traceoptions_handler(param_t *param,
             node =  node_get_node_by_name(topo, node_name);
             intf = node_get_intf_by_name(node,(const char *) if_name);
             if(!intf){
-                printf("Error : No interface %s on Node %s\n", if_name, node_name);
+                cprintf("Error : No interface %s on Node %s\n", if_name, node_name);
                 return -1;
             }
             log_info = &intf->log_info;
+        break;
+
+        case CMDCODE_DEBUG_ACCESS_LIST_FILTER_NAME:
+        node = node_get_node_by_name(topo, node_name);
+        access_list = access_list_lookup_by_name(node, access_list_name);
+                if (!access_list)
+                {
+                    cprintf("Error : Access-list do not exist\n");
+                    return -1;
+                }
+                log_info = &node->log_info;
+        switch (enable_or_disable)
+        {
+        case CONFIG_ENABLE:
+                if (log_info->acc_lst_filter && (log_info->acc_lst_filter != access_list))
+                {
+                    access_list_dereference(node, log_info->acc_lst_filter);
+                    if (access_list_should_decompile(log_info->acc_lst_filter))
+                    {
+                        access_list_trigger_uninstall_job(node, log_info->acc_lst_filter, NULL);
+                    }
+                    log_info->acc_lst_filter = NULL;
+                }
+                log_info->acc_lst_filter = access_list;
+                access_list_reference(log_info->acc_lst_filter);
+                if (access_list_should_compile(log_info->acc_lst_filter))
+                {
+                    access_list_trigger_install_job(node, log_info->acc_lst_filter, NULL);
+                }
+                break;
+        case CONFIG_DISABLE:
+                if (!log_info->acc_lst_filter) {
+                    return -1;
+                }
+                if (log_info->acc_lst_filter && (log_info->acc_lst_filter != access_list)) {
+                    cprintf("Error : access-list is not configured\n");
+                    return -1;
+                }
+                access_list_dereference (node, log_info->acc_lst_filter);
+                if (access_list_should_decompile(log_info->acc_lst_filter))
+                {
+                    access_list_trigger_uninstall_job(node, log_info->acc_lst_filter, NULL);
+                }
+                 log_info->acc_lst_filter = NULL;
+                break;
+        }
+        break;
+        case CMDCODE_DEBUG_ACCESS_LIST_FILTER_NAME_INTF:
+        node = node_get_node_by_name(topo, node_name);
+        intf = node_get_intf_by_name(node, (const char *)if_name);
+        if (!intf)
+        {
+                cprintf("Error : No interface %s on Node %s\n", if_name, node_name);
+                return -1;
+        }
+        access_list = access_list_lookup_by_name(node, access_list_name);
+        if (!access_list)
+        {
+                cprintf("Error : Access-list do not exist\n");
+                return -1;
+        }
+        log_info = &intf->log_info;
+        switch (enable_or_disable)
+        {
+        case CONFIG_ENABLE:
+                if (log_info->acc_lst_filter && (log_info->acc_lst_filter != access_list))
+                {
+                    access_list_dereference(node, log_info->acc_lst_filter);
+                    if (access_list_should_decompile(log_info->acc_lst_filter))
+                    {
+                        access_list_trigger_uninstall_job(node, log_info->acc_lst_filter, NULL);
+                    }
+                    log_info->acc_lst_filter = NULL;
+                }
+                log_info->acc_lst_filter = access_list;
+                access_list_reference(log_info->acc_lst_filter);
+                if (access_list_should_compile(log_info->acc_lst_filter))
+                {
+                    access_list_trigger_install_job(node, log_info->acc_lst_filter, NULL);
+                }
+                break;
+        case CONFIG_DISABLE:
+                if (!log_info->acc_lst_filter)
+                {
+                    return -1;
+                }
+                if (log_info->acc_lst_filter && (log_info->acc_lst_filter != access_list))
+                {
+                    cprintf("Error : access-list is not configured\n");
+                    return -1;
+                }
+                access_list_dereference(node, log_info->acc_lst_filter);
+                if (access_list_should_decompile(log_info->acc_lst_filter))
+                {
+                    access_list_trigger_uninstall_job(node, log_info->acc_lst_filter, NULL);
+                }
+                log_info->acc_lst_filter = NULL;
+                break;
+        }
         break;
         default:
             ;
     }
 
-    if(CMDCODE == CMDCODE_DEBUG_LOGGING_PER_NODE ||
-            CMDCODE == CMDCODE_DEBUG_LOGGING_PER_INTF){
+    if(cmdcode == CMDCODE_DEBUG_LOGGING_PER_NODE ||
+            cmdcode == CMDCODE_DEBUG_LOGGING_PER_INTF){
         if(strcmp((const char *)flag_val, "all") == 0){
             tcp_ip_set_all_log_info_params(log_info, true);
         }
@@ -624,9 +761,9 @@ int traceoptions_handler(param_t *param,
             tcp_ip_set_all_log_info_params(log_info, false);
             
             /*disable logging for all interfaces also*/
-            if(CMDCODE == CMDCODE_DEBUG_LOGGING_PER_NODE){
+            if(cmdcode == CMDCODE_DEBUG_LOGGING_PER_NODE){
                 int i = 0;
-                interface_t *intf;
+                Interface *intf;
                 for(; i < MAX_INTF_PER_NODE; i++){
                     intf = node->intf[i];
                     if(!intf) continue;
@@ -659,7 +796,7 @@ int traceoptions_handler(param_t *param,
             log_info->l3_fwd = false;
         }
     }
-    else if(CMDCODE == CMDCODE_DEBUG_SHOW_LOG_STATUS){
+    else if(cmdcode == CMDCODE_DEBUG_SHOW_LOG_STATUS){
         tcp_ip_show_log_status(node);
     }
     return 0;
@@ -680,9 +817,21 @@ tcp_ip_build_node_traceoptions_cli(param_t *node_name_param){
             {
                 static param_t flag_val;
                 init_param(&flag_val, LEAF, 0, traceoptions_handler, validate_flag_values, STRING, "flag-val", 
-                        "<all | no-all | recv | no-recv | send | no-send | stdout | no-stdout | l3-fwd | no-l3-fwd>");
+                        "<[no-]all | [no-]recv | [no-]send | [no-]stdout | [no-]l3-fwd>");
                 libcli_register_param(&flag, &flag_val);
-                set_param_cmd_code(&flag_val, CMDCODE_DEBUG_LOGGING_PER_NODE);
+                libcli_param_recursive (&flag_val);
+                libcli_set_param_cmd_code(&flag_val, CMDCODE_DEBUG_LOGGING_PER_NODE);
+            }
+        }
+        {
+            static param_t acl_filter;
+            init_param(&acl_filter, CMD, "access-list", 0, 0, INVALID, 0, "access-list keyword");
+            libcli_register_param(&traceoptions, &acl_filter);
+            {
+                static param_t acl_name;
+                init_param(&acl_name, LEAF, 0, traceoptions_handler, NULL, STRING, "access-list-name", "Access-list name");
+                libcli_register_param(&acl_filter, &acl_name);
+                libcli_set_param_cmd_code(&acl_name, CMDCODE_DEBUG_ACCESS_LIST_FILTER_NAME);
             }
         }
     }
@@ -703,11 +852,23 @@ tcp_ip_build_intf_traceoptions_cli(param_t *intf_name_param){
             {
                 static param_t flag_val;
                 init_param(&flag_val, LEAF, 0, traceoptions_handler, validate_flag_values, STRING, "flag-val", 
-                    "<all | no-all | recv | no-recv | send | no-send | stdout | no-stdout>");
+                    "<[no-]all | [no-]recv | [no-]send | [no-]stdout");
                 libcli_register_param(&flag, &flag_val);
-                set_param_cmd_code(&flag_val, CMDCODE_DEBUG_LOGGING_PER_INTF);
+                libcli_param_recursive (&flag_val);
+                libcli_set_param_cmd_code(&flag_val, CMDCODE_DEBUG_LOGGING_PER_INTF);
             }
         }
+        {
+            static param_t acl_filter;
+            init_param(&acl_filter, CMD, "access-list", 0, 0, INVALID, 0, "access-list keyword");
+            libcli_register_param(&traceoptions, &acl_filter);
+            {
+                static param_t acl_name;
+                init_param(&acl_name, LEAF, 0, traceoptions_handler, NULL, STRING, "access-list-name", "Access-list name");
+                libcli_register_param(&acl_filter, &acl_name);
+                libcli_set_param_cmd_code(&acl_name, CMDCODE_DEBUG_ACCESS_LIST_FILTER_NAME_INTF);
+            }
+        }        
     }
 }
 
@@ -731,46 +892,46 @@ tcp_init_send_logging_buffer(node_t *node){
     memset(TCP_GET_NODE_SEND_LOG_BUFFER(node), 0, TCP_PRINT_BUFFER_SIZE);
 }
 
-/* TCP Internal Logging */
-static FILE *tcp_log_file;
 char tlb[TCP_LOG_BUFFER_LEN];
 
 void
-init_tcp_logging() {
+init_tcp_logging(node_t *node) {
 
-    tcp_log_file = fopen("logs/tcp_log_file", "w");
-    assert(tcp_log_file);
-    memset(tlb, 0, sizeof(tlb));
+    unsigned char log_file_name[NODE_NAME_SIZE + 16];
+    if (node->node_nw_prop.log_file) return;
+    snprintf (log_file_name, sizeof (log_file_name), "logs/%s-log.txt", node->node_name);
+    node->node_nw_prop.log_file = fopen(log_file_name, "w");
+    assert (node->node_nw_prop.log_file);
 }
 
 void 
 tcp_trace_internal(node_t *node,
-			   interface_t *interface, 
+			   Interface *interface, 
 			   char *buff, const char *fn, int lineno) {
 
 	byte lineno_str[16];
-
-	fwrite(fn, sizeof(char), strlen(fn), tcp_log_file);
+    return;
+	fwrite(fn, sizeof(char), strlen(fn), NODE_LOG_FILE(node));
 	memset(lineno_str, 0, sizeof(lineno_str));
 	sprintf((char *)lineno_str, " (%u) :", lineno);
-	fwrite(lineno_str, sizeof(char), strlen((const char *)lineno_str), tcp_log_file);	
+	fwrite(lineno_str, sizeof(char), strlen((const char *)lineno_str), NODE_LOG_FILE(node));	
 
 	if (node) {
-		fwrite(node->node_name, sizeof(char), strlen((const char *)node->node_name), tcp_log_file);
-		fwrite(":", sizeof(char), 1, tcp_log_file);
+		fwrite(node->node_name, sizeof(char), strlen((const char *)node->node_name), NODE_LOG_FILE(node));
+		fwrite(":", sizeof(char), 1, NODE_LOG_FILE(node));
 	}
 	if (interface) {
-		fwrite(interface->if_name, sizeof(char), strlen((const char *)interface->if_name), tcp_log_file);
-		fwrite(":", sizeof(char), 1, tcp_log_file);
+		fwrite(interface->if_name.c_str(), sizeof(char), strlen((const char *)interface->if_name.c_str()), NODE_LOG_FILE(node));
+		fwrite(":", sizeof(char), 1, NODE_LOG_FILE(node));
 	}
-    fwrite(buff, sizeof(char), strlen(buff), tcp_log_file);
-	fflush(tcp_log_file);
+    fwrite(buff, sizeof(char), strlen(buff), NODE_LOG_FILE(node));
+	fflush(NODE_LOG_FILE(node));
 }
 
 void
-tcp_ip_refresh_tcp_log_file() {
+tcp_ip_refresh_tcp_log_file(node_t *node) {
 
-    tcp_log_file = freopen(NULL, "w", tcp_log_file);
+    node->node_nw_prop.log_file = freopen(NULL, "w", NODE_LOG_FILE(node));
 }
 
 #define tcp_trace(node, intf, buff)	\
@@ -782,9 +943,18 @@ tcp_ip_toggle_global_console_logging(void) {
     topo->gstdout  = ! topo->gstdout;
 
     if (topo->gstdout) {
-        printf ("\nconsole logging enabled\n");
+        cprintf ("\nconsole logging enabled\n");
     }
     else {
-        printf ("\nconsole logging disabled\n");
+        cprintf ("\nconsole logging disabled\n");
     }
+}
+
+void
+variadic_sprintf (node_t *node, Interface *intf, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+   // vsprintf(node->logging_buffer, format, args);
+    va_end(args);
 }

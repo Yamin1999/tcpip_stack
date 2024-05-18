@@ -34,12 +34,16 @@
 #include <stdio.h>  /* for FILE* */
 #include "tcpconst.h"
 #include "BitOp/bitsop.h"
+#include "utils.h"
 
 typedef struct node_ node_t;
-typedef struct interface_ interface_t;
+class Interface;
 typedef struct pkt_block_ pkt_block_t;
 
 #define TCP_PRINT_BUFFER_SIZE 1528
+
+typedef struct access_list_  access_list_t;
+typedef struct prefix_lst_ prefix_list_t;
 
 typedef struct log_{
 
@@ -49,20 +53,21 @@ typedef struct log_{
     bool is_stdout;
     bool l3_fwd;
     FILE *log_file;
+    access_list_t *acc_lst_filter;
 } log_t;
 
 void 
-tcp_dump_recv_logger(node_t *node, interface_t *intf, 
+tcp_dump_recv_logger(node_t *node, Interface *intf, 
               pkt_block_t *pkt_block,
               hdr_type_t hdr_type);
 
 void 
-tcp_dump_send_logger(node_t *node, interface_t *intf,
+tcp_dump_send_logger(node_t *node, Interface *intf,
               pkt_block_t *pkt_block,
               hdr_type_t hdr_type);
 
 void tcp_ip_init_node_log_info(node_t *node);
-void tcp_ip_init_intf_log_info(interface_t *intf);
+void tcp_ip_init_intf_log_info(Interface *intf);
 void tcp_ip_set_all_log_info_params(log_t *log_info, bool status);
 void tcp_ip_show_log_status(node_t *node);
 void tcp_dump_l3_fwding_logger(node_t *node, c_string oif_name, c_string gw_ip);
@@ -77,7 +82,7 @@ extern char tlb[TCP_LOG_BUFFER_LEN];
 
 void
 tcp_trace_internal(node_t *node,
-               interface_t *interface,
+               Interface *interface,
                char *buff, const char *fn, int lineno);
 
 #define tcp_trace(node, intf, buff) \
@@ -85,5 +90,8 @@ tcp_trace_internal(node_t *node,
 
 void
 tcp_ip_toggle_global_console_logging(void);
+
+void
+variadic_sprintf (node_t *node, Interface *intf, const char *format, ...);
 
 #endif /* __TCP_IP_TRACE__ */

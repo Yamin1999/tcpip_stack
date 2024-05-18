@@ -1,6 +1,8 @@
 CC=g++
-CFLAGS=-g -fpermissive -Wall -Wextra -Wmissing-prototypes -Wold-style-definition -Wold-style-declaration -gdwarf-2 -g3
+CFLAGS=-g -fpermissive -Wall -Wextra -Wmissing-prototypes -Wold-style-definition -Wold-style-declaration -gdwarf-2 -g3 -Wignored-qualifiers
 TARGET:tcpstack.exe pkt_gen.exe
+
+# Install external dependent libs :   sudo apt-get install libpq-dev
 
 # Proto Libs
 ISIS_LIB=Layer5/isis/libisis.a
@@ -8,12 +10,15 @@ ISIS_LIB_PATH=-L Layer5/isis -lisis
 # proto Libs
 
 LIBS=-lpthread \
-		   -lcli -lrt \
-		   -L CommandParser -lcli \
+			-lpq \
+		    -lrt \
+			-lncurses \
+			-lpthread \
+		   -L CLIBuilder -lclibuilder \
 		    -L LinuxMemoryManager -lmm \
 			-L FSMImplementation -lfsm \
 			-L FireWall -lasa \
-			-lrt -lm \
+			-lrt -lm -lncurses \
 			${ISIS_LIB_PATH} \
 
 OBJS=gluethread/glthread.o \
@@ -27,9 +32,11 @@ OBJS=gluethread/glthread.o \
 		  net.o			   \
 		  comm.o		   \
 		  Layer2/layer2.o  \
+		  Layer2/transport_svc.o  \
 		  Layer2/arp.o	   \
 		  Layer3/layer3.o  \
 		  Layer3/gre-tunneling/grecli.o \
+		  Layer3/gre-tunneling/gre.o \
 		  Layer3/rt_table/nexthop.o \
 		  Layer3/netfilter.o \
 		  Layer3/rt_notif.o	\
@@ -42,11 +49,13 @@ OBJS=gluethread/glthread.o \
           libtimer/WheelTimer.o   \
           libtimer/timerlib.o   \
 		  libtimer/timedef.o \
+		  Tracer/tracer.o \
 		  Layer5/spf_algo/spf.o \
 		  tcp_stack_init.o	\
 		  pkt_block.o \
 		  tcp_ip_trace.o	\
  		  tcpip_notif.o \
+		  configdb.o \
 		  notif.o	\
 		  EventDispatcher/event_dispatcher.o \
 		  tcp_ip_default_traps.o \
@@ -59,6 +68,10 @@ OBJS=gluethread/glthread.o \
 		  c-hashtable/hashtable.o \
 		  c-hashtable/hashtable_itr.o \
 		  Threads/refcount.o \
+		  Interface/Interface.o \
+		  Interface/InterfaceUApi.o \
+		  Interface/InterfaceCli.o \
+		  PostgresLibpq/postgresLib.o \
 		  #Layer2/stp/stp_state_machine.o \
 		  Layer2/stp/stp_bpdu.o \
 		  Layer2/stp/stp_init.o \
@@ -66,6 +79,9 @@ OBJS=gluethread/glthread.o \
 
 Threads/refcount.o:Threads/refcount.c
 	${CC} ${CFLAGS} -c Threads/refcount.c -o Threads/refcount.o
+
+Tracer/tracer.o:Tracer/tracer.cpp
+	${CC} ${CFLAGS} -I Tracer -c Tracer/tracer.cpp -o Tracer/tracer.o
 
 ted/ted.o:ted/ted.c
 	${CC} ${CFLAGS} -c -I . ted/ted.c -o ted/ted.o
@@ -92,7 +108,7 @@ pkt_gen.exe:pkt_gen.o utils.o
 pkt_gen.o:pkt_gen.c
 	${CC} ${CFLAGS} -c pkt_gen.c -o pkt_gen.o
 
-tcpstack.exe:main.o ${OBJS} CommandParser/libcli.a LinuxMemoryManager/libmm.a FSMImplementation/libfsm.a FireWall/libasa.a ${ISIS_LIB}
+tcpstack.exe:main.o ${OBJS} CLIBuilder/clibuilder.a LinuxMemoryManager/libmm.a FSMImplementation/libfsm.a FireWall/libasa.a ${ISIS_LIB}
 	${CC} ${CFLAGS} main.o ${OBJS}  ${LIBS} -o tcpstack.exe
 	@echo "tcpstack.exe Build Finished"
 
@@ -136,6 +152,9 @@ topologies.o:topologies.c
 net.o:net.c
 	${CC} ${CFLAGS} -c -I . net.c -o net.o
 
+configdb.o:configdb.cpp
+	${CC} ${CFLAGS} -c -I . configdb.cpp -o configdb.o
+
 pkt_block.o:pkt_block.c
 	${CC} ${CFLAGS} -c -I . pkt_block.c -o pkt_block.o
 
@@ -153,6 +172,9 @@ Layer2/arp.o:Layer2/arp.c
 
 Layer2/l2switch.o:Layer2/l2switch.c
 	${CC} ${CFLAGS} -c -I . Layer2/l2switch.c -o Layer2/l2switch.o
+
+Layer2/transport_svc.o:Layer2/transport_svc.cpp 
+	${CC} ${CFLAGS} -c -I . Layer2/transport_svc.cpp -o Layer2/transport_svc.o
 
 Layer3/layer3.o:Layer3/layer3.c
 	${CC} ${CFLAGS} -c -I . Layer3/layer3.c -o Layer3/layer3.o
@@ -201,8 +223,25 @@ c-hashtable/hashtable_itr.o:c-hashtable/hashtable_itr.c
 	${CC} ${CFLAGS} -c c-hashtable/hashtable_itr.c -o c-hashtable/hashtable_itr.o
 
 #GRE files
-Layer3/gre-tunneling/grecli.o:Layer3/gre-tunneling/grecli.c
-	${CC} ${CFLAGS} -c -I CommandParser -I Layer3/gre-tunneling Layer3/gre-tunneling/grecli.c -o Layer3/gre-tunneling/grecli.o
+Layer3/gre-tunneling/grecli.o:Layer3/gre-tunneling/grecli.cpp
+	${CC} ${CFLAGS} -c -I CLIBuilder -I Layer3/gre-tunneling Layer3/gre-tunneling/grecli.cpp -o Layer3/gre-tunneling/grecli.o
+Layer3/gre-tunneling/gre.o:Layer3/gre-tunneling/gre.cpp
+	${CC} ${CFLAGS} -c -I CLIBuilder -I Layer3/gre-tunneling Layer3/gre-tunneling/gre.cpp -o Layer3/gre-tunneling/gre.o
+
+#OOPs Interface Files 
+Interface/Interface.o:Interface/Interface.cpp
+	${CC} ${CFLAGS} -c Interface/Interface.cpp -o Interface/Interface.o
+
+Interface/InterfaceUApi.o:Interface/InterfaceUApi.cpp
+	${CC} ${CFLAGS} -c Interface/InterfaceUApi.cpp -o Interface/InterfaceUApi.o
+
+Interface/InterfaceCli.o:Interface/InterfaceCli.cpp
+	${CC} ${CFLAGS} -c Interface/InterfaceCli.cpp -o Interface/InterfaceCli.o
+
+#postgresLib files
+PostgresLibpq/postgresLib.o:PostgresLibpq/postgresLib.cpp
+	${CC} ${CFLAGS} -c PostgresLibpq/postgresLib.cpp -o PostgresLibpq/postgresLib.o
+
 
 # Protocols Specific
 # STP
@@ -215,8 +254,8 @@ Layer3/gre-tunneling/grecli.o:Layer3/gre-tunneling/grecli.c
 #Layer2/stp/stp_vlandb.o:Layer2/stp/stp_vlandb.c
 #	${CC} ${CFLAGS} -c Layer2/stp/stp_vlandb.c -o Layer2/stp/stp_vlandb.o
 
-CommandParser/libcli.a:
-	(cd CommandParser; make)
+CLIBuilder/clibuilder.a:
+	(cd CLIBuilder; make)
 LinuxMemoryManager/libmm.a:
 	(cd LinuxMemoryManager; make)
 FSMImplementation/libfsm.a:
@@ -251,6 +290,9 @@ clean:
 	rm -f Threads/*.o
 	(cd c-hashtable; make clean)
 	rm -f Layer3/gre-tunneling/*.o
+	rm -f Interface/*.o
+	rm -f postgresLib/*.o
+	rm -f Tracer/*.o
 #STP
 #	rm -f Layer2/stp/*.o
 all:
@@ -258,7 +300,7 @@ all:
 	
 cleanall:
 	make clean
-	(cd CommandParser; make clean)
+	(cd CLIBuilder; make clean)
 	(cd LinuxMemoryManager; make clean)
 	(cd FSMImplementation; make clean)
 	(cd FireWall; make clean)

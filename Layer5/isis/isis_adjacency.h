@@ -1,6 +1,11 @@
 #ifndef __IGP_NBRSHIP__
 #define __IGP_NBRSHIP__
 
+#include "isis_advt.h"
+#include "isis_struct.h"
+
+typedef struct isis_common_hdr_ isis_common_hdr_t;
+
 typedef enum isis_adj_state_ {
 
     ISIS_ADJ_STATE_UNKNOWN,
@@ -27,15 +32,21 @@ isis_adj_state_str(isis_adj_state_t adj_state) {
 typedef struct isis_adjacency_{
 
     /* back ptr to the the interface */
-    interface_t *intf; 
+    Interface *intf; 
     /* nbr Device Name */
     unsigned char nbr_name[NODE_NAME_SIZE];
     /* Nbr intf Ip */
-   uint32_t nbr_intf_ip;
+    uint32_t nbr_intf_ip;
    /* Mac Address */
-   mac_add_t nbr_mac;
+     mac_addr_t nbr_mac;
     /*Nbr lo 0 address */
     uint32_t nbr_rtr_id;
+    /* Nbr System ID*/
+    isis_system_id_t nbr_sys_id;
+    /* LAN ID, only for LAN Adj*/
+    isis_lan_id_t lan_id;
+    /* Nbrs Priority */
+    uint16_t priority;
     /* Nbr if index */
     uint32_t remote_if_index;
     /* Adj State */
@@ -52,25 +63,40 @@ typedef struct isis_adjacency_{
     timer_event_handle *delete_timer;
     /* uptime */
     time_t uptime;
+    /* IS Reach Advertisement */
+    union {
+        /* Advertise P2P adjacency */
+        isis_adv_data_t *p2p_adv_data;
+        /*is this is LAN adj and self is dis, then advertise PN to nbr*/
+        isis_adv_data_t *lan_pn_to_nbr_adv_data;
+    } u;
+
     glthread_t glue;
 } isis_adjacency_t;
 GLTHREAD_TO_STRUCT(glthread_to_isis_adjacency, isis_adjacency_t, glue);
+
+#define isis_adjacency_is_lan(adjacency_ptr) \
+    (ISIS_INTF_INFO(adjacency_ptr->intf)->intf_type == isis_intf_type_lan)
+
+#define isis_adjacency_is_p2p(adjacency_ptr) \
+    (ISIS_INTF_INFO(adjacency_ptr->intf)->intf_type == isis_intf_type_p2p)
 
 void
 isis_adjacency_set_uptime(isis_adjacency_t *adjacency);
 
 void
-isis_update_interface_adjacency_from_hello(interface_t *iif,
-        unsigned char *hello_tlv_buffer,
-        size_t tlv_buff_size);
+isis_update_interface_adjacency_from_hello(
+        Interface *iif,
+        isis_common_hdr_t *cmn_hdr,
+        size_t hello_pkt_size);
 
 isis_adjacency_t *
 isis_find_adjacency_on_interface(
-        interface_t *intf,
-        uint32_t nbr_rtr_id);
+        Interface *intf,
+        isis_system_id_t *sys_id);
 
 char *
-isis_adjacency_name(isis_adjacency_t *adjacency);
+isis_adjacency_name(char *adj_name, isis_adjacency_t *adjacency);
 
 void
 isis_show_adjacency(isis_adjacency_t *adjacency, uint8_t tab_spaces);
@@ -87,10 +113,10 @@ void
 isis_delete_adjacency(isis_adjacency_t *adjacency);
 
 int
-isis_delete_all_adjacencies(interface_t *intf);
+isis_delete_all_adjacencies(Interface *intf);
 
 bool
-isis_any_adjacency_up_on_interface(interface_t *intf);
+isis_any_adjacency_up_on_interface(Interface *intf);
 
 byte *
 isis_encode_nbr_tlv(isis_adjacency_t *adjacency,
@@ -106,13 +132,17 @@ isis_nbr_tlv_encode_size(isis_adjacency_t *adjacency,
 
 uint16_t
 isis_size_to_encode_all_nbr_tlv(node_t *node);
-
-uint16_t
-isis_print_formatted_nbr_tlv22(byte *out_buff, 
-                             byte *nbr_tlv_buffer,
-                             uint8_t tlv_buffer_len);
-                             
+                           
 uint32_t 
 isis_show_all_adjacencies (node_t *node) ;
+
+bool
+isis_update_dis_on_adjacency_transition (isis_adjacency_t *adjacency);
+
+isis_advt_tlv_return_code_t
+isis_adjacency_advertise_is_reach (isis_adjacency_t *adjacency);
+
+isis_tlv_wd_return_code_t
+isis_adjacency_withdraw_is_reach (isis_adjacency_t *adjacency);
 
 #endif /* __IGP_NBRSHIP__ */

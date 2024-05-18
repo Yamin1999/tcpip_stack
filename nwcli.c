@@ -33,8 +33,8 @@
 #include <stdio.h>
 #include <stdint.h>
 #include "graph.h"
-#include "CommandParser/libcli.h"
-#include "CommandParser/cmdtlv.h"
+#include "CLIBuilder/libcli.h"
+#include "CLIBuilder/cmdtlv.h"
 #include "cmdcodes.h"
 #include "libtimer/WheelTimer.h"
 #include "Layer5/app_handlers.h"
@@ -47,12 +47,13 @@
 #include "tcpconst.h"
 
 extern graph_t *topo;
+class Interface;
+
+extern int traceoptions_handler(int cmdcode,
+                                Stack_t *tlv_stack,
+                                op_mode enable_or_disable);
 extern void tcp_ip_traceoptions_cli(param_t *node_name_param, 
                                  param_t *intf_name_param);
-extern int traceoptions_handler(param_t *param,
-                                ser_buff_t *tlv_buf,
-                                op_mode enable_or_disable);
-
 extern param_t * policy_config_cli_tree () ;
 extern void acl_build_config_cli(param_t *root) ;
 extern void acl_build_show_cli(param_t *root) ;
@@ -63,18 +64,24 @@ extern void network_object_build_show_cli (param_t *root) ;
 extern void object_group_build_show_cli (param_t *root) ;
 extern void prefix_list_cli_show_tree(param_t *param) ;
 extern void time_range_config_cli_tree (param_t *root) ;
-extern void gre_cli_config_tree (param_t *interface);
+extern void Interface_config_cli_tree (param_t *root);
 extern void access_list_print_bitmap(node_t *node, c_string access_list_name);
+extern void config_node_build_transport_svc_cli_tree (param_t *param) ;
+extern void show_node_transport_svc_cli_tree (param_t *param) ;
+
+extern int
+isis_show_handler (int cmdcode,
+                  Stack_t *tlv_stack,
+                  op_mode enable_or_disable);
 
 static int
-display_mem_usage(param_t *param, ser_buff_t *tlv_buf,
+display_mem_usage(int cmdcode, Stack_t *tlv_stack,
                     op_mode enable_or_disable){
 
     tlv_struct_t *tlv = NULL;
     c_string struct_name = NULL;
-    int cmdcode = EXTRACT_CMD_CODE(tlv_buf);
 
-    TLV_LOOP_BEGIN(tlv_buf, tlv){
+    TLV_LOOP_STACK_BEGIN(tlv_stack, tlv){
 
         if(parser_match_leaf_id(tlv->leaf_id, "struct-name"))
             struct_name =  tlv->value;
@@ -110,7 +117,7 @@ static cli_register_cb
 		//ddcp_config_cli_tree,
 		//nmp_config_cli_tree,
         isis_config_cli_tree,
-		
+
         /*  Add more CB here */
         
         0 /* Last member must be NULL */
@@ -144,10 +151,20 @@ static cli_register_cb
 static cli_register_cb
 	cli_register_cb_arr_run_node_node_name_protocol_level[] =
 	{
-		//ddcp_run_cli_tree,
+		isis_run_cli_tree,
 		0
 		/* Add more CB here */
 	};
+
+/* debug node <node-name> protocol .... */
+static cli_register_cb
+	cli_register_cb_arr_debug_node_node_name_protocol_level[] =
+	{
+		isis_debug_cli_tree,
+		0
+		/* Add more CB here */
+	};
+
 
 static void
 cli_register_application_cli_trees(param_t *param,
@@ -162,7 +179,7 @@ cli_register_application_cli_trees(param_t *param,
 
 /* Display functions when user presses ?*/
 void
-display_graph_nodes(param_t *param, ser_buff_t *tlv_buf){
+display_graph_nodes(param_t *param, Stack_t *tlv_stack){
 
     node_t *node;
     glthread_t *curr;
@@ -170,74 +187,19 @@ display_graph_nodes(param_t *param, ser_buff_t *tlv_buf){
     ITERATE_GLTHREAD_BEGIN(&topo->node_list, curr){
 
         node = graph_glue_to_node(curr);
-        printf("%s\n", node->node_name);
+        cprintf("%s\n", node->node_name);
     } ITERATE_GLTHREAD_END(&topo->node_list, curr);
 }
 
-/*Display Node Interfaces*/
-void
-display_node_interfaces(param_t *param, ser_buff_t *tlv_buf){
-
-    node_t *node;
-    c_string node_name;
-    tlv_struct_t *tlv = NULL;
-
-    TLV_LOOP_BEGIN(tlv_buf, tlv){
-
-        if(string_compare(tlv->leaf_id, "node-name", strlen("node-name")) ==0)
-            node_name = tlv->value;
-
-    }TLV_LOOP_END;
-
-    if(!node_name)
-        return;
-
-    node = node_get_node_by_name(topo, node_name);
-    
-    int i = 0;
-    interface_t *intf;
-
-    for(; i < MAX_INTF_PER_NODE; i++){
-
-        intf = node->intf[i];
-        if(!intf) continue;
-
-        printf(" %s\n", intf->if_name);
-    }
-}
-
-/*General Validations*/
-
-static int 
-validate_if_up_down_status(c_string value){
-
-    if(string_compare(value, "up", strlen("up")) == 0 ) {
-        return VALIDATION_SUCCESS;
-    }
-    else if(string_compare(value, "down", strlen("down")) == 0) {
-        return VALIDATION_SUCCESS;
-    }
-    return VALIDATION_FAILED;
-}
 
 static int
-validate_interface_metric_val(c_string  value){
-
-    uint32_t metric_val = atoi((const char *)value);
-    if(metric_val > 0 && metric_val <= INTF_MAX_METRIC)
-        return VALIDATION_SUCCESS;
-    return VALIDATION_FAILED;
-}
-
-
-static int
-validate_node_extistence(c_string node_name){
+validate_node_extistence(Stack_t *tlv_stack, c_string node_name){
 
     node_t *node = node_get_node_by_name(topo, node_name);
     if(node)
-        return VALIDATION_SUCCESS;
+        return LEAF_VALIDATION_SUCCESS;
     printf("Error : Node %s do not exist\n", node_name);
-    return VALIDATION_FAILED;
+    return LEAF_VALIDATION_FAILED;
 }
 
 static int
@@ -246,62 +208,53 @@ validate_vlan_id(c_string vlan_value){
     uint32_t vlan = atoi((const char *)vlan_value);
     if(!vlan){
         printf("Error : Invalid Vlan Value\n");
-        return VALIDATION_FAILED;
+        return LEAF_VALIDATION_FAILED;
     }
     if(vlan >= 1 && vlan <= 4095)
-        return VALIDATION_SUCCESS;
+        return LEAF_VALIDATION_SUCCESS;
 
-    return VALIDATION_FAILED;
+    return LEAF_VALIDATION_FAILED;
 }
 
 static int
 validate_l2_mode_value(c_string l2_mode_value){
-
-    if((string_compare(l2_mode_value, "access", strlen("access")) == 0) || 
-        (string_compare(l2_mode_value, "trunk", strlen("trunk")) == 0))
-        return VALIDATION_SUCCESS;
-    return VALIDATION_FAILED;
+        return LEAF_VALIDATION_SUCCESS;
+    return LEAF_VALIDATION_FAILED;
 }
 
 int
-validate_mask_value(c_string mask_str);
+validate_mask_value(Stack_t *tlv_stack, c_string mask_str);
 
 int
-validate_mask_value(c_string mask_str){
+validate_mask_value(Stack_t *tlv_stack, c_string mask_str){
 
     int mask = atoi((const char *)mask_str);
     if(mask >= 0 && mask <= 32)
-        return VALIDATION_SUCCESS;
-    printf("Error : Invalid Mask Value\n");
-    return VALIDATION_FAILED;
+        return LEAF_VALIDATION_SUCCESS;
+    return LEAF_VALIDATION_FAILED;
 }
 
 
 /*Generic Topology Commands*/
 static int
-show_nw_topology_handler(param_t *param,
-                         ser_buff_t *tlv_buf,
+show_nw_topology_handler(int cmdcode,
+                         Stack_t *tlv_stack,
                          op_mode enable_or_disable){
 
-    int CMDCODE = -1;
     node_t *node = NULL;
     c_string node_name = NULL;;
     tlv_struct_t *tlv = NULL;
 
-    CMDCODE = EXTRACT_CMD_CODE(tlv_buf);
-
-    TLV_LOOP_BEGIN(tlv_buf, tlv){
+    TLV_LOOP_STACK_BEGIN(tlv_stack, tlv){
         
         if(parser_match_leaf_id(tlv->leaf_id, "node-name"))
             node_name = tlv->value;
-        else
-            assert(0);
     } TLV_LOOP_END;
 
     if(node_name)
         node = node_get_node_by_name(topo, node_name);
 
-    switch(CMDCODE){
+    switch(cmdcode){
 
         case CMDCODE_SHOW_NW_TOPOLOGY:
             dump_nw_graph(topo, node);
@@ -313,23 +266,33 @@ show_nw_topology_handler(param_t *param,
 }
 
 extern void
-tcp_ip_refresh_tcp_log_file();
+tcp_ip_refresh_tcp_log_file(node_t *);
 
 static int
-clear_topology_handler(param_t *param,
-                       ser_buff_t *tlv_buf,
+clear_topology_handler(int cmdcode,
+                       Stack_t *tlv_stack,
                        op_mode enable_or_disable){
 
-    int CMDCODE = -1;
+    node_t *node;
+    tlv_struct_t *tlv = NULL;
+    c_string node_name = NULL;
 
-    CMDCODE = EXTRACT_CMD_CODE(tlv_buf);
+    TLV_LOOP_STACK_BEGIN(tlv_stack, tlv){
 
-    switch(CMDCODE) {
+        if(parser_match_leaf_id(tlv->leaf_id, "node-name"))
+            node_name = tlv->value;
+
+    }TLV_LOOP_END;
+
+    node = node_get_node_by_name(topo, node_name);
+
+    switch(cmdcode) {
         case CMDCODE_CLEAR_LOG_FILE:
-            tcp_ip_refresh_tcp_log_file();
+            tcp_ip_refresh_tcp_log_file(node);
             break;
         default: ;
     }
+    return 0;
 }
 
 /*Layer 2 Commands*/
@@ -339,14 +302,14 @@ extern void
 show_arp_table(arp_table_t *arp_table);
 
 static int
-show_arp_handler(param_t *param, ser_buff_t *tlv_buf, 
+show_arp_handler(int cmdcode, Stack_t *tlv_stack, 
                     op_mode enable_or_disable){
 
     node_t *node;
     c_string node_name;
     tlv_struct_t *tlv = NULL;
     
-    TLV_LOOP_BEGIN(tlv_buf, tlv){
+    TLV_LOOP_STACK_BEGIN(tlv_stack, tlv){
 
         if(parser_match_leaf_id(tlv->leaf_id, "node-name"))
             node_name = tlv->value;
@@ -365,14 +328,14 @@ typedef struct mac_table_ mac_table_t;
 extern void
 dump_mac_table(mac_table_t *mac_table);
 static int
-show_mac_handler(param_t *param, ser_buff_t *tlv_buf,
+show_mac_handler(int cmdcode, Stack_t *tlv_stack,
                     op_mode enable_or_disable){
 
     node_t *node;
     c_string node_name;
     tlv_struct_t *tlv = NULL;
     
-    TLV_LOOP_BEGIN(tlv_buf, tlv){
+    TLV_LOOP_STACK_BEGIN(tlv_stack, tlv){
 
         if(parser_match_leaf_id(tlv->leaf_id, "node-name"))
             node_name = tlv->value;
@@ -384,14 +347,12 @@ show_mac_handler(param_t *param, ser_buff_t *tlv_buf,
     return 0;
 }
 
-
-
 extern void
 send_arp_broadcast_request(node_t *node,
-                           interface_t *oif,
+                           Interface *oif,
                            c_string ip_addr);
 static int
-arp_handler(param_t *param, ser_buff_t *tlv_buf,
+arp_handler(int cmdcode, Stack_t *tlv_stack,
                 op_mode enable_or_disable){
 
     node_t *node;
@@ -399,7 +360,7 @@ arp_handler(param_t *param, ser_buff_t *tlv_buf,
     c_string ip_addr;
     tlv_struct_t *tlv = NULL;
 
-    TLV_LOOP_BEGIN(tlv_buf, tlv){
+    TLV_LOOP_STACK_BEGIN(tlv_stack, tlv){
 
         if(parser_match_leaf_id(tlv->leaf_id, "node-name"))
             node_name = tlv->value;
@@ -415,25 +376,23 @@ arp_handler(param_t *param, ser_buff_t *tlv_buf,
 
 /*Layer 3 Commands*/
 extern void
-layer3_ping_fn(node_t *node, c_string dst_ip_addr);
+layer3_ping_fn(node_t *node, c_string dst_ip_addr, uint32_t count);
 extern void
 layer3_ero_ping_fn(node_t *node, c_string dst_ip_addr,
                             c_string ero_ip_address);
 
 static int
-ping_handler(param_t *param, ser_buff_t *tlv_buf, op_mode enable_or_disable){
+ping_handler(int cmdcode, Stack_t *tlv_stack, op_mode enable_or_disable){
 
-    int CMDCODE;
     node_t *node;
+    uint32_t count = 1;
     c_string ip_addr = NULL;
     c_string ero_ip_addr = NULL;
     c_string node_name = NULL;
 
-    CMDCODE = EXTRACT_CMD_CODE(tlv_buf);
-
     tlv_struct_t *tlv = NULL;
 
-    TLV_LOOP_BEGIN(tlv_buf, tlv){
+    TLV_LOOP_STACK_BEGIN(tlv_stack, tlv){
 
         if     (parser_match_leaf_id(tlv->leaf_id, "node-name"))
             node_name = tlv->value;
@@ -441,16 +400,16 @@ ping_handler(param_t *param, ser_buff_t *tlv_buf, op_mode enable_or_disable){
             ip_addr = tlv->value;
         else if(parser_match_leaf_id(tlv->leaf_id, "ero-ip-address"))
             ero_ip_addr = tlv->value;
-        else
-            assert(0);
+        else if(parser_match_leaf_id(tlv->leaf_id, "count"))
+            count = atoi(tlv->value);
     }TLV_LOOP_END;
 
     node = node_get_node_by_name(topo, node_name);
 
-    switch(CMDCODE){
+    switch(cmdcode){
 
         case CMDCODE_PING:
-            layer3_ping_fn(node, ip_addr);
+            layer3_ping_fn(node, ip_addr, count);
             break;
         case CMDCODE_ERO_PING:
             layer3_ero_ping_fn(node, ip_addr, ero_ip_addr);
@@ -465,14 +424,14 @@ typedef struct rt_table_ rt_table_t;
 extern void
 dump_rt_table(rt_table_t *rt_table);
 static int
-show_rt_handler(param_t *param, ser_buff_t *tlv_buf,
+show_rt_handler(int cmdcode, Stack_t *tlv_stack,
                     op_mode enable_or_disable){
 
     node_t *node;
     c_string node_name;
     tlv_struct_t *tlv = NULL;
     
-    TLV_LOOP_BEGIN(tlv_buf, tlv){
+    TLV_LOOP_STACK_BEGIN(tlv_stack, tlv){
 
         if(parser_match_leaf_id(tlv->leaf_id, "node-name"))
             node_name = tlv->value;
@@ -487,7 +446,7 @@ show_rt_handler(param_t *param, ser_buff_t *tlv_buf,
 extern void
 clear_rt_table(rt_table_t *rt_table, uint16_t proto_id);
 static int
-clear_rt_handler(param_t *param, ser_buff_t *tlv_buf,
+clear_rt_handler(int cmdcode, Stack_t *tlv_stack,
                     op_mode enable_or_disable){
 
     node_t *node;
@@ -495,7 +454,7 @@ clear_rt_handler(param_t *param, ser_buff_t *tlv_buf,
     c_string rib_name;
     tlv_struct_t *tlv = NULL;
     
-    TLV_LOOP_BEGIN(tlv_buf, tlv){
+    TLV_LOOP_STACK_BEGIN(tlv_stack, tlv){
 
         if(parser_match_leaf_id(tlv->leaf_id, "node-name"))
             node_name = tlv->value;
@@ -515,11 +474,11 @@ rt_table_delete_route(rt_table_t *rt_table,
 extern void
 rt_table_add_route(rt_table_t *rt_table,
         const char *dst, char mask,
-        const char *gw, interface_t *oif, uint32_t spf_metric,
+        const char *gw, Interface *oif, uint32_t spf_metric,
         uint8_t proto);
 
 static int
-l3_config_handler(param_t *param, ser_buff_t *tlv_buf, op_mode enable_or_disable){
+l3_config_handler(int cmdcode, Stack_t *tlv_stack, op_mode enable_or_disable){
 
     node_t *node = NULL;
     c_string node_name = NULL;
@@ -529,14 +488,10 @@ l3_config_handler(param_t *param, ser_buff_t *tlv_buf, op_mode enable_or_disable
     c_string dest = NULL;
     c_string rib_name = NULL;
     c_string prefix_lst_name = NULL;
-
-    int CMDCODE = -1;
-
-    CMDCODE = EXTRACT_CMD_CODE(tlv_buf); 
     
     tlv_struct_t *tlv = NULL;
     
-    TLV_LOOP_BEGIN(tlv_buf, tlv){
+    TLV_LOOP_STACK_BEGIN(tlv_stack, tlv){
 
         if     (parser_match_leaf_id(tlv->leaf_id, "node-name"))
             node_name = tlv->value;
@@ -552,9 +507,6 @@ l3_config_handler(param_t *param, ser_buff_t *tlv_buf, op_mode enable_or_disable
             rib_name = tlv->value;        
         else if(parser_match_leaf_id(tlv->leaf_id, "prefix-lst-name"))
             prefix_lst_name = tlv->value;                   
-        else
-            assert(0);
-
     }TLV_LOOP_END;
 
     node = node_get_node_by_name(topo, node_name);
@@ -564,20 +516,20 @@ l3_config_handler(param_t *param, ser_buff_t *tlv_buf, op_mode enable_or_disable
         mask = atoi((const char *)(const char *)mask_str);
     }
 
-    switch(CMDCODE){
+    switch(cmdcode){
         case CMDCODE_CONF_NODE_L3ROUTE:
             switch(enable_or_disable){
                 case CONFIG_ENABLE:
                 {
-                    interface_t *intf;
+                    Interface *intf;
                     if(intf_name){
                         intf = node_get_intf_by_name(node, (const char *)intf_name);
                         if(!intf){
-                            printf("Config Error : Non-Existing Interface : %s\n", intf_name);
+                            cprintf("Config Error : Non-Existing Interface : %s\n", intf_name);
                             return -1;
                         }
-                        if(!IS_INTF_L3_MODE(intf)){
-                            printf("Config Error : Not L3 Mode Interface : %s\n", intf_name);
+                        if (!intf->IsIpConfigured()) {
+                            cprintf("Config Error : Not L3 Mode Interface : %s\n", intf_name);
                             return -1;
                         }
                     }
@@ -598,7 +550,7 @@ l3_config_handler(param_t *param, ser_buff_t *tlv_buf, op_mode enable_or_disable
                 rt_table_t *rt_table = NODE_RT_TABLE(node);
                 prefix_list_t *prefix_lst = prefix_lst_lookup_by_name(&node->prefix_lst_db, prefix_lst_name);
                 if (!prefix_lst) {
-                    printf ("Error : Prefix List do not Exist\n");
+                    cprintf ("Error : Prefix List do not Exist\n");
                     return -1;
                 }
                 switch (enable_or_disable) {
@@ -621,7 +573,7 @@ l3_config_handler(param_t *param, ser_buff_t *tlv_buf, op_mode enable_or_disable
                 }
             }
             else {
-                printf ("Error : Routing Table Support is inet.0\n");
+                cprintf ("Error : Routing Table Support is inet.0\n");
                 return -1;
             }
         }
@@ -641,209 +593,18 @@ l3_config_handler(param_t *param, ser_buff_t *tlv_buf, op_mode enable_or_disable
 
 
 
-/*Interface Config Handler*/
-extern void
-interface_set_l2_mode(node_t *node,
-                       interface_t *interface,
-                       c_string l2_mode_option);
-
-extern void
-interface_unset_l2_mode(node_t *node,
-                         interface_t *interface,
-                         c_string l2_mode_option);
-extern void
-interface_set_vlan(node_t *node,
-                    interface_t *interface,
-                    uint32_t vlan);
-extern void
-interface_unset_vlan(node_t *node,
-                      interface_t *interface,
-                      uint32_t vlan);
 extern bool
-schedule_hello_on_interface(interface_t *intf,
+schedule_hello_on_interface(Interface *intf,
                             int interval_sec,
                             bool is_repeat);
 extern void
-stop_interface_hellos(interface_t *interface);
-
-static int
-intf_config_handler(param_t *param, ser_buff_t *tlv_buf, 
-                    op_mode enable_or_disable){
-
-   node_t *node;
-   c_string intf_name = NULL;
-   c_string node_name = NULL;
-   uint32_t vlan_id;
-   uint8_t mask;
-   uint8_t lono;
-   c_string l2_mode_option;
-   c_string if_up_down;
-   int CMDCODE;
-   tlv_struct_t *tlv = NULL;
-   c_string intf_ip_addr = NULL;
-   interface_t *interface = NULL;
-   uint32_t intf_new_matric_val;
-   intf_prop_changed_t intf_prop_changed;
-
-   CMDCODE = EXTRACT_CMD_CODE(tlv_buf);
-   
-    TLV_LOOP_BEGIN(tlv_buf, tlv){
-
-        if     (parser_match_leaf_id(tlv->leaf_id, "node-name"))
-            node_name = tlv->value;
-        else if(parser_match_leaf_id(tlv->leaf_id, "if-name"))
-            intf_name = tlv->value;
-        else if(parser_match_leaf_id(tlv->leaf_id, "vlan-id"))
-            vlan_id = atoi((const char *)tlv->value);
-        else if(parser_match_leaf_id(tlv->leaf_id, "l2-mode-val"))
-            l2_mode_option = tlv->value;
-        else if(parser_match_leaf_id(tlv->leaf_id, "if-up-down"))
-             if_up_down = tlv->value; 
-        else if(parser_match_leaf_id(tlv->leaf_id, "metric-val"))
-             intf_new_matric_val = atoi((const char *)tlv->value);      
-        else if(parser_match_leaf_id(tlv->leaf_id, "intf-ip-address"))
-             intf_ip_addr = tlv->value;     
-        else if(parser_match_leaf_id(tlv->leaf_id, "mask"))
-             mask = atoi((const char *)tlv->value);  
-        else if(parser_match_leaf_id(tlv->leaf_id, "lono"))
-             lono = atoi((const char *)tlv->value);  
-        else
-            assert(0);
-    } TLV_LOOP_END;
-
-    node = node_get_node_by_name(topo, node_name);
-    if (intf_name) {
-        interface = node_get_intf_by_name(node, (const char *)intf_name);
-    }
-
-    switch (CMDCODE) {
-        case CMDCODE_INTF_CONFIG_LOOPBACK:
-            switch (enable_or_disable) {
-                case CONFIG_ENABLE:
-                    break;
-                case CONFIG_DISABLE:
-                    if (!interface) {
-                        printf("Error : Interface do not exist\n");
-                        return -1;
-                    }
-                    break;
-                default:
-                    break;
-            }
-        break;
-        default:
-            if (!interface) {
-                printf("Error : Interface do not exist\n");
-                return -1;
-            }
-            break;
-    }
-
-    uint32_t if_change_flags = 0;
-    switch(CMDCODE){
-        case CMDCODE_INTF_CONFIG_METRIC:
-        {
-            uint32_t intf_existing_metric = get_link_cost(interface);
-
-            if(intf_existing_metric != intf_new_matric_val){
-                SET_BIT(if_change_flags, IF_METRIC_CHANGE_F); 
-                intf_prop_changed.intf_metric = intf_existing_metric;
-            }
-
-            switch(enable_or_disable){
-                case CONFIG_ENABLE:
-                    interface->link->cost = intf_new_matric_val;        
-                break;
-                case CONFIG_DISABLE:
-                    interface->link->cost = INTF_METRIC_DEFAULT;
-                break;
-                default: ;
-            }
-            if(IS_BIT_SET(if_change_flags, IF_METRIC_CHANGE_F)){
-				nfc_intf_invoke_notification_to_sbscribers(
-					interface, &intf_prop_changed, if_change_flags);
-            }
-        }    
-        break;
-        case CMDCODE_CONF_INTF_UP_DOWN:
-            if(string_compare(if_up_down, "up", strlen("up")) == 0){
-                if(interface->intf_nw_props.is_up == false){
-                    SET_BIT(if_change_flags, IF_UP_DOWN_CHANGE_F); 
-                     intf_prop_changed.up_status = false;
-                }
-                interface->intf_nw_props.is_up = true;
-            }
-            else{
-                if(interface->intf_nw_props.is_up){
-                    SET_BIT(if_change_flags, IF_UP_DOWN_CHANGE_F);
-                     intf_prop_changed.up_status = true;
-                }
-                interface->intf_nw_props.is_up = false;
-            }
-            if(IS_BIT_SET(if_change_flags, IF_UP_DOWN_CHANGE_F)){
-				nfc_intf_invoke_notification_to_sbscribers(
-					interface, &intf_prop_changed, if_change_flags);
-            }
-            break;
-        case CMDCODE_INTF_CONFIG_L2_MODE:
-            switch(enable_or_disable){
-                case CONFIG_ENABLE:
-                    interface_set_l2_mode(node, interface, l2_mode_option);
-                    break;
-                case CONFIG_DISABLE:
-                    interface_unset_l2_mode(node, interface, l2_mode_option);
-                    break;
-                default:
-                    ;
-            }
-            break;
-        case CMDCODE_INTF_CONFIG_VLAN:
-            switch(enable_or_disable){
-                case CONFIG_ENABLE:
-                    interface_set_vlan(node, interface, vlan_id);
-                    break;
-                case CONFIG_DISABLE:
-                    interface_unset_vlan(node, interface, vlan_id);
-                    break;
-                default:
-                    ;
-            }
-            break;
-        case CMDCODE_INTF_CONFIG_IP_ADDR:
-             switch(enable_or_disable){
-                case CONFIG_ENABLE:
-                    interface_set_ip_addr(node, interface,  intf_ip_addr, mask);
-                    break;
-                case CONFIG_DISABLE:
-                    interface_unset_ip_addr(node, interface, intf_ip_addr, mask);
-                    break;
-                default:
-                    ;
-            }
-            break;
-        case CMDCODE_INTF_CONFIG_LOOPBACK:
-            switch(enable_or_disable){
-                case CONFIG_ENABLE:
-                    interface_loopback_create (node, lono);
-                    break;
-                case CONFIG_DISABLE:
-                    interface_loopback_delete (node, lono);
-                    break;
-                default:
-                    ;
-            }
-        break;
-         default:
-            ;    
-    }
-    return 0;
-}
+stop_interface_hellos(Interface *interface);
 
 /*Miscellaneous Commands*/
 
 
 static int
-debug_show_node_handler(param_t *param, ser_buff_t *tlv_buf,
+debug_show_node_handler(int cmdcode, Stack_t *tlv_stack,
                          op_mode enable_or_disable){
 
    node_t *node;
@@ -851,23 +612,17 @@ debug_show_node_handler(param_t *param, ser_buff_t *tlv_buf,
    tlv_struct_t *tlv = NULL;
    c_string access_list_name = NULL;
 
-   int CMDCODE;
-
-   CMDCODE = EXTRACT_CMD_CODE(tlv_buf);
-
-    TLV_LOOP_BEGIN(tlv_buf, tlv){
+    TLV_LOOP_STACK_BEGIN(tlv_stack, tlv){
         
         if     (parser_match_leaf_id(tlv->leaf_id, "node-name"))
             node_name = tlv->value;
         else if   (parser_match_leaf_id(tlv->leaf_id, "access-list-name"))
             access_list_name = tlv->value;
-        else
-            assert(0);
     }TLV_LOOP_END;
 
    node = node_get_node_by_name(topo, node_name);
 
-   switch(CMDCODE){
+   switch(cmdcode){
         case CMDCODE_DEBUG_SHOW_NODE_TIMER:
             print_wheel_timer(CP_TIMER(node));         
             break;
@@ -889,31 +644,26 @@ debug_show_node_handler(param_t *param, ser_buff_t *tlv_buf,
 }
 
 static int 
-show_interface_handler(param_t *param, ser_buff_t *tlv_buf, 
+show_interface_handler(int cmdcode, Stack_t *tlv_stack,
                        op_mode enable_or_disable){
     
-    int CMDCODE;
     node_t *node;
     c_string node_name;
     c_string protocol_name = NULL;
 
-    CMDCODE = EXTRACT_CMD_CODE(tlv_buf);
-
     tlv_struct_t *tlv = NULL;
 
-    TLV_LOOP_BEGIN(tlv_buf, tlv){
+    TLV_LOOP_STACK_BEGIN(tlv_stack, tlv){
 
         if     (parser_match_leaf_id(tlv->leaf_id, "node-name"))
             node_name = tlv->value;
         else if(parser_match_leaf_id(tlv->leaf_id, "protocol-name"))
             protocol_name = tlv->value;        
-        else
-            assert(0);
     } TLV_LOOP_END;
    
     node = node_get_node_by_name(topo, node_name);
 
-    switch(CMDCODE){
+    switch(cmdcode){
 
         case CMDCODE_SHOW_INTF_STATS:
             dump_node_interface_stats(node);
@@ -927,8 +677,6 @@ show_interface_handler(param_t *param, ser_buff_t *tlv_buf,
 void
 nw_init_cli(){
 
-    init_libcli();
-
     cli_register_ctrlC_handler(tcp_ip_toggle_global_console_logging);
 
     param_t *show   = libcli_get_show_hook();
@@ -936,9 +684,10 @@ nw_init_cli(){
     param_t *config = libcli_get_config_hook();
     param_t *run    = libcli_get_run_hook();
     param_t *clear    = libcli_get_clear_hook();
-    param_t *debug_show = libcli_get_debug_show_hook();
-    param_t *root = libcli_get_root();
+    //param_t *debug_show = libcli_get_debug_show_hook();
+    param_t *root = libcli_get_root_hook();
 
+#if 0
     {
         /*debug show node*/
         static param_t node;
@@ -963,7 +712,7 @@ nw_init_cli(){
                             static param_t tcam;
                             init_param(&tcam, CMD, "tcam", debug_show_node_handler, 0, INVALID, 0, "Tcam format");
                             libcli_register_param(&access_list_name, &tcam);
-                            set_param_cmd_code(&tcam, CMDCODE_DEBUG_SHOW_NODE_MTRIE_ACL);
+                            libcli_set_param_cmd_code(&tcam, CMDCODE_DEBUG_SHOW_NODE_MTRIE_ACL);
                         }
                     }
                 }
@@ -976,7 +725,7 @@ nw_init_cli(){
                     static param_t rt;
                     init_param(&rt, CMD, "rt", debug_show_node_handler, 0, INVALID, 0, "Routing Table");
                     libcli_register_param(&mtrie, &rt);
-                    set_param_cmd_code(&rt, CMDCODE_DEBUG_SHOW_NODE_MTRIE_RT);
+                    libcli_set_param_cmd_code(&rt, CMDCODE_DEBUG_SHOW_NODE_MTRIE_RT);
                 }
             }
             {
@@ -984,13 +733,13 @@ nw_init_cli(){
                 static param_t timer;
                 init_param(&timer, CMD, "timer", debug_show_node_handler, 0, INVALID, 0, "Timer State");
                 libcli_register_param(&node_name, &timer);
-                set_param_cmd_code(&timer, CMDCODE_DEBUG_SHOW_NODE_TIMER);
+                libcli_set_param_cmd_code(&timer, CMDCODE_DEBUG_SHOW_NODE_TIMER);
 				{
 					/*debug show node <node-name> timer logs*/
 					static param_t logs;
 					init_param(&logs, CMD, "logging", debug_show_node_handler, 0, INVALID, 0, "Timer Logging");
 					libcli_register_param(&timer, &logs);
-					set_param_cmd_code(&logs, CMDCODE_DEBUG_SHOW_NODE_TIMER_LOGGING);
+					libcli_set_param_cmd_code(&logs, CMDCODE_DEBUG_SHOW_NODE_TIMER_LOGGING);
 				}
             }
         }
@@ -1001,22 +750,48 @@ nw_init_cli(){
         static param_t mem_usage;
         init_param(&mem_usage, CMD, "mem-usage", display_mem_usage, 0, INVALID, 0, "Memory Usage");
         libcli_register_param(debug_show, &mem_usage);
-        set_param_cmd_code(&mem_usage, CMDCODE_DEBUG_SHOW_MEMORY_USAGE);
+        libcli_set_param_cmd_code(&mem_usage, CMDCODE_DEBUG_SHOW_MEMORY_USAGE);
         {
             /* debug show mem-usage detail*/
             static param_t detail;
             init_param(&detail, CMD, "detail", display_mem_usage, 0, INVALID, 0, "Memory Usage Detail");
             libcli_register_param(&mem_usage, &detail);
-            set_param_cmd_code(&detail, CMDCODE_DEBUG_SHOW_MEMORY_USAGE_DETAIL);
+            libcli_set_param_cmd_code(&detail, CMDCODE_DEBUG_SHOW_MEMORY_USAGE_DETAIL);
             {
                 /*  debug show mem-usage detail <struct-name> */
                 static param_t struct_name;
                 init_param(&struct_name, LEAF, 0, display_mem_usage, 0, STRING, "struct-name", "Structure Name Filter");
                 libcli_register_param(&detail, &struct_name);
-                set_param_cmd_code(&struct_name, CMDCODE_DEBUG_SHOW_MEMORY_USAGE_DETAIL);
+                libcli_set_param_cmd_code(&struct_name, CMDCODE_DEBUG_SHOW_MEMORY_USAGE_DETAIL);
             }
         }
     }
+    #endif
+
+    /* Debug commands */
+    {
+        static param_t node;
+        init_param(&node, CMD, "node", 0, 0, INVALID, 0, "\"node\" keyword");
+        libcli_register_param(debug, &node);
+        libcli_register_display_callback(&node, display_graph_nodes);
+        {
+            /* debug node <node-name> . . .*/
+            static param_t node_name;
+            init_param(&node_name, LEAF, 0, 0, validate_node_extistence, STRING, "node-name", "Node Name");
+            libcli_register_param(&node, &node_name);
+		    {
+			    /* debug node <node-name> protocol */
+				static param_t protocol;
+				init_param(&protocol, CMD, "protocol", 0, 0, INVALID, 0, "App protocol");
+				libcli_register_param(&node_name, &protocol);
+
+				/* debug node <node-name> protocol ...*/
+				cli_register_application_cli_trees(&protocol, 
+							 cli_register_cb_arr_debug_node_node_name_protocol_level);
+			}            
+        }
+    }
+
 
     /* clear commands */
     {
@@ -1025,7 +800,7 @@ nw_init_cli(){
             static param_t log_file;
             init_param(&log_file, CMD, "log-file", clear_topology_handler, 0, INVALID, 0, "clear log-file");
             libcli_register_param(clear, &log_file);
-            set_param_cmd_code(&log_file, CMDCODE_CLEAR_LOG_FILE);
+            libcli_set_param_cmd_code(&log_file, CMDCODE_CLEAR_LOG_FILE);
         }
         /*clear node ...*/    
         static param_t node;
@@ -1055,7 +830,7 @@ nw_init_cli(){
                     static param_t rib_name;
                     init_param(&rib_name, LEAF, 0, clear_rt_handler, NULL, STRING, "rib-name", "Routing Table Name");
                     libcli_register_param(&rib, &rib_name);
-                    set_param_cmd_code(&rib_name, CMDCODE_CLEAR_RT_TABLE);
+                    libcli_set_param_cmd_code(&rib_name, CMDCODE_CLEAR_RT_TABLE);
                 }
             }
         }
@@ -1067,7 +842,7 @@ nw_init_cli(){
          static param_t topology;
          init_param(&topology, CMD, "topology", show_nw_topology_handler, 0, INVALID, 0, "Dump Complete Network Topology");
          libcli_register_param(show, &topology);
-         set_param_cmd_code(&topology, CMDCODE_SHOW_NW_TOPOLOGY);
+         libcli_set_param_cmd_code(&topology, CMDCODE_SHOW_NW_TOPOLOGY);
          {
              /*show topology node*/ 
              static param_t node;
@@ -1079,7 +854,7 @@ nw_init_cli(){
                  static param_t node_name;
                  init_param(&node_name, LEAF, 0, show_nw_topology_handler, validate_node_extistence, STRING, "node-name", "Node Name");
                  libcli_register_param(&node, &node_name);
-                 set_param_cmd_code(&node_name, CMDCODE_SHOW_NW_TOPOLOGY);
+                 libcli_set_param_cmd_code(&node_name, CMDCODE_SHOW_NW_TOPOLOGY);
              }
          }
          
@@ -1104,6 +879,8 @@ nw_init_cli(){
                      network_object_build_show_cli (&node_name);
                      /* Object Group Show CLIs*/
                      object_group_build_show_cli (&node_name);
+                     /* show CLIs for TSPs*/
+                     show_node_transport_svc_cli_tree(&node_name);
                  }
 
 				 {
@@ -1121,35 +898,35 @@ nw_init_cli(){
                      static param_t log_status;
                      init_param(&log_status, CMD, "log-status", traceoptions_handler, 0, INVALID, 0, "log-status");
                      libcli_register_param(&node_name, &log_status);
-                     set_param_cmd_code(&log_status, CMDCODE_DEBUG_SHOW_LOG_STATUS);
+                     libcli_set_param_cmd_code(&log_status, CMDCODE_DEBUG_SHOW_LOG_STATUS);
                  }
                  {
                     /*show node <node-name> spf-result*/
                     static param_t spf_result;
                     init_param(&spf_result, CMD, "spf-result", spf_algo_handler, 0, INVALID, 0, "SPF Results");
                     libcli_register_param(&node_name, &spf_result);
-                    set_param_cmd_code(&spf_result, CMDCODE_SHOW_SPF_RESULTS);
+                    libcli_set_param_cmd_code(&spf_result, CMDCODE_SHOW_SPF_RESULTS);
                  }
                  {
                     /*show node <node-name> arp*/
                     static param_t arp;
                     init_param(&arp, CMD, "arp", show_arp_handler, 0, INVALID, 0, "Dump Arp Table");
                     libcli_register_param(&node_name, &arp);
-                    set_param_cmd_code(&arp, CMDCODE_SHOW_NODE_ARP_TABLE);
+                    libcli_set_param_cmd_code(&arp, CMDCODE_SHOW_NODE_ARP_TABLE);
                  }
                  {
                     /*show node <node-name> mac*/
                     static param_t mac;
                     init_param(&mac, CMD, "mac", show_mac_handler, 0, INVALID, 0, "Dump Mac Table");
                     libcli_register_param(&node_name, &mac);
-                    set_param_cmd_code(&mac, CMDCODE_SHOW_NODE_MAC_TABLE);
+                    libcli_set_param_cmd_code(&mac, CMDCODE_SHOW_NODE_MAC_TABLE);
                  }
                  {
                     /*show node <node-name> rt*/
                     static param_t rt;
                     init_param(&rt, CMD, "rt", show_rt_handler, 0, INVALID, 0, "Dump L3 Routing table");
                     libcli_register_param(&node_name, &rt);
-                    set_param_cmd_code(&rt, CMDCODE_SHOW_NODE_RT_TABLE);
+                    libcli_set_param_cmd_code(&rt, CMDCODE_SHOW_NODE_RT_TABLE);
                  }
                  {
                     /*show node <node-name> interface*/
@@ -1162,7 +939,7 @@ nw_init_cli(){
                         static param_t stats;
                         init_param(&stats, CMD, "statistics", show_interface_handler, 0, INVALID, 0, "Interface Statistics");
                         libcli_register_param(&interface, &stats);
-                        set_param_cmd_code(&stats, CMDCODE_SHOW_INTF_STATS);
+                        libcli_set_param_cmd_code(&stats, CMDCODE_SHOW_INTF_STATS);
                     }
                  }
 
@@ -1181,7 +958,7 @@ nw_init_cli(){
             static param_t all;
             init_param(&all, CMD, "all" , spf_algo_handler, 0, INVALID, 0, "All nodes");
             libcli_register_param(&spf, &all);
-            set_param_cmd_code(&all, CMDCODE_RUN_SPF_ALL);
+            libcli_set_param_cmd_code(&all, CMDCODE_RUN_SPF_ALL);
         }
     }
 
@@ -1218,7 +995,19 @@ nw_init_cli(){
                     static param_t ip_addr;
                     init_param(&ip_addr, LEAF, 0, ping_handler, 0, IPV4, "ip-address", "Ipv4 Address");
                     libcli_register_param(&ping, &ip_addr);
-                    set_param_cmd_code(&ip_addr, CMDCODE_PING);
+                    libcli_set_param_cmd_code(&ip_addr, CMDCODE_PING);
+                    {
+                        /*run node <node-name> ping <ip-address> -c */
+                            static param_t _c;
+                            init_param(&_c, CMD, "-c", 0, 0, INVALID, 0, "-c count switch");
+                            libcli_register_param(&ip_addr, &_c);
+                            {
+                                 static param_t count;
+                                 init_param(&count, LEAF, 0, ping_handler, 0, INT, "count", "No of Pings to send");
+                                 libcli_register_param(&_c, &count);
+                                 libcli_set_param_cmd_code(&count, CMDCODE_PING);
+                            }
+                    }
                     {
                         static param_t ero;
                         init_param(&ero, CMD, "ero", 0, 0, INVALID, 0, "ERO(Explicit Route Object)");
@@ -1227,7 +1016,7 @@ nw_init_cli(){
                             static param_t ero_ip_addr;
                             init_param(&ero_ip_addr, LEAF, 0, ping_handler, 0, IPV4, "ero-ip-address", "ERO Ipv4 Address");
                             libcli_register_param(&ero, &ero_ip_addr);
-                            set_param_cmd_code(&ero_ip_addr, CMDCODE_ERO_PING);
+                            libcli_set_param_cmd_code(&ero_ip_addr, CMDCODE_ERO_PING);
                         }
                     }
                 }
@@ -1242,15 +1031,15 @@ nw_init_cli(){
                     static param_t ip_addr;
                     init_param(&ip_addr, LEAF, 0, arp_handler, 0, IPV4, "ip-address", "Nbr IPv4 Address");
                     libcli_register_param(&resolve_arp, &ip_addr);
-                    set_param_cmd_code(&ip_addr, CMDCODE_RUN_ARP);
+                    libcli_set_param_cmd_code(&ip_addr, CMDCODE_RUN_ARP);
                 }
             }
             {
                 /*run node <node-name> spf*/
                 static param_t spf;
-                init_param(&spf, CMD, "spf", spf_algo_handler, 0, INVALID, 0, "Trigger SPF");
+                init_param(&spf, CMD, "spf", isis_show_handler, 0, INVALID, 0, "Trigger SPF");
                 libcli_register_param(&node_name, &spf);
-                set_param_cmd_code(&spf, CMDCODE_RUN_SPF);
+                libcli_set_param_cmd_code(&spf, CMDCODE_RUN_SPF);
             }
         }
     }
@@ -1265,14 +1054,14 @@ nw_init_cli(){
             static param_t _stdout;
             init_param(&_stdout, CMD, "stdout", traceoptions_handler, 0, INVALID, 0, "Turn on stdio logging");
             libcli_register_param(&global, &_stdout);
-            set_param_cmd_code(&_stdout, CMDCODE_DEBUG_GLOBAL_STDOUT);
+            libcli_set_param_cmd_code(&_stdout, CMDCODE_DEBUG_GLOBAL_STDOUT);
         }
         {
             /*config global no-stdout*/
             static param_t _no_stdout;
             init_param(&_no_stdout, CMD, "no-stdout", traceoptions_handler, 0, INVALID, 0, "Turn off stdio logging");
             libcli_register_param(&global, &_no_stdout);
-            set_param_cmd_code(&_no_stdout, CMDCODE_DEBUG_GLOBAL_NO_STDOUT);
+            libcli_set_param_cmd_code(&_no_stdout, CMDCODE_DEBUG_GLOBAL_NO_STDOUT);
         }
     }
     {
@@ -1289,19 +1078,25 @@ nw_init_cli(){
 
         {
             /* ACL CLIs are loaded */
-            acl_build_config_cli(&node_name);
+            acl_build_config_cli (&node_name);
 
             /* Prefix List CLI loaded */
-            prefix_list_cli_config_tree(&node_name);
+            prefix_list_cli_config_tree (&node_name);
 
             /* Object Network Config CLIs */
             network_object_build_config_cli (&node_name);
 
             /*Object Group Config CLIs */
-            object_group_build_config_cli  (&node_name);
+            object_group_build_config_cli (&node_name);
 
             /* Timer Range CLIs */
-            time_range_config_cli_tree  (&node_name);
+            time_range_config_cli_tree (&node_name);
+
+            /* Interface CLIs */
+            Interface_config_cli_tree (&node_name);
+
+            /* Transport Svc Profile CLIs*/
+            config_node_build_transport_svc_cli_tree (&node_name);
         }
 
         {
@@ -1321,7 +1116,7 @@ nw_init_cli(){
                         static param_t prefix_lst_name;
                         init_param(&prefix_lst_name, LEAF, 0, l3_config_handler, NULL, STRING, "prefix-lst-name", "Prefix List Name");
                         libcli_register_param(&import_pol, &prefix_lst_name);
-                        set_param_cmd_code(&prefix_lst_name, CMDCODE_CONF_RIB_IMPORT_POLICY);
+                        libcli_set_param_cmd_code(&prefix_lst_name, CMDCODE_CONF_RIB_IMPORT_POLICY);
                     }
                 }                
             }
@@ -1337,110 +1132,11 @@ nw_init_cli(){
 				/* config node <node-name> protocol....*/
 				cli_register_application_cli_trees(&protocol, 
 						cli_register_cb_arr_config_node_node_name_protocol_level);
-                support_cmd_negation(&protocol);
+                libcli_support_cmd_negation(&protocol);
             }
 
             /*CLI for traceoptions at node level are hooked up here in tree */
             tcp_ip_traceoptions_cli(&node_name, 0);
-
-            /*config node <node-name> interface*/
-            static param_t interface;
-            init_param(&interface, CMD, "interface", 0, 0, INVALID, 0, "\"interface\" keyword");
-            libcli_register_display_callback(&interface, display_node_interfaces);
-            libcli_register_param(&node_name, &interface);
-            {
-                /* CLI for GRE Tunneling are mounted here*/
-                gre_cli_config_tree(&interface);
-            }
-
-            {
-                /*config node <node-name> interface <if-name>*/
-                static param_t if_name;
-                init_param(&if_name, LEAF, 0, 0, 0, STRING, "if-name", "Interface Name");
-                libcli_register_param(&interface, &if_name);
-	
-                {
-                    /*CLI for traceoptions at interface level are hooked up here in tree */
-                    tcp_ip_traceoptions_cli(0, &if_name);
-                    {
-                    #if 0
-                        /*config node <node-name> interface <if-name> l2mode*/
-                        static param_t l2_mode;
-                        init_param(&l2_mode, CMD, "l2mode", 0, 0, INVALID, 0, "\"l2mode\" keyword");
-                        libcli_register_param(&if_name, &l2_mode);
-                        {
-                            /*config node <node-name> interface <if-name> l2mode <access|trunk>*/
-                            static param_t l2_mode_val;
-                            init_param(&l2_mode_val, LEAF, 0, intf_config_handler, validate_l2_mode_value, STRING, "l2-mode-val", "access|trunk");
-                            libcli_register_param(&l2_mode, &l2_mode_val);
-                            set_param_cmd_code(&l2_mode_val, CMDCODE_INTF_CONFIG_L2_MODE);
-                        }
-                    #endif
-                    }
-                    {
-                        /*config node <node-name> interface <if-name> <up|down>*/
-                        static param_t if_up_down_status;
-                        init_param(&if_up_down_status, LEAF, 0, intf_config_handler, validate_if_up_down_status, STRING, "if-up-down", "<up | down>");
-                        libcli_register_param(&if_name, &if_up_down_status);
-                        set_param_cmd_code(&if_up_down_status, CMDCODE_CONF_INTF_UP_DOWN);
-                    }
-                }
-                {
-                    static param_t loopback;
-                    init_param(&loopback, CMD, "loopback", 0, 0, INVALID, 0, "loopback");
-                    libcli_register_param(&interface, &loopback);
-                    {
-                        static param_t lono;
-                        init_param(&lono, LEAF, 0, intf_config_handler, NULL, INT, "lono", "Loopback ID");
-                        libcli_register_param(&loopback, &lono);
-                        set_param_cmd_code(&lono, CMDCODE_INTF_CONFIG_LOOPBACK);
-                    }
-                }
-                {
-                    static param_t metric;
-                    init_param(&metric, CMD, "metric", 0, 0, INVALID, 0, "Interface Metric");
-                    libcli_register_param(&if_name, &metric);
-                    {
-                        static param_t metric_val;
-                        init_param(&metric_val, LEAF, 0, intf_config_handler, validate_interface_metric_val, INT, "metric-val", "Metric Value(1-16777215)");
-                        libcli_register_param(&metric, &metric_val);
-                        set_param_cmd_code(&metric_val, CMDCODE_INTF_CONFIG_METRIC);
-                    }
-                }
-                {
-                    /* config node <node-name> ineterface <if-name> ip-address <ip-addr> <mask>*/
-                    static param_t ip_addr;
-                    init_param(&ip_addr, CMD, "ip-address", 0, 0, INVALID, 0, "Interface IP Address");
-                    libcli_register_param(&if_name, &ip_addr);
-                    {
-                        static param_t ip_addr_val;
-                        init_param(&ip_addr_val, LEAF, 0, 0, 0, IPV4, "intf-ip-address", "IPV4 address");
-                        libcli_register_param(&ip_addr, &ip_addr_val);
-                        {
-                            static param_t mask;
-                            init_param(&mask, LEAF, 0, intf_config_handler, validate_mask_value, INT, "mask", "mask [0-32]");
-                            libcli_register_param(&ip_addr_val, &mask);
-                            set_param_cmd_code(&mask, CMDCODE_INTF_CONFIG_IP_ADDR);
-                        }
-                    }
-                }
-                {
-                #if 0
-                    /*config node <node-name> interface <if-name> vlan*/
-                    static param_t vlan;
-                    init_param(&vlan, CMD, "vlan", 0, 0, INVALID, 0, "\"vlan\" keyword");
-                    libcli_register_param(&if_name, &vlan);
-                    {
-                        /*config node <node-name> interface <if-name> vlan <vlan-id>*/
-                         static param_t vlan_id;
-                         init_param(&vlan_id, LEAF, 0, intf_config_handler, validate_vlan_id, INT, "vlan-id", "vlan id(1-4096)");
-                         libcli_register_param(&vlan, &vlan_id);
-                         set_param_cmd_code(&vlan_id, CMDCODE_INTF_CONFIG_VLAN);
-                    }
-                #endif
-                }    
-            }
-            support_cmd_negation(&interface); 
         }
         
         {
@@ -1458,7 +1154,7 @@ nw_init_cli(){
                     static param_t mask;
                     init_param(&mask, LEAF, 0, l3_config_handler, validate_mask_value, INT, "mask", "mask(0-32");
                     libcli_register_param(&ip_addr, &mask);
-                    set_param_cmd_code(&mask, CMDCODE_CONF_NODE_L3ROUTE);
+                    libcli_set_param_cmd_code(&mask, CMDCODE_CONF_NODE_L3ROUTE);
                     {
                         /*config node <node-name> route <ip-address> <mask> <gw-ip>*/
                         static param_t gwip;
@@ -1469,15 +1165,13 @@ nw_init_cli(){
                             static param_t oif;
                             init_param(&oif, LEAF, 0, l3_config_handler, 0, STRING, "oif", "Out-going intf Name");
                             libcli_register_param(&gwip, &oif);
-                            set_param_cmd_code(&oif, CMDCODE_CONF_NODE_L3ROUTE);
+                            libcli_set_param_cmd_code(&oif, CMDCODE_CONF_NODE_L3ROUTE);
                         }
                     }
                 }
             }    
         }    
-        support_cmd_negation(&node_name);
+        libcli_support_cmd_negation(&node_name);
       }
     }
-    support_cmd_negation(config);
-    /*Do not Add any param here*/
 }

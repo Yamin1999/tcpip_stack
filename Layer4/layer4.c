@@ -37,16 +37,17 @@
 #include "../tcpconst.h"
 
 extern void layer4_mem_init() ;
+class Interface;
 
 /*Public APIs to be used by Lower layers of TCP/IP Stack to promote
  * the pkt to Layer 4*/
 void
 promote_pkt_to_layer4(node_t *node,
-                      interface_t *recv_intf,
+                      Interface *recv_intf,
                       pkt_block_t *pkt_block,
                       int L4_protocol_number){ /*= TCP/UDP or what */
 
-        //printf ("%s() : Protocol %d. Pkt Consumed\n", __FUNCTION__, L4_protocol_number);
+        //cprintf ("%s() : Protocol %d. Pkt Consumed\n", __FUNCTION__, L4_protocol_number);
         pkt_block_dereference(pkt_block);
 }
 

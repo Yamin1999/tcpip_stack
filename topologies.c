@@ -31,12 +31,13 @@
  */
 /* Visit my Website for more wonderful assignments and projects :
  * www.csepracticals.com
- * if above URL dont work, then try visit : https://csepracticals.com*/
+ * if above URL dont work, then try visit : https://www.csepracticals.com*/
 
 #include "utils.h"
 #include "graph.h"
 #include "comm.h"
 #include "Layer2/layer2.h"
+#include "Interface/InterfaceUApi.h"
 
 graph_t *build_first_topo(void);
 graph_t *build_simple_l2_switch_topo(void);
@@ -88,14 +89,17 @@ build_first_topo(void){
     insert_link_between_two_nodes(R0_re, R2_re, "eth4", "eth5", 9);
 
     node_set_loopback_address(R0_re, "122.1.1.0");
+
     node_set_intf_ip_address(R0_re, "eth4", "40.1.1.1", 24);
     node_set_intf_ip_address(R0_re, "eth0", "20.1.1.1", 24);
     
     node_set_loopback_address(R1_re, "122.1.1.1");
+
     node_set_intf_ip_address(R1_re, "eth1", "20.1.1.2", 24);
     node_set_intf_ip_address(R1_re, "eth2", "30.1.1.1", 24);
 
     node_set_loopback_address(R2_re, "122.1.1.2");
+
     node_set_intf_ip_address(R2_re, "eth3", "30.1.1.2", 24);
     node_set_intf_ip_address(R2_re, "eth5", "40.1.1.2", 24);
 
@@ -161,11 +165,15 @@ build_simple_l2_switch_topo(void){
     node_set_loopback_address(H4, "122.1.1.4");
     node_set_intf_ip_address(H4, "eth7", "10.1.1.3", 24);
     
-    node_set_intf_l2_mode(L2SW, "eth1", ACCESS);
-    node_set_intf_l2_mode(L2SW, "eth2", ACCESS);
-    node_set_intf_l2_mode(L2SW, "eth3", ACCESS);
-    node_set_intf_l2_mode(L2SW, "eth4", ACCESS);
+    node_set_intf_switchport(L2SW, "eth1");
+    node_set_intf_switchport(L2SW, "eth2");
+    node_set_intf_switchport(L2SW, "eth3");
+    node_set_intf_switchport(L2SW, "eth4");
 
+    node_set_intf_vlan_membership(L2SW, "eth1", 10, false);
+    node_set_intf_vlan_membership(L2SW, "eth2", 10, false);
+    node_set_intf_vlan_membership(L2SW, "eth3", 10, false);
+    node_set_intf_vlan_membership(L2SW, "eth4", 10, false);
     return topo;
 }
 
@@ -247,18 +255,22 @@ build_linear_topo(void){
     node_t *H1 = create_graph_node(topo, (const c_string)"H1");
     node_t *H2 = create_graph_node(topo, (const c_string)"H2");
     node_t *H3 = create_graph_node(topo, (const c_string)"H3");
+    node_t *H4 = create_graph_node(topo, (const c_string)"H4");
     
-    insert_link_between_two_nodes(H1, H2, "eth1", "eth2", 1);
-    insert_link_between_two_nodes(H2, H3, "eth3", "eth4", 1);
+    insert_link_between_two_nodes(H1, H2, "eth1", "eth1", 1);
+    insert_link_between_two_nodes(H2, H3, "eth2", "eth1", 1);
+    insert_link_between_two_nodes(H3, H4, "eth2", "eth1", 1);
 
     node_set_loopback_address(H1, "122.1.1.1");
     node_set_loopback_address(H2, "122.1.1.2");
     node_set_loopback_address(H3, "122.1.1.3");
+    node_set_loopback_address(H3, "122.1.1.4");
 
     node_set_intf_ip_address(H1, "eth1", "10.1.1.1", 24);
-    node_set_intf_ip_address(H2, "eth2", "10.1.1.2", 24);
-    node_set_intf_ip_address(H2, "eth3", "20.1.1.2", 24);
-    node_set_intf_ip_address(H3, "eth4", "20.1.1.1", 24);
+    //node_set_intf_ip_address(H2, "eth2", "10.1.1.2", 24);
+    //node_set_intf_ip_address(H2, "eth3", "20.1.1.2", 24);
+    //node_set_intf_ip_address(H3, "eth4", "20.1.1.1", 24);
+    node_set_intf_ip_address(H4, "eth1", "10.1.1.2", 24);
 
     return topo;
 }
@@ -308,10 +320,10 @@ build_dualswitch_topo(void){
     node_t *H4 = create_graph_node(topo, (const c_string)"H4");
     node_set_loopback_address(H4, "122.1.1.4");
     node_t *H5 = create_graph_node(topo, (const c_string)"H5");
-
     node_set_loopback_address(H5, "122.1.1.5");
     node_t *H6 = create_graph_node(topo, (const c_string)"H6");
     node_set_loopback_address(H6, "122.1.1.6");
+
     node_t *L2SW1 = create_graph_node(topo, (const c_string)"L2SW1");
     node_t *L2SW2 = create_graph_node(topo, (const c_string)"L2SW2");
     
@@ -330,25 +342,23 @@ build_dualswitch_topo(void){
     node_set_intf_ip_address(H5, "eth8",  "10.1.1.5", 24);
     node_set_intf_ip_address(H6, "eth11", "10.1.1.6", 24);
 
-    node_set_intf_l2_mode(L2SW1, "eth2", ACCESS);
-    node_set_intf_vlan_membership(L2SW1, "eth2", 10);
-    node_set_intf_l2_mode(L2SW1, "eth7", ACCESS);
-    node_set_intf_vlan_membership(L2SW1, "eth7", 10);
-    node_set_intf_l2_mode(L2SW1, "eth5", TRUNK);
-    node_set_intf_vlan_membership(L2SW1, "eth5", 10);
-    node_set_intf_vlan_membership(L2SW1, "eth5", 11);
-    node_set_intf_l2_mode(L2SW1, "eth6", ACCESS);
-    node_set_intf_vlan_membership(L2SW1, "eth6", 11);
+    node_set_intf_switchport(L2SW1, "eth2");
+    node_set_intf_vlan_membership(L2SW1, "eth2", 10, false);
+    node_set_intf_switchport(L2SW1, "eth7");
+    node_set_intf_vlan_membership(L2SW1, "eth7", 10, false);
+    node_set_intf_switchport(L2SW1, "eth5");
+    node_set_intf_vlan_membership(L2SW1, "eth5", 10, true);
+    node_set_intf_switchport(L2SW1, "eth6");
+    node_set_intf_vlan_membership(L2SW1, "eth6", 10, false);
 
-    node_set_intf_l2_mode(L2SW2, "eth7", TRUNK);
-    node_set_intf_vlan_membership(L2SW2, "eth7", 10);
-    node_set_intf_vlan_membership(L2SW2, "eth7", 11);
-    node_set_intf_l2_mode(L2SW2, "eth9", ACCESS);
-    node_set_intf_vlan_membership(L2SW2, "eth9", 10);
-    node_set_intf_l2_mode(L2SW2, "eth10", ACCESS);
-    node_set_intf_vlan_membership(L2SW2, "eth10", 10);
-    node_set_intf_l2_mode(L2SW2, "eth12", ACCESS);
-    node_set_intf_vlan_membership(L2SW2, "eth12", 11);
+    node_set_intf_switchport(L2SW2, "eth7");
+    node_set_intf_vlan_membership(L2SW2, "eth7", 10, true);
+    node_set_intf_switchport(L2SW2, "eth9");
+    node_set_intf_vlan_membership(L2SW2, "eth9", 10, false);
+    node_set_intf_switchport(L2SW2, "eth10");
+    node_set_intf_vlan_membership(L2SW2, "eth10", 10, false);
+    node_set_intf_switchport(L2SW2, "eth12");
+    node_set_intf_vlan_membership(L2SW2, "eth12", 10, false);
 
     return topo;
 }
@@ -452,7 +462,7 @@ cross_link_topology(void){
     insert_link_between_two_nodes(R2, R4, "eth7",  "eth6",  INTF_METRIC_DEFAULT);
     insert_link_between_two_nodes(R2, R5, "eth4",  "eth5",  INTF_METRIC_DEFAULT);
     insert_link_between_two_nodes(R3, R4, "eth10", "eth11", INTF_METRIC_DEFAULT);
-    insert_link_between_two_nodes(R4, R5, "eth13", "eth12", INTF_METRIC_DEFAULT);
+    insert_link_between_two_nodes(R4, R5, "eth13", "eth12", INTF_METRIC_DEFAULT);    
 
     node_set_loopback_address(R0, "122.1.1.0");
     node_set_loopback_address(R1, "122.1.1.1");
@@ -465,7 +475,7 @@ cross_link_topology(void){
     node_set_intf_ip_address(R0, "eth14","80.1.1.1", 24);
 
     node_set_intf_ip_address(R1, "eth1", "10.1.1.2", 24);
-    node_set_intf_ip_address(R1, "eth2", "20.1.1.1", 24);
+    node_set_intf_ip_address(R1, "eth2", "20.1.1.1", 24); 
 
     node_set_intf_ip_address(R2, "eth3", "20.1.1.2", 24);
     node_set_intf_ip_address(R2, "eth8", "50.1.1.1", 24);

@@ -2,9 +2,7 @@
 #include "../../LinuxMemoryManager/uapi_mm.h"
 #include "../../graph.h"
 #include "objnw.h"
-#include "../../CommandParser/libcli.h"
-#include "../../CommandParser/cmdtlv.h"
-#include "../../CommandParser/css.h"
+#include "../../CLIBuilder/libcli.h"
 
 extern graph_t *topo;
 
@@ -20,8 +18,8 @@ extern graph_t *topo;
 /* show node <node-name> network-object <nw-obj-name>*/
 
 static int
-network_object_config_handler (param_t *param, 
-                                                     ser_buff_t *tlv_buf,
+network_object_config_handler (int cmdcode,
+                                                     Stack_t *tlv_stack,
                                                      op_mode enable_or_disable) {
 
     node_t *node;
@@ -33,10 +31,7 @@ network_object_config_handler (param_t *param,
     char *subnet_mask = NULL;
     char *nw_obj_name = NULL;
 
-    int cmdcode = EXTRACT_CMD_CODE(tlv_buf);
-
-    TLV_LOOP_BEGIN(tlv_buf, tlv){
-
+    TLV_LOOP_STACK_BEGIN(tlv_stack, tlv){
         
     if (parser_match_leaf_id (tlv->leaf_id, "network-object-name"))
 	    nw_obj_name = tlv->value;
@@ -53,12 +48,10 @@ network_object_config_handler (param_t *param,
     else if (parser_match_leaf_id (tlv->leaf_id, "range-ub")) {
         ub = tcp_ip_covert_ip_p_to_n(tlv->value);             
         if (ub < lb) {
-            printf ("Error : Invalid Range\n");
+            cprintf ("Error : Invalid Range\n");
             return -1;
         }
     }
-    else
-        assert(0);
     } TLV_LOOP_END;
 
     node = node_get_node_by_name(topo, node_name);
@@ -73,7 +66,7 @@ network_object_config_handler (param_t *param,
                         if (obj_nw) {
                             
                             if (obj_nw->type != OBJ_NW_TYPE_HOST) {
-                                printf ("Error : Object Network Type cannot be changed\n");
+                                cprintf ("Error : Object Network Type cannot be changed\n");
                                 return -1;
                             }
 
@@ -81,7 +74,7 @@ network_object_config_handler (param_t *param,
                                 return 0;
                             }
                             
-                            printf (ANSI_COLOR_RED "Error : Conflicting Changes, Configuration aborted\n"ANSI_COLOR_RESET);
+                            cprintf ("Error : Conflicting Changes, Configuration aborted\n");
                             return -1;
                         }
                         obj_nw = network_object_create_new(nw_obj_name, OBJ_NW_TYPE_HOST);
@@ -94,17 +87,17 @@ network_object_config_handler (param_t *param,
                     obj_nw_t *obj_nw = network_object_lookup_by_name(node->object_network_ght, nw_obj_name);
                     if (!obj_nw)
                     {
-                        printf("Error : Object Network Do not Exist\n");
+                        cprintf("Error : Object Network Do not Exist\n");
                         return -1;
                     }
                     if (obj_nw->type != OBJ_NW_TYPE_HOST)
                     {
-                        printf("Error : Object Network Type cannot be changed\n");
+                        cprintf("Error : Object Network Type cannot be changed\n");
                         return -1;
                     }
 
                     if (obj_nw->ref_count > 0) {
-                        printf ("Error : Network Object in Use\n");
+                        cprintf ("Error : Network Object in Use\n");
                         return -1;
                     }
                     assert(network_object_remove_from_ht_by_name(node->object_network_ght, nw_obj_name) == obj_nw);
@@ -125,7 +118,7 @@ network_object_config_handler (param_t *param,
                         if (obj_nw) {
 
                             if (obj_nw->type != OBJ_NW_TYPE_SUBNET) {
-                                printf("Error : Object Network Type cannot be changed\n");
+                                cprintf("Error : Object Network Type cannot be changed\n");
                                 return -1;
                             }
 
@@ -133,7 +126,7 @@ network_object_config_handler (param_t *param,
                                 return 0;
                             }
 
-                            printf (ANSI_COLOR_RED "Error : Conflicting Changes, Configuration aborted\n"ANSI_COLOR_RESET);
+                            cprintf ("Error : Conflicting Changes, Configuration aborted\n");
                             return -1;
                         }
 
@@ -148,16 +141,16 @@ network_object_config_handler (param_t *param,
                     obj_nw_t *obj_nw = network_object_lookup_by_name(node->object_network_ght, nw_obj_name);
                     if (!obj_nw)
                     {
-                        printf("Error : Object Network Do not Exist\n");
+                        cprintf("Error : Object Network Do not Exist\n");
                         return -1;
                     }
                     if (obj_nw->type != OBJ_NW_TYPE_SUBNET)
                     {
-                        printf("Error : Object Network Type cannot be changed\n");
+                        cprintf("Error : Object Network Type cannot be changed\n");
                         return -1;
                     }
                     if (obj_nw->ref_count > 0) {
-                        printf("Error : Network Object in Use\n");
+                        cprintf("Error : Network Object in Use\n");
                         return -1;
                     }
                     assert(network_object_remove_from_ht_by_name(node->object_network_ght, nw_obj_name) == obj_nw);
@@ -177,7 +170,7 @@ network_object_config_handler (param_t *param,
                         if (obj_nw) {
 
                             if (obj_nw->type != OBJ_NW_TYPE_RANGE) {
-                                printf("Error : Object Network Type cannot be changed\n");
+                                cprintf("Error : Object Network Type cannot be changed\n");
                                 return -1;
                             }
 
@@ -185,7 +178,7 @@ network_object_config_handler (param_t *param,
                                 return 0;
                             }
 
-                            printf (ANSI_COLOR_RED "Error : Conflicting Changes, Configuration aborted\n"ANSI_COLOR_RESET);
+                            cprintf ("Error : Conflicting Changes, Configuration aborted\n");
                             return -1;
                         }
 
@@ -200,16 +193,16 @@ network_object_config_handler (param_t *param,
                     obj_nw_t *obj_nw = network_object_lookup_by_name(node->object_network_ght, nw_obj_name);
                     if (!obj_nw)
                     {
-                        printf("Error : Object Network Do not Exist\n");
+                        cprintf("Error : Object Network Do not Exist\n");
                         return -1;
                     }
                     if (obj_nw->type != OBJ_NW_TYPE_RANGE)
                     {
-                        printf("Error : Object Network Type cannot be changed\n");
+                        cprintf("Error : Object Network Type cannot be changed\n");
                         return -1;
                     }
                     if (obj_nw->ref_count > 0) {
-                        printf("Error : Network Object in Use\n");
+                        cprintf("Error : Network Object in Use\n");
                         return -1;
                     }
                     assert(network_object_remove_from_ht_by_name(
@@ -251,7 +244,7 @@ network_object_build_config_cli (param_t *root) {
                      static param_t ip;
                      init_param(&ip, LEAF, 0, network_object_config_handler, 0, IPV4, "host-addr", "specify Host IPV4 Address");
                     libcli_register_param(&host, &ip);
-                    set_param_cmd_code(&ip, NW_OBJ_CONFIG_HOST);
+                    libcli_set_param_cmd_code(&ip, NW_OBJ_CONFIG_HOST);
                 }
         }
         {
@@ -264,7 +257,7 @@ network_object_build_config_cli (param_t *root) {
                  static param_t subnet_mask;
                  init_param(&subnet_mask, LEAF, 0, network_object_config_handler, 0, IPV4, "subnet-mask", "specify Subnet IPV4 MaskAddress in A.B.C.D format");
                  libcli_register_param(&subnet_ip, &subnet_mask);
-                 set_param_cmd_code(&subnet_mask, NW_OBJ_CONFIG_SUBNET);
+                 libcli_set_param_cmd_code(&subnet_mask, NW_OBJ_CONFIG_SUBNET);
              }
         }
         {
@@ -282,7 +275,7 @@ network_object_build_config_cli (param_t *root) {
                         static param_t range_ub;
                         init_param(&range_ub, LEAF, 0, network_object_config_handler, 0, IPV4, "range-ub", "specify IPV4 Upper Range Address");
                         libcli_register_param(&range_lb, &range_ub);
-                        set_param_cmd_code(&range_ub, NW_OBJ_CONFIG_RANGE);
+                        libcli_set_param_cmd_code(&range_ub, NW_OBJ_CONFIG_RANGE);
                     }
                 }
         }
@@ -290,8 +283,8 @@ network_object_build_config_cli (param_t *root) {
 }
 
 static int
-network_object_show_handler (param_t *param, 
-                                                     ser_buff_t *tlv_buf,
+network_object_show_handler (int cmdcode,
+                                                     Stack_t *tlv_stack,
                                                      op_mode enable_or_disable) {
 
     node_t *node;
@@ -299,16 +292,12 @@ network_object_show_handler (param_t *param,
     c_string node_name = NULL;
     char *nw_obj_name = NULL;
 
-    int cmdcode = EXTRACT_CMD_CODE(tlv_buf);
-
-    TLV_LOOP_BEGIN(tlv_buf, tlv){
+    TLV_LOOP_STACK_BEGIN(tlv_stack, tlv){
         
     if (parser_match_leaf_id (tlv->leaf_id, "network-object-name"))
 	    nw_obj_name = tlv->value;
     else if (parser_match_leaf_id (tlv->leaf_id, "node-name"))
         node_name = tlv->value;
-    else
-        assert(0);
     } TLV_LOOP_END;
 
     node = node_get_node_by_name(topo, node_name);
@@ -335,13 +324,13 @@ network_object_build_show_cli (param_t *root) {
         static param_t nw_obj;
         init_param(&nw_obj, CMD, "object-network", network_object_show_handler, NULL, INVALID, NULL, "Network Object Configurations");
         libcli_register_param(root, &nw_obj);
-        set_param_cmd_code(&nw_obj, NW_OBJ_SHOW_ALL);
+        libcli_set_param_cmd_code(&nw_obj, NW_OBJ_SHOW_ALL);
         {
              /* show node <node-name> network-object <name>*/
              static param_t name;
              init_param(&name, LEAF, 0, network_object_show_handler, 0, STRING, "network-object-name", "Network Object Name");
              libcli_register_param(&nw_obj, &name);
-             set_param_cmd_code(&name, NW_OBJ_SHOW_ONE);
+             libcli_set_param_cmd_code(&name, NW_OBJ_SHOW_ONE);
         }
     }
 }

@@ -7,7 +7,7 @@
 static int
 isis_build_layer2_mapping (node_t *node) {
 
-    interface_t *intf;
+    Interface *intf;
     glthread_t *curr;
     isis_adjacency_t *adjacency;
 
@@ -35,7 +35,7 @@ isis_build_layer2_mapping (node_t *node) {
 static int
 isis_destroy_layer2_mapping (node_t *node) {
 
-    interface_t *intf;
+    Interface *intf;
     glthread_t *curr;
     isis_adjacency_t *adjacency;
 
@@ -62,7 +62,7 @@ isis_config_layer2_map (node_t *node) {
     isis_node_info_t *node_info = ISIS_NODE_INFO(node);
 
     if (!node_info) {
-        printf(ISIS_ERROR_PROTO_NOT_ENABLE "\n");
+        cprintf(ISIS_ERROR_PROTO_NOT_ENABLE "\n");
         return -1;
     }
 

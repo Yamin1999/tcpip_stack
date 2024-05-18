@@ -32,7 +32,7 @@
 
 /* Visit my Website for more wonderful assignments and projects :
  * www.csepracticals.com
- * if above URL dont work, then try visit : https://csepracticals.com*/
+ * if above URL dont work, then try visit : https://www.csepracticals.com*/
 
 #ifndef __GRAPH__
 #define __GRAPH__
@@ -40,42 +40,25 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <string>
 #include "gluethread/glthread.h"
 #include "net.h"
 #include "tcp_ip_trace.h"
 #include "Layer3/netfilter.h"
 #include "EventDispatcher/event_dispatcher.h"
+#include "PostgresLibpq/postgresLib.h"
+#include <unordered_map>
 
-#define NODE_NAME_SIZE   16
+#define NODE_NAME_SIZE   24
 #define IF_NAME_SIZE     16
 #define MAX_INTF_PER_NODE   10
 
 /*Forward Declarations*/
 typedef struct node_ node_t;
 typedef struct link_ link_t;
-
-
-typedef struct interface_ {
-
-    byte if_name[IF_NAME_SIZE];
-    struct node_ *att_node;
-    struct link_ *link;
-    intf_nw_props_t intf_nw_props;
-    log_t log_info;
-} interface_t;
-
-struct link_ {
-
-    interface_t intf1;
-    interface_t intf2;
-    unsigned int cost;
-}; 
-
-static inline uint32_t
-get_link_cost(interface_t *interface){
-
-    return interface->link->cost;
-}
+class Interface;
+class TransportService;
+class VlanInterface;
 
 typedef struct spf_data_ spf_data_t;
 typedef struct pkt_tracer_ pkt_tracer_t;
@@ -84,7 +67,7 @@ typedef struct hashtable hashtable_t;
 struct node_ {
 
     char node_name[NODE_NAME_SIZE];
-    interface_t *intf[MAX_INTF_PER_NODE];
+    Interface *intf[MAX_INTF_PER_NODE];
     
     /* For Network Sockets */
     unsigned int udp_port_number;
@@ -126,12 +109,16 @@ struct node_ {
     hashtable_t *object_network_ght;
      /* Object Group Hashtable */
     hashtable_t *object_group_ght;
-    
+    /* Transport Svc profiles DB*/
+    std::unordered_map<std::string , TransportService *> *TransPortSvcDB;
+    /* Vlan Interface Created*/
+     std::unordered_map<std::uint16_t , VlanInterface *> *vlan_intf_db;
     /* List of route-maps created on this node*/
     glthread_t route_map_headtype;
-
     /* Packet Tracer Object */
     pkt_tracer_t *pkt_tracer;
+    /* config DB connection */
+    PGconn* conn;
     glthread_t graph_glue;
 };
 GLTHREAD_TO_STRUCT(graph_glue_to_node, node_t, graph_glue);
@@ -150,28 +137,14 @@ graph_t *
 create_new_graph(const char *topology_name);
 
 void
-insert_link_between_two_nodes(node_t *node1, 
-                             node_t *node2,
-                             const char *from_if_name, 
-                             const char *to_if_name, 
-                             unsigned int cost);
-
-/*Helper functions*/
-static inline node_t *
-get_nbr_node(interface_t *interface){
-
-    assert(interface->att_node);
-    assert(interface->link);
-    
-    link_t *link = interface->link;
-    if(&link->intf1 == interface)
-        return link->intf2.att_node;
-    else
-        return link->intf1.att_node;
-}
+insert_link_between_two_nodes(node_t *node1,
+        node_t *node2,
+        const char *from_if_name,
+        const char *to_if_name,
+        unsigned int cost);
 
 static inline int
-get_node_intf_available_slot(node_t *node){
+node_get_intf_available_slot(node_t *node){
 
     int i ;
     for( i = 0 ; i < MAX_INTF_PER_NODE; i++){
@@ -182,12 +155,11 @@ get_node_intf_available_slot(node_t *node){
     return -1;
 }
 
-interface_t *
+Interface *
 node_get_intf_by_name(node_t *node, const char *if_name);
 
-interface_t *
+Interface *
 node_get_intf_by_ifindex(node_t *node, uint32_t ifindex);
-
 
 static inline node_t *
 node_get_node_by_name(graph_t *topo, c_string node_name){
@@ -207,7 +179,7 @@ node_get_node_by_name(graph_t *topo, c_string node_name){
 /*Display Routines*/
 void dump_graph(graph_t *graph);
 void dump_node(node_t *node);
-void dump_interface(interface_t *interface);
+void dump_interface(Interface *interface);
 
 #define ITERATE_NODE_INTERFACES_BEGIN(node_ptr, intf_ptr) \
 {                                                         \
@@ -218,7 +190,4 @@ void dump_interface(interface_t *interface);
 
 #define ITERATE_NODE_INTERFACES_END(node_ptr, intf_ptr) }}
     
-
-
-
 #endif /* __NW_GRAPH_ */

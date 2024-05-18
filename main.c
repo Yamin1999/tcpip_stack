@@ -32,11 +32,11 @@
 
 /* Visit my Website for more wonderful assignments and projects :
  * www.csepracticals.com
- * if above URL dont work, then try visit : https://csepracticals.com*/
+ * if above URL dont work, then try visit : https://www.csepracticals.com*/
 
-#include "graph.h"
 #include <stdio.h>
-#include "CommandParser/libcli.h"
+#include "graph.h"
+#include "CLIBuilder/libcli.h"
 #include "EventDispatcher/event_dispatcher.h"
 
 extern void init_tcp_ip_stack();
@@ -91,10 +91,11 @@ int
 main(int argc, char **argv){
     
     (void )argc; (void) argv;
-
+    libcli_init ();
     tcp_ip_stack_pre_topology_create_initializations();
     topo = cross_link_topology();
     init_tcp_ip_stack();
-    start_shell(); 
+    libcli_init_done ();
+    cli_start_shell(); 
     return 0;
 }
