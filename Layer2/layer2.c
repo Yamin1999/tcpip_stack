@@ -190,7 +190,6 @@ l2_forward_ip_packet(node_t *node,
     if(!oif && string_compare((const char *)next_hop_ip_str, (const char *)NODE_LO_ADDR(node), 16)){
         cprintf("%s : Error : Local matching subnet for IP : %s could not be found\n",
                     node->node_name, next_hop_ip_str);
-        pkt_block_dereference(pkt_block);
         return;
     }
 
@@ -202,7 +201,6 @@ l2_forward_ip_packet(node_t *node,
         memset(ethernet_hdr->src_mac.mac, 0, MAC_ADDR_SIZE);
         SET_COMMON_ETH_FCS(ethernet_hdr, ethernet_payload_size, 0);
         send_pkt_to_self(pkt_block, oif);
-        pkt_block_dereference(pkt_block);
         return;
     }
 
@@ -230,7 +228,6 @@ l2_forward_ip_packet(node_t *node,
         memcpy(ethernet_hdr->src_mac.mac, IF_MAC(oif), MAC_ADDR_SIZE);
         SET_COMMON_ETH_FCS(ethernet_hdr, ethernet_payload_size, 0);
         oif->SendPacketOut(pkt_block);
-        pkt_block_dereference(pkt_block);
 		arp_entry_refresh_expiration_timer(arp_entry);
         arp_entry->hit_count++;
 }
@@ -253,19 +250,17 @@ demote_pkt_to_layer2 (node_t *node, /*Current node*/
                                       hdr_type_t hdr_type) {   /*Higher Layer need to tell L2 
                                                                                 what value need to be feed in eth_hdr->type field*/
 
-    pkt_size_t pkt_size;
-
-    uint8_t *pkt = pkt_block_get_pkt(pkt_block, &pkt_size);
-
-    assert (pkt_size < sizeof(((ethernet_hdr_t *)0)->payload));
-
+     pkt_size_t pkt_size;
+     
     switch(hdr_type){
 
         case IP_HDR:
+        case IP_IN_IP_HDR:
             {
-                tcp_ip_expand_buffer_ethernet_hdr(pkt_block); 
+                tcp_ip_expand_buffer_ethernet_hdr(pkt_block);
+
                 ethernet_hdr_t *empty_ethernet_hdr = 
-                        (ethernet_hdr_t *)pkt_block_get_pkt(pkt_block, &pkt_size);
+                        (ethernet_hdr_t *) pkt_block_get_pkt (pkt_block, &pkt_size);
                 empty_ethernet_hdr->type = ETH_IP;
 
                 l2_forward_ip_packet(node, 
@@ -275,7 +270,6 @@ demote_pkt_to_layer2 (node_t *node, /*Current node*/
             }
         break;
         default:
-                pkt_block_dereference(pkt_block);
             ;
     }
 }

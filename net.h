@@ -166,15 +166,12 @@ is_same_subnet(c_string ip_addr,
                char mask,
                c_string other_ip_addr);
 
-byte *
-pkt_buffer_shift_right(byte *pkt, uint32_t pkt_size,
-                               uint32_t total_buffer_size);
-
 static inline byte *
 tcp_ip_get_new_pkt_buffer(uint32_t pkt_size){
 
+    if (pkt_size > (MAX_PACKET_BUFFER_SIZE - PKT_BUFFER_RIGHT_ROOM)) return NULL;
     byte *pkt = (byte *)XCALLOC_BUFF(0, MAX_PACKET_BUFFER_SIZE);
-    return pkt_buffer_shift_right(pkt, pkt_size, MAX_PACKET_BUFFER_SIZE);
+    return pkt + MAX_PACKET_BUFFER_SIZE - (pkt_size + PKT_BUFFER_RIGHT_ROOM);
 }
 
 static inline void
