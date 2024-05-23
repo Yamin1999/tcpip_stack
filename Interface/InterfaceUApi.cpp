@@ -11,6 +11,7 @@ interface_set_ip_addr(node_t *node, Interface *intf,
     uint32_t ip_addr_int;
     uint32_t if_change_flags = 0;
     intf_prop_changed_t intf_prop_changed;
+    byte dst_str_with_mask[16];
 
     if (intf->GetSwitchport ()) {
         cprintf("Error : Remove L2 config from interface first\n");
@@ -26,7 +27,19 @@ interface_set_ip_addr(node_t *node, Interface *intf,
         SET_BIT(if_change_flags, IF_IP_ADDR_CHANGE_F);
         intf_prop_changed.ip_addr.ip_addr = 0;
         intf_prop_changed.ip_addr.mask = 0;
-        rt_table_add_direct_route(NODE_RT_TABLE(node), intf_ip_addr, mask);
+
+        /* Add eg : 1.1.1.1/32 */
+        rt_table_add_route(NODE_RT_TABLE(node), 
+                                     (const char *)intf_ip_addr, 32, 
+                                     0, intf, 0, PROTO_STATIC);
+
+        apply_mask((c_string)intf_ip_addr, mask, dst_str_with_mask); 
+
+        /* Add eg : 1.1.1.0/24 */
+        rt_table_add_route(NODE_RT_TABLE(node), 
+                                     (const char *)dst_str_with_mask, mask, 
+                                     0, intf, 0, PROTO_STATIC);
+
         nfc_intf_invoke_notification_to_sbscribers(intf,  
                 &intf_prop_changed, if_change_flags);
         return;
@@ -51,9 +64,15 @@ interface_set_ip_addr(node_t *node, Interface *intf,
 
         intf->InterfaceSetIpAddressMask(ip_addr_int, mask);
 
-        rt_table_add_direct_route(NODE_RT_TABLE(node),
-                                                  tcp_ip_covert_ip_n_to_p(ip_addr_int, ip_addr_str),
-                                                  mask);
+        rt_table_add_route(NODE_RT_TABLE(node), 
+                                     (const char *)intf_ip_addr, 32, 
+                                     0, intf, 0, PROTO_STATIC);
+
+        apply_mask((c_string)intf_ip_addr, mask, dst_str_with_mask); 
+
+        rt_table_add_route(NODE_RT_TABLE(node), 
+                                     (const char *)dst_str_with_mask, mask, 
+                                     0, intf, 0, PROTO_STATIC);
 
          nfc_intf_invoke_notification_to_sbscribers(intf,  
                 &intf_prop_changed, if_change_flags);
@@ -68,6 +87,7 @@ interface_unset_ip_addr(node_t *node, Interface *intf) {
     uint32_t ip_addr_int;
     uint8_t existing_mask;
     uint32_t existing_ip_addr;
+    byte ip_addr_str_applied_mask[16];
     uint32_t if_change_flags = 0;
     intf_prop_changed_t intf_prop_changed;
 
@@ -84,7 +104,14 @@ interface_unset_ip_addr(node_t *node, Interface *intf) {
                                             tcp_ip_covert_ip_n_to_p(existing_ip_addr, ip_addr_str),
                                             existing_mask,
                                             PROTO_STATIC);
-    
+
+    apply_mask(ip_addr_str, existing_mask, ip_addr_str_applied_mask);
+
+    rt_table_delete_route(NODE_RT_TABLE(node),  
+                                            ip_addr_str_applied_mask,
+                                            existing_mask,
+                                            PROTO_STATIC);
+
     intf->InterfaceSetIpAddressMask(0, 0);
     
     nfc_intf_invoke_notification_to_sbscribers(intf,  

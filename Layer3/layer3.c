@@ -508,8 +508,6 @@ rt_table_delete_route(
     }
     thread_using_route(l3_route);
 
-    apply_mask(ip_addr, mask, dst_str_with_mask); 
-
     bin_ip = tcp_ip_covert_ip_p_to_n(dst_str_with_mask);
     bin_ip = htonl(bin_ip);
     bin_mask = tcp_ip_convert_dmask_to_bin_mask((uint8_t)mask);
@@ -600,24 +598,6 @@ dump_rt_table(rt_table_t *rt_table){
 			getchar();			
 		}
 
-        if(l3_route->is_direct){
-            if(count != 1){
-                cprintf("\t|===================|=======|============|====================|==============|==========|============|==============|\n");
-            }
-            else{
-                cprintf("\t|======= IP ========|== M ==|== proto ===|======== Gw ========|===== Oif ====|== Cost ==|== uptime ==|=== hits =====|\n");
-            }
-            cprintf("\t|%-18s |  %-4d | %-10s | %-18s | %-10s   |          |  %-10s| 0            |\n", 
-                    l3_route->dest,
-                    l3_route->mask, 
-                    "",
-                    "NA", "NA",
-					RT_UP_TIME(l3_route, time_str, HRS_MIN_SEC_FMT_TIME_LEN));
-            thread_using_route_done (l3_route);
-            l3_route_unlock(l3_route);
-            continue;
-        }
-
         nxthop_proto_id_t nxthop_proto;
 
         FOR_ALL_NXTHOP_PROTO(nxthop_proto) {
@@ -666,14 +646,6 @@ dump_rt_table(rt_table_t *rt_table){
     } ITERATE_GLTHREAD_END(&rt_table->route_list, curr); 
     cprintf("\t|===================|=======|============|====================|==============|==========|============|==============|\n");
     pthread_rwlock_unlock(&rt_table->rwlock);
-}
-
-void
-rt_table_add_direct_route(rt_table_t *rt_table,
-                                          const c_string dst, 
-                                          char mask){
-
-    rt_table_add_route(rt_table, (const char *)dst, mask, 0, 0, 0, PROTO_STATIC);
 }
 
 /* 
@@ -800,9 +772,6 @@ rt_table_add_route (rt_table_t *rt_table,
                                 uint8_t proto_id){
 
    bool new_route = false;
-   byte dst_str_with_mask[16];
-
-    apply_mask((c_string)dst, mask, dst_str_with_mask); 
 
     nxthop_proto_id_t nxthop_proto = 
         l3_rt_map_proto_id_to_nxthop_index(proto_id);
@@ -812,11 +781,11 @@ rt_table_add_route (rt_table_t *rt_table,
     pthread_rwlock_wrlock(&rt_table->rwlock);
 
    l3_route_t *l3_route = rt_table_lookup_exact_match(
-                                            rt_table, dst_str_with_mask, mask);
+                                            rt_table, dst, mask);
 
    if(!l3_route){
        l3_route = l3_route_get_new_route();
-       string_copy((char *)l3_route->dest, dst_str_with_mask, 16);
+       string_copy((char *)l3_route->dest, dst, 16);
        l3_route->dest[15] = '\0';
        l3_route->mask = mask;
        new_route = true;
@@ -830,13 +799,14 @@ rt_table_add_route (rt_table_t *rt_table,
 
    /*Get the index into nexthop array to fill the new nexthop*/
    if(!new_route){
+
        for( ; i < MAX_NXT_HOPS; i++){
 
-           if(l3_route->nexthops[nxthop_proto][i]){
-                if(string_compare(l3_route->nexthops[nxthop_proto][i]->gw_ip, gw, 16) == 0 && 
-                    l3_route->nexthops[nxthop_proto][i]->oif == oif){ 
+           if (l3_route->nexthops[nxthop_proto][i]){
+                if (string_compare(l3_route->nexthops[nxthop_proto][i]->gw_ip, gw, 16) == 0 && 
+                    l3_route->nexthops[nxthop_proto][i]->oif == oif) { 
                     cprintf("%s Error : Attempt to Add Duplicate Route %s/%d\n",
-                            rt_table->node->node_name, dst_str_with_mask, mask);
+                            rt_table->node->node_name, dst, mask);
                     thread_using_route_done(l3_route);
                     pthread_rwlock_unlock(&rt_table->rwlock);
                     return;
@@ -848,17 +818,22 @@ rt_table_add_route (rt_table_t *rt_table,
 
    if( i == MAX_NXT_HOPS){
         cprintf("%s Error : No Nexthop space left for route %s/%u\n", 
-            rt_table->node->node_name, dst_str_with_mask, mask);
+            rt_table->node->node_name, dst, mask);
          thread_using_route_done(l3_route);
          pthread_rwlock_unlock(&rt_table->rwlock);
         return;
    }
 
-   if(gw && oif){
+   if(oif){
         nexthop_t *nexthop = (nexthop_t *)XCALLOC(0, 1, nexthop_t);
-        l3_route->is_direct = false;
+        if (gw) l3_route->is_direct = false;
         l3_route->spf_metric[nxthop_proto] = spf_metric;
-        string_copy((char *)nexthop->gw_ip, gw, 16);
+        if (gw) {
+            string_copy((char *)nexthop->gw_ip, gw, 16);
+        }
+        else {
+            nexthop->gw_ip[0] = '\0';
+        }
         nexthop->gw_ip[15] = '\0';
         nexthop->oif = oif;
         nexthop->ifindex = oif->ifindex;
@@ -875,8 +850,7 @@ rt_table_add_route (rt_table_t *rt_table,
    if(new_route){
        if(!_rt_table_entry_add(rt_table, l3_route)){
            cprintf("%s Error : Route %s/%d Installation Failed\n", 
-                     rt_table->node->node_name,
-                   dst_str_with_mask, mask);
+                     rt_table->node->node_name, dst, mask);
        }
    }
    thread_using_route_done(l3_route);

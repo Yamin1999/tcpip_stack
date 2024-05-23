@@ -515,7 +515,6 @@ PhysicalInterface::GetVlanId()
         return this->access_vlan_intf->GetVlanId();
      }
 
-     assert (0);
      return 0;
 }
 
@@ -814,14 +813,15 @@ bool GRETunnelInterface::IsGRETunnelActive()
     if ((this->config_flags & GRE_TUNNEL_TUNNEL_ID_SET) &&
              (this->config_flags & GRE_TUNNEL_SRC_ADDR_SET) &&
         (this->config_flags & GRE_TUNNEL_DST_ADDR_SET) &&
-            (this->config_flags & GRE_TUNNEL_LCL_IP_SET))
+            (this->config_flags & GRE_TUNNEL_OVLAY_IP_SET))
     {
         return true;
     }
     return false;
 }
 
-void GRETunnelInterface::SetTunnelSource(PhysicalInterface *interface)
+bool 
+GRETunnelInterface::SetTunnelSource(PhysicalInterface *interface)
 {
 
     uint32_t ip_addr;
@@ -829,27 +829,26 @@ void GRETunnelInterface::SetTunnelSource(PhysicalInterface *interface)
 
     if (interface)
     {
-        if (this->config_flags & GRE_TUNNEL_SRC_INTF_SET)
+        if (this->tunnel_src_intf == interface)
         {
-            cprintf("Error : Src Interface already Set\n");
             return;
         }
-
+	if (this->tunnel_src_intf &&
+		this->tunnel_src_intf != interface) {
+		cprintf ("Error : Tunnel Src Interface %s already set\n", this->tunnel_src_intf->if_name.c_str());
+		return false;
+	}
         this->tunnel_src_intf = interface;
         interface->used_as_underlying_tunnel_intf++;
-        this->config_flags |= GRE_TUNNEL_SRC_INTF_SET;
     }
     else {
 
-        if (!(this->config_flags & GRE_TUNNEL_SRC_INTF_SET)) {
-            return;
-        }
-
+	if (this->tunnel_src_intf == NULL) return true;
         PhysicalInterface *tunnel_src_intf = dynamic_cast<PhysicalInterface *>(this->tunnel_src_intf );
         tunnel_src_intf->used_as_underlying_tunnel_intf--;
-        this->config_flags &= ~GRE_TUNNEL_SRC_INTF_SET;
         this->tunnel_src_intf = NULL;
     }
+    return true;
 }
 
 void 
@@ -874,7 +873,7 @@ GRETunnelInterface::SetTunnelLclIpMask(uint32_t ip_addr, uint8_t mask)
  bool 
  GRETunnelInterface::IsIpConfigured() {
 
-    return (this->config_flags & GRE_TUNNEL_LCL_IP_SET);
+    return (this->config_flags & GRE_TUNNEL_OVLAY_IP_SET);
  }
 
 void 
@@ -907,10 +906,10 @@ GRETunnelInterface::InterfaceSetIpAddressMask(uint32_t ip_addr, uint8_t mask) {
         this->lcl_ip = ip_addr;
         this->mask = mask;
         if (ip_addr == 0 ) {
-            this->config_flags &= ~GRE_TUNNEL_LCL_IP_SET;
+            this->config_flags &= ~GRE_TUNNEL_OVLAY_IP_SET;
             return;
         }
-        this->config_flags |= GRE_TUNNEL_LCL_IP_SET;
+        this->config_flags |= GRE_TUNNEL_OVLAY_IP_SET;
     }
     
 void 

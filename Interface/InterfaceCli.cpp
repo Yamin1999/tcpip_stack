@@ -189,18 +189,26 @@ intf_config_handler(int cmdcode, Stack_t *tlv_stack,
             }
             break;
         case CMDCODE_INTF_CONFIG_SWITCHPORT:
-            switch(enable_or_disable){
+            intf_prop_changed.is_switchport = interface->GetSwitchport();
+            switch (enable_or_disable)
+            {
                 case CONFIG_ENABLE:
                     interface->SetSwitchport(true);
                     break;
                 case CONFIG_DISABLE:
                     interface->SetSwitchport(false);
                     break;
-                default:
-                    ;
+                default:;
+            }
+            if (intf_prop_changed.is_switchport != interface->GetSwitchport())
+            {
+                SET_BIT(if_change_flags, IF_OPER_MODE_CHANGE_F);
+                nfc_intf_invoke_notification_to_sbscribers(
+					interface, &intf_prop_changed, if_change_flags);
             }
             break;
         case CMDCODE_INTF_CONFIG_VLAN:
+            intf_prop_changed.access_vlan = interface->GetVlanId();
             switch(enable_or_disable){
                 case CONFIG_ENABLE:
                     interface->IntfConfigVlan(vlan_id, true);
@@ -210,6 +218,12 @@ intf_config_handler(int cmdcode, Stack_t *tlv_stack,
                     break;
                 default:
                     ;
+            }
+            if (intf_prop_changed.access_vlan  !=
+                     interface->GetVlanId()) {
+                SET_BIT(if_change_flags, IF_VLAN_MEMBERSHIP_CHANGE_F);
+                nfc_intf_invoke_notification_to_sbscribers(
+					interface, &intf_prop_changed, if_change_flags);
             }
             break;
         case CMDCODE_INTF_CONFIG_IP_ADDR:

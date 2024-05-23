@@ -1,6 +1,7 @@
 #include "gre.h"
 #include "greuapi.h"
 #include "../../Interface/InterfaceUApi.h"
+#include "../../tcpip_notif.h"
 
 bool
 gre_tunnel_create (node_t *node, uint16_t tunnel_id) {
@@ -105,7 +106,7 @@ gre_tunnel_set_dst_addr (node_t *node, uint16_t tunnel_id, c_string dst_addr) {
 }
 
 
-void
+bool
  gre_tunnel_set_src_interface (node_t *node, uint16_t tunnel_id, c_string if_name) {
 
     Interface *tunnel;
@@ -119,32 +120,32 @@ void
 
     if (!tunnel) {
         cprintf ("Error : Tunnel Do Not  Exist\n");
-        return;
+        return false;
     }
 
     if (tunnel->iftype != INTF_TYPE_GRE_TUNNEL) {
         cprintf ("Error : Specified tunnel is not GRE tunnel\n");
-        return;
+        return false;
     }
 
     phyIntf = node_get_intf_by_name(node, (const char *)if_name);
 
     if (!phyIntf) {
         cprintf ("Error : Source Interface do not exist\n");
-        return;
+        return false;
     }
 
     if (phyIntf->GetL2Mode() != LAN_MODE_NONE) {
         cprintf ("Error : Source Interface must be P2P interface\n");
-        return;
+        return false;
     }
 
     GRETunnelInterface *gre_tunnel = dynamic_cast <GRETunnelInterface *> (tunnel);
     if (phyIntf) {
-        gre_tunnel->SetTunnelSource(dynamic_cast <PhysicalInterface *>(phyIntf));
+        return gre_tunnel->SetTunnelSource(dynamic_cast <PhysicalInterface *>(phyIntf));
     }
     else {
-        gre_tunnel->SetTunnelSource(NULL);
+        return gre_tunnel->SetTunnelSource(NULL);
     }
  }
 
@@ -177,4 +178,38 @@ gre_tunnel_set_lcl_ip_addr(node_t *node,
     else {
          interface_unset_ip_addr(node, tunnel);
     }
+}
+
+void
+gre_interface_updates (event_dispatcher_t *ev_dis, void *arg, unsigned int arg_size) {
+
+	intf_notif_data_t *intf_notif_data = 
+		(intf_notif_data_t *)arg;
+
+	uint32_t flags = intf_notif_data->change_flags;
+	Interface *intf = intf_notif_data->interface;
+	intf_prop_changed_t *old_intf_prop_changed =
+            intf_notif_data->old_intf_prop_changed;
+
+    switch(flags) {
+        case IF_UP_DOWN_CHANGE_F:
+            //isis_handle_interface_up_down (intf, old_intf_prop_changed->up_status);
+            break;
+        case IF_IP_ADDR_CHANGE_F:
+            /*isis_handle_interface_ip_addr_changed (intf, 
+                    old_intf_prop_changed->ip_addr.ip_addr,
+                    old_intf_prop_changed->ip_addr.mask);*/
+         break;
+        case IF_OPER_MODE_CHANGE_F:
+        case IF_VLAN_MEMBERSHIP_CHANGE_F:
+        case IF_METRIC_CHANGE_F :
+        break;
+    default: ;
+    }
+}
+
+void 
+gre_one_time_registration() {
+
+    nfc_intf_register_for_events(gre_interface_updates);
 }

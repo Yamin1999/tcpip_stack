@@ -38,12 +38,16 @@ extern void ut_parser_init();
 #include "EventDispatcher/event_dispatcher.h"
 event_dispatcher_t gev_dis;
 
+extern void 
+gre_one_time_registration();
+
 void
 init_tcp_ip_stack(){
 
 	event_dispatcher_run(&gev_dis);   
     init_spf_algo();
 	isis_one_time_registration();
+	gre_one_time_registration();
 	network_start_pkt_receiver_thread();
 	ut_parser_init();
 }

@@ -262,12 +262,6 @@ rt_table_add_route(rt_table_t *rt_table,
 
 /* MP Safe */
 void
-rt_table_add_direct_route(rt_table_t *rt_table,
-                                          const c_string dst,
-                                          char mask);
-
-/* MP Safe */
-void
 dump_rt_table(rt_table_t *rt_table);
 
 /* MP Unsafe */

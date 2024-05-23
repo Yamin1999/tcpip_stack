@@ -42,7 +42,8 @@ class TransportService;
 #define IF_IP_ADDR_CHANGE_F           (1 << 1)
 #define IF_OPER_MODE_CHANGE_F    (1 << 2)
 #define IF_VLAN_MEMBERSHIP_CHANGE_F (1 << 3)
-#define IF_METRIC_CHANGE_F          (1 << 4)
+#define IF_TSP_CHANGE_F ( 1<<4 )
+#define IF_METRIC_CHANGE_F          (1 << 5)
 
 class Interface {
 
@@ -225,7 +226,8 @@ public:
         GRE_TUNNEL_SRC_INTF_SET = 2,
         GRE_TUNNEL_SRC_ADDR_SET = 4,
         GRE_TUNNEL_DST_ADDR_SET = 8,
-        GRE_TUNNEL_LCL_IP_SET = 16
+        GRE_TUNNEL_OVLAY_IP_SET = 16,
+        GRE_TUNNEL_ADMIN_SHUT_SET = 32
     };
 
     uint16_t config_flags;
@@ -233,7 +235,7 @@ public:
     ~GRETunnelInterface();
     uint32_t GetTunnelId();
     bool IsGRETunnelActive();
-    void SetTunnelSource(PhysicalInterface *interface);
+    bool SetTunnelSource(PhysicalInterface *interface);
     void SetTunnelDestination(uint32_t ip_addr);
     void SetTunnelLclIpMask(uint32_t ip_addr, uint8_t mask);
     virtual void PrintInterfaceDetails ();
@@ -258,9 +260,10 @@ typedef union intf_prop_changed_ {
             uint8_t mask;
         } ip_addr;
         
-        bool up_status; /* True for up, false for down */
+        bool up_status;           /* True for up, false for down */
+        bool is_switchport;     /* True for SW, false for no switchport*/
         IntfL2Mode intf_l2_mode;
-        uint32_t vlan;
+        uint32_t access_vlan;
         TransportService *trans_svc;
 
 } intf_prop_changed_t;

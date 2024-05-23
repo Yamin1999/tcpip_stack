@@ -93,9 +93,6 @@ interface_assign_mac_address2 (Interface *interface){
 
 typedef struct l3_route_ l3_route_t;
 
-extern void
-rt_table_add_direct_route(rt_table_t *rt_table, const c_string ip_addr, char mask); 
-
 bool node_set_loopback_address(node_t *node, const char *ip_addr){
 
     assert(ip_addr);
@@ -105,7 +102,9 @@ bool node_set_loopback_address(node_t *node, const char *ip_addr){
     NODE_LO_ADDR(node)[15] = '\0';
 
     /*Add it as direct route in routing table*/
-    rt_table_add_direct_route(NODE_RT_TABLE(node), ip_addr, 32);     
+    rt_table_add_route(NODE_RT_TABLE(node), 
+                                     (const char *)ip_addr, 32, 
+                                     0, 0, 0, PROTO_STATIC);        
     return true;
 }
 

@@ -80,10 +80,10 @@ gre_tunnel_config_handler (int cmdcode,
             switch (enable_or_disable) {
 
                 case CONFIG_ENABLE:
-                    gre_tunnel_set_src_interface (node, gre_tun_id, if_name);
+                    if (!gre_tunnel_set_src_interface (node, gre_tun_id, if_name)) return -1;
                     break;
                 case CONFIG_DISABLE:
-                    gre_tunnel_set_src_interface (node, gre_tun_id, NULL);
+                    if (!gre_tunnel_set_src_interface (node, gre_tun_id, NULL)) return -1;
                     break;
                 default: ;
             }
