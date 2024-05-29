@@ -219,7 +219,7 @@ node_get_intf_by_name(node_t *node, const char *if_name){
         if(string_compare(intf->if_name.c_str(), if_name, IF_NAME_SIZE) == 0){
             return intf;
         }
-    }   
+    }
     return NULL;
 }
 

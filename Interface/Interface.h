@@ -51,10 +51,10 @@ class Interface {
        
     protected:
         Interface(std::string if_name, InterfaceType_t iftype);
-        ~Interface();
     public:
         InterfaceType_t iftype;
-        uint16_t ref_count;
+        uint16_t config_ref_count;
+        uint16_t dynamic_ref_count;
         std::string if_name;
         node_t *att_node;
         log_t log_info;
@@ -88,6 +88,7 @@ class Interface {
         Interface *GetOtherInterface();
 
         /* APIs to work with Interfaces */
+        virtual ~Interface();
         virtual int SendPacketOut(pkt_block_t *pkt_block);
         virtual void PrintInterfaceDetails ();
         virtual void SetMacAddr( mac_addr_t *mac_add);
@@ -95,9 +96,9 @@ class Interface {
         virtual bool IsIpConfigured() ;
         virtual void InterfaceSetIpAddressMask(uint32_t ip_addr, uint8_t mask) ;
         virtual void InterfaceGetIpAddressMask(uint32_t *ip_addr, uint8_t *mask) ;
-        virtual uint32_t GetVlanId();
-        virtual bool IsVlanTrunked (uint32_t vlan_id);
-        virtual bool IntfConfigVlan(uint32_t vlan_id, bool add);
+        virtual vlan_id_t GetVlanId();
+        virtual bool IsVlanTrunked (vlan_id_t vlan_id);
+        virtual bool IntfConfigVlan(vlan_id_t vlan_id, bool add);
         virtual void SetSwitchport(bool enable);      
         virtual bool GetSwitchport(); 
         virtual IntfL2Mode GetL2Mode ();
@@ -105,7 +106,14 @@ class Interface {
         virtual bool IsSameSubnet (uint32_t ip_addr);
         virtual bool IntfConfigTransportSvc(std::string& trans_svc);
         virtual bool IntfUnConfigTransportSvc(std::string& trans_svc);
-        virtual bool IsInterfaceUp(uint16_t vlan_id);
+        virtual bool IsInterfaceUp(vlan_id_t vlan_id);
+        virtual bool CanDelete(); 
+        #if 0
+        virtual void InterfaceLockStatic() = 0;
+        virtual void InterfaceLockDynamic() = 0;
+        virtual void InterfaceUnLockStatic() = 0;
+        virtual void InterfaceUnLockDynamic() = 0;
+        #endif
 };
 
 
@@ -135,7 +143,7 @@ class PhysicalInterface : public Interface {
         VlanInterface *access_vlan_intf;
 
         PhysicalInterface(std::string ifname, InterfaceType_t iftype, mac_addr_t *mac_add);
-        ~PhysicalInterface();
+        virtual ~PhysicalInterface();
 
         static std::string L2ModeToString(IntfL2Mode l2_mode);
         virtual void SetMacAddr( mac_addr_t *mac_add) final;
@@ -143,9 +151,9 @@ class PhysicalInterface : public Interface {
         virtual bool IsIpConfigured() final;
         virtual void InterfaceSetIpAddressMask(uint32_t ip_addr, uint8_t mask) final;
         virtual void InterfaceGetIpAddressMask(uint32_t *ip_addr, uint8_t *mask) final;
-        virtual uint32_t GetVlanId() final;
-        virtual bool IsVlanTrunked (uint32_t vlan_id) final;
-        virtual bool IntfConfigVlan(uint32_t vlan_id, bool add) final;
+        virtual vlan_id_t GetVlanId() final;
+        virtual bool IsVlanTrunked (vlan_id_t vlan_id) final;
+        virtual bool IntfConfigVlan(vlan_id_t vlan_id, bool add) final;
         virtual void SetSwitchport(bool enable) final;
         virtual bool GetSwitchport() final;
         virtual IntfL2Mode GetL2Mode () final;
@@ -155,7 +163,8 @@ class PhysicalInterface : public Interface {
         virtual bool IsSameSubnet (uint32_t ip_addr) final;
         virtual bool IntfConfigTransportSvc(std::string& trans_svc) final;
         virtual bool IntfUnConfigTransportSvc(std::string& trans_svc) final;
-        virtual bool IsInterfaceUp(uint16_t vlan_id) final;
+        virtual bool IsInterfaceUp(vlan_id_t vlan_id) final;
+        virtual bool CanDelete(); 
 };
 
 typedef struct linkage_ {
@@ -172,10 +181,11 @@ class VirtualInterface : public Interface {
     private:
     protected:
          VirtualInterface(std::string ifname, InterfaceType_t iftype);
-        ~VirtualInterface();
     public:
+        virtual ~VirtualInterface();
         virtual void PrintInterfaceDetails ();
-        virtual bool IsInterfaceUp(uint16_t vlan_id);
+        virtual bool IsInterfaceUp(vlan_id_t vlan_id);
+        virtual bool CanDelete(); 
 };
 
 
@@ -188,22 +198,23 @@ class VlanInterface : public VirtualInterface {
     private:
     protected:
     public:
-        uint32_t vlan_id;
+        vlan_id_t vlan_id;
         uint32_t ip_addr;
         uint8_t mask;
         /* Number of access mode interfaces using this LAN*/
         std::vector<PhysicalInterface *> access_member_intf_lst;
-        VlanInterface(uint16_t vlan_id);
-         ~VlanInterface();
+        VlanInterface(vlan_id_t vlan_id);
+         virtual ~VlanInterface();
         virtual void PrintInterfaceDetails ();
         virtual void InterfaceSetIpAddressMask(uint32_t ip_addr, uint8_t mask) final;
         virtual void InterfaceGetIpAddressMask(uint32_t *ip_addr, uint8_t *mask) final;
         virtual bool IsIpConfigured() final;
-        virtual uint32_t GetVlanId() final;
+        virtual vlan_id_t GetVlanId() final;
         virtual bool IsSameSubnet(uint32_t ip_addr) final;
-        static VlanInterface *VlanInterfaceLookUp(node_t *node, uint32_t vlan_id);
+        static VlanInterface *VlanInterfaceLookUp(node_t *node, vlan_id_t vlan_id);
         virtual int SendPacketOut(pkt_block_t *pkt_block) final;
-        virtual bool IsInterfaceUp(uint16_t vlan_id) final;
+        virtual bool IsInterfaceUp(vlan_id_t vlan_id) final;
+        virtual bool CanDelete();
 };
 
 
@@ -232,7 +243,7 @@ public:
 
     uint16_t config_flags;
     GRETunnelInterface(uint32_t tunnel_id);
-    ~GRETunnelInterface();
+    virtual ~GRETunnelInterface();
     uint32_t GetTunnelId();
     bool IsGRETunnelActive();
     bool SetTunnelSource(PhysicalInterface *interface);
@@ -247,7 +258,8 @@ public:
     virtual bool IsIpConfigured() final;
     virtual bool IsSameSubnet(uint32_t ip_addr);
     virtual mac_addr_t * GetMacAddr() final;
-    virtual bool IsInterfaceUp(uint16_t vlan_id) final;
+    virtual bool IsInterfaceUp(vlan_id_t vlan_id) final;
+    virtual bool CanDelete();
 };
 
 

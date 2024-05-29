@@ -105,12 +105,6 @@
 /* config node <node-name> transport-service-profile <transport-service-name> vlan add <vlan-d>*/
 #define CMDCODE_CONFIG_NODE_TRANSPORT_SVC_VLAN_ADD  43
 
-/* config node <node-name> transport-service-profile <transport-service-name> vlan del <vlan-d>*/
-#define CMDCODE_CONFIG_NODE_TRANSPORT_SVC_VLAN_DEL  44
-
-/* config node <node-name> transport-service-profile <transport-service-name> vlan del all*/
-#define CMDCODE_CONFIG_NODE_TRANSPORT_SVC_VLAN_DEL_ALL  45
-
 /* config node <node-name> interface ethernet <if-name>  transport-service-profile <transport-service-name> */
 #define CMDCODE_CONFIG_INTF_TRANSPORT_SVC  46
 

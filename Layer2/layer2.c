@@ -86,7 +86,7 @@ node_set_intf_switchport(node_t *node,
 void
 node_set_intf_vlan_membership(node_t *node, 
                                                      const char *intf_name, 
-                                                     uint32_t vlan_id,
+                                                     vlan_id_t vlan_id,
                                                      bool Trunk){
 
     Interface *interface = node_get_intf_by_name(node, intf_name);
@@ -447,7 +447,7 @@ l2_frame_recv_qualify_on_interface(
                                     node_t *node,
                                     Interface *interface, 
                                     pkt_block_t *pkt_block,
-                                    uint32_t *output_vlan_id){
+                                    vlan_id_t *output_vlan_id){
 
     pkt_size_t pkt_size;
     ethernet_hdr_t *ethernet_hdr;
@@ -489,7 +489,7 @@ l2_frame_recv_qualify_on_interface(
      * 1. it must accept untagged frame and tag it with a vlan-id of an interface
      * 2. Or  it must accept tagged frame but tagged with same vlan-id as interface's vlan operation*/
 
-    uint32_t intf_vlan_id = 0,
+    vlan_id_t intf_vlan_id = 0,
                  pkt_vlan_id = 0;
 
     if(interface->GetL2Mode() == LAN_ACCESS_MODE){

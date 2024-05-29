@@ -100,7 +100,7 @@ intf_config_handler(int cmdcode, Stack_t *tlv_stack,
    node_t *node;
    c_string intf_name = NULL;
    c_string node_name = NULL;
-   uint32_t vlan_id;
+   vlan_id_t vlan_id;
    uint8_t mask;
    uint8_t lono;
    c_string l2_mode_option;

@@ -127,12 +127,13 @@ dump_mac_table(mac_table_t *mac_table){
         count++;
         mac_table_entry = mac_entry_glue_to_mac_entry(curr);
         if(count == 1){
-            cprintf("\t|========= MAC =========|==== Ports ===|\n");
+            cprintf("\t|==Vlan====|========= MAC =========|==== Ports ===|\n");
         }
         else {
-            cprintf("\t|=======================|==============|\n");
+            cprintf("\t|==========|=======================|==============|\n");
         }
-        cprintf("\t| %02x:%02x:%02x:%02x:%02x:%02x     | %-12s |\n", 
+        cprintf("\t|  %-6d  | %02x:%02x:%02x:%02x:%02x:%02x     | %-12s |\n", 
+            mac_table_entry->vlan_id,
             mac_table_entry->mac.mac[0], 
             mac_table_entry->mac.mac[1],
             mac_table_entry->mac.mac[2],
@@ -142,15 +143,16 @@ dump_mac_table(mac_table_t *mac_table){
             mac_table_entry->oif_name);
     } ITERATE_GLTHREAD_END(&mac_table->mac_entries, curr);
     if(count){
-        cprintf("\t|=======================|==============|\n");
+        cprintf("\t|==========|=======================|==============|\n");
     }
 }
 
 static void
-l2_switch_perform_mac_learning(node_t *node, c_string src_mac, c_string if_name){
+l2_switch_perform_mac_learning(node_t *node, vlan_id_t vlan_id, c_string src_mac, c_string if_name){
 
     bool rc;
     mac_table_entry_t *mac_table_entry = ( mac_table_entry_t *)XCALLOC(0, 1, mac_table_entry_t);
+    mac_table_entry->vlan_id = vlan_id;
     memcpy(mac_table_entry->mac.mac, src_mac, sizeof(mac_addr_t));
     string_copy((char *)mac_table_entry->oif_name, if_name, IF_NAME_SIZE);
     mac_table_entry->oif_name[IF_NAME_SIZE - 1] = '\0';
@@ -220,6 +222,7 @@ l2_switch_forward_frame(
 
 void
 l2_switch_recv_frame(node_t *node,
+                                     vlan_id_t vlan_id,
                                      Interface *interface, 
                                      pkt_block_t *pkt_block) { 
 
@@ -231,7 +234,7 @@ l2_switch_recv_frame(node_t *node,
     c_string dst_mac = (c_string)ethernet_hdr->dst_mac.mac;
     c_string src_mac = (c_string)ethernet_hdr->src_mac.mac;
 
-    l2_switch_perform_mac_learning(node, src_mac, interface->if_name.c_str());
+    l2_switch_perform_mac_learning(node, vlan_id, src_mac, interface->if_name.c_str());
     l2_switch_forward_frame(node, interface, pkt_block);
 }
 

@@ -173,7 +173,7 @@ transport_svc_config_handler (int cmdcode,
     bool rc;
     node_t *node;
     tlv_struct_t *tlv;
-    uint16_t vlan_id;
+    vlan_id_t vlan_id;
     TransportService *tsp;
     c_string tsp_name = NULL;
     c_string node_name = NULL;
@@ -216,7 +216,7 @@ transport_svc_config_handler (int cmdcode,
         break;
 
 
-        /* config node <node-name> transport-service-profile <transport-service-name> vlan add <vlan-id>*/
+        /* config node <node-name> transport-service-profile <transport-service-name> vlan <vlan-id>*/
         case CMDCODE_CONFIG_NODE_TRANSPORT_SVC_VLAN_ADD:
 
             tsp_name_cplus_string = std::string(reinterpret_cast<const char*>(tsp_name));
@@ -249,43 +249,6 @@ transport_svc_config_handler (int cmdcode,
             }
         break;
 
-
-        case CMDCODE_CONFIG_NODE_TRANSPORT_SVC_VLAN_DEL:
-
-            tsp_name_cplus_string = std::string(reinterpret_cast<const char*>(tsp_name));
-            tsp = TransportServiceLookUp (node->TransPortSvcDB, tsp_name_cplus_string);
-
-            if (!tsp) {
-
-                /* Silently discard the CLI*/
-                if (enable_or_disable == CONFIG_DISABLE) return 0;
-
-                if (!(tsp = TransportServiceCreate (node, tsp_name_cplus_string))) {
-                    cprintf ("\nError : Failed to Create Transport Service Profile %s", tsp_name);
-                    return -1;
-                }
-            }
-
-            switch (enable_or_disable) {
-                case CONFIG_ENABLE:
-                    rc = tsp->RemoveVlan(vlan_id);
-                    if (!rc) {
-                        printf ("\nError : Failed to Delete Vlan %d from Transport Service Profile %s", vlan_id, tsp_name);
-                        return -1;
-                    }
-                    break;
-                case CONFIG_DISABLE:
-                    /* Make no sense */
-                    break;
-                default: ;
-            }                        
-
-        break;
-
-
-        case CMDCODE_CONFIG_NODE_TRANSPORT_SVC_VLAN_DEL_ALL:
-        break;
-
         default:    ;
     }
 
@@ -294,10 +257,8 @@ transport_svc_config_handler (int cmdcode,
 
 #if 0 
 
-config node <node-name> transport-service-profile <transport-service-name>
-config node <node-name> transport-service-profile <transport-service-name> vlan add <vlan-id>
-config node <node-name> transport-service-profile <transport-service-name> vlan del <vlan-id>
-config node <node-name> transport-service-profile <transport-service-name> vlan del all
+config node <node-name> [no] transport-service-profile <transport-service-name>
+config node <node-name> [no] transport-service-profile <transport-service-name> vlan <vlan-id>
 
 #endif 
 
@@ -322,37 +283,11 @@ config_node_build_transport_svc_cli_tree (param_t *param) {
                 init_param(&vlan, CMD, "vlan", 0, 0, INVALID, 0, "vlan");
                 libcli_register_param(&transport_svc_name, &vlan);
                 {
-                    static param_t add;
-                    init_param(&add, CMD, "add", 0, 0, INVALID, 0, "add vlan to Transport Service profile");
-                    libcli_register_param(&vlan, &add);
-                    {
                         static param_t vlan_id;
                         init_param(&vlan_id, LEAF, 0, transport_svc_config_handler, 0, INT, "vlan-id", "vlan id");
-                        libcli_register_param(&add, &vlan_id);
+                        libcli_register_param(&vlan, &vlan_id);
                         libcli_set_param_cmd_code(&vlan_id, CMDCODE_CONFIG_NODE_TRANSPORT_SVC_VLAN_ADD);
                         libcli_set_tail_config_batch_processing(&vlan_id);
-                    }
-                }
-
-                {
-                    static param_t del;
-                    init_param(&del, CMD, "del", 0, 0, INVALID, 0, "del vlan from Transport Service profile");
-                    libcli_register_param(&vlan, &del);
-                    {
-                        static param_t vlan_id;
-                        init_param(&vlan_id, LEAF, 0, transport_svc_config_handler, 0, INT, "vlan-id", "vlan id");
-                        libcli_register_param(&del, &vlan_id);
-                        libcli_set_param_cmd_code(&vlan_id, CMDCODE_CONFIG_NODE_TRANSPORT_SVC_VLAN_DEL);
-                        libcli_set_tail_config_batch_processing(&vlan_id);
-                    }
-
-                    {
-                        static param_t all;
-                        init_param(&all, CMD, "all", transport_svc_config_handler, 0, INVALID, 0, "Del all Vlans from Transport Svc Profile");
-                        libcli_register_param(&del, &all);
-                        libcli_set_param_cmd_code(&all, CMDCODE_CONFIG_NODE_TRANSPORT_SVC_VLAN_DEL_ALL);
-                        libcli_set_tail_config_batch_processing(&all);
-                    }                    
                 }
             }
         }

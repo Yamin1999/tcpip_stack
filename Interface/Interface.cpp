@@ -131,7 +131,7 @@ SendPacketOutLAN(PhysicalInterface *Intf, pkt_block_t *pkt_block)
 
     case LAN_ACCESS_MODE:
     {
-        uint32_t intf_vlan_id = Intf->GetVlanId();
+        vlan_id_t intf_vlan_id = Intf->GetVlanId();
 
         /*Case 1 : If interface is operating in ACCESS mode, but
          not in any vlan, and pkt is also untagged, then simply
@@ -170,7 +170,7 @@ SendPacketOutLAN(PhysicalInterface *Intf, pkt_block_t *pkt_block)
     break;
     case LAN_TRUNK_MODE:
     {
-        uint32_t pkt_vlan_id = 0;
+        vlan_id_t pkt_vlan_id = 0;
 
         if (vlan_8021q_hdr)
         {
@@ -199,7 +199,8 @@ Interface::Interface(std::string if_name, InterfaceType_t iftype)
 
     this->if_name = if_name;
     this->iftype = iftype;
-    this->ref_count = 0;
+    this->config_ref_count = 0;
+    this->dynamic_ref_count = 0;
     this->att_node = NULL;
     memset(&this->log_info, 0, sizeof(this->log_info));
     this->link = NULL;
@@ -223,7 +224,8 @@ Interface::Interface(std::string if_name, InterfaceType_t iftype)
 Interface::~Interface()
 {
 
-    assert(this->ref_count == 0);
+    assert(this->config_ref_count == 0);
+     assert(this->dynamic_ref_count == 0);
     pthread_spin_destroy(&this->spin_lock_l3_ingress_acc_lst);
     pthread_spin_destroy(&this->spin_lock_l3_egress_acc_lst);
 }
@@ -317,14 +319,14 @@ void Interface::InterfaceGetIpAddressMask(uint32_t *ip_addr, uint8_t *mask)
     TO_BE_OVERRIDDEN_BY_DERIEVED_CLASS;
 }
 
-uint32_t
+vlan_id_t
 Interface::GetVlanId()
 {
 
     TO_BE_OVERRIDDEN_BY_DERIEVED_CLASS;
 }
 
-bool Interface::IsVlanTrunked(uint32_t vlan_id)
+bool Interface::IsVlanTrunked(vlan_id_t vlan_id)
 {
 
     TO_BE_OVERRIDDEN_BY_DERIEVED_CLASS;
@@ -364,7 +366,7 @@ void Interface::SetL2Mode(IntfL2Mode l2_mode)
     TO_BE_OVERRIDDEN_BY_DERIEVED_CLASS;
 }
 
-bool Interface::IntfConfigVlan(uint32_t vlan_id, bool add)
+bool Interface::IntfConfigVlan(vlan_id_t vlan_id, bool add)
 {
 
     TO_BE_OVERRIDDEN_BY_DERIEVED_CLASS;
@@ -379,11 +381,24 @@ bool Interface::IsSameSubnet(uint32_t ip_addr)
 }
 
 bool 
-Interface:: IsInterfaceUp(uint16_t vlan_id) {
+Interface:: IsInterfaceUp(vlan_id_t vlan_id) {
 
         TO_BE_OVERRIDDEN_BY_DERIEVED_CLASS;
 }
 
+bool 
+Interface::CanDelete() {
+
+        if (this->l2_ingress_acc_lst || 
+            this->l2_egress_acc_lst ||
+            this->l3_ingress_acc_lst ||
+            this->l3_egress_acc_lst ||
+            this->isis_intf_info) {
+
+            return false;
+    }
+    return true;
+}
 
 /* ************ PhysicalInterface ************ */
 PhysicalInterface::PhysicalInterface(std::string ifname, InterfaceType_t iftype, mac_addr_t *mac_add)
@@ -494,7 +509,7 @@ PhysicalInterface::L2ModeToString(IntfL2Mode l2_mode)
     return NULL;
 }
 
-bool PhysicalInterface::IsVlanTrunked(uint32_t vlan_id)
+bool PhysicalInterface::IsVlanTrunked(vlan_id_t vlan_id)
 {
     TransportService *tsp = this->trans_svc;
     if (!tsp) return false;
@@ -505,7 +520,7 @@ bool PhysicalInterface::IsVlanTrunked(uint32_t vlan_id)
 }
 
 
-uint32_t
+vlan_id_t
 PhysicalInterface::GetVlanId()
 {
     if (this->l2_mode == LAN_MODE_NONE)
@@ -653,7 +668,7 @@ PhysicalInterface::IntfUnConfigTransportSvc(std::string& trans_svc_name) {
 }
 
 bool 
-PhysicalInterface::IntfConfigVlan(uint32_t vlan_id, bool add)
+PhysicalInterface::IntfConfigVlan(vlan_id_t vlan_id, bool add)
 {
 
     int i;
@@ -733,7 +748,7 @@ bool PhysicalInterface::IsSameSubnet(uint32_t ip_addr)
 }
 
 bool 
-PhysicalInterface:: IsInterfaceUp(uint16_t vlan_id) {
+PhysicalInterface:: IsInterfaceUp(vlan_id_t vlan_id) {
 
     if (!this->is_up) return false;
 
@@ -754,7 +769,19 @@ PhysicalInterface:: IsInterfaceUp(uint16_t vlan_id) {
     return true;
 }
 
+bool 
+PhysicalInterface::CanDelete() {
 
+    bool rc = this->Interface::CanDelete();
+    if (!rc) return false;
+
+    if (this->switchport) {
+        if (this->access_vlan_intf) {
+            return false;
+        }
+    }
+    return rc;
+}
 
 
 /* ************ Virtual Interface ************ */
@@ -780,11 +807,19 @@ void VirtualInterface::PrintInterfaceDetails()
 }
 
 bool 
-VirtualInterface::IsInterfaceUp(uint16_t vlan_id) {
+VirtualInterface::IsInterfaceUp(vlan_id_t vlan_id) {
 
     TO_BE_OVERRIDDEN_BY_DERIEVED_CLASS;
 }
 
+
+bool 
+VirtualInterface::CanDelete() {
+
+    bool rc =  this->Interface::CanDelete();
+    if (!rc) return false;
+    return rc;
+}
 
 
 /* ************ GRETunnelInterface ************ */
@@ -798,7 +833,10 @@ GRETunnelInterface::GRETunnelInterface(uint32_t tunnel_id)
     this->config_flags |= GRE_TUNNEL_TUNNEL_ID_SET;
 }
 
-GRETunnelInterface::~GRETunnelInterface() {}
+GRETunnelInterface::~GRETunnelInterface() {
+
+    assert (!this->tunnel_src_intf);
+}
 
 uint32_t
 GRETunnelInterface::GetTunnelId()
@@ -840,6 +878,7 @@ GRETunnelInterface::SetTunnelSource(PhysicalInterface *interface)
 	}
         this->tunnel_src_intf = interface;
         interface->used_as_underlying_tunnel_intf++;
+        this->config_flags |= GRE_TUNNEL_SRC_INTF_SET;
     }
     else {
 
@@ -847,6 +886,7 @@ GRETunnelInterface::SetTunnelSource(PhysicalInterface *interface)
         PhysicalInterface *tunnel_src_intf = dynamic_cast<PhysicalInterface *>(this->tunnel_src_intf );
         tunnel_src_intf->used_as_underlying_tunnel_intf--;
         this->tunnel_src_intf = NULL;
+        this->config_flags &= ~GRE_TUNNEL_SRC_INTF_SET;
     }
     return true;
 }
@@ -990,15 +1030,28 @@ int GRETunnelInterface::SendPacketOut(pkt_block_t *pkt_block)
 }
 
 bool 
-GRETunnelInterface::IsInterfaceUp(uint16_t vlan_id) {
+GRETunnelInterface::IsInterfaceUp(vlan_id_t vlan_id) {
 
     return this->is_up;
 }
 
+bool 
+GRETunnelInterface::CanDelete() {
+
+    bool rc = this->VirtualInterface::CanDelete();
+    if (!rc) return false;
+
+    if (this->tunnel_src_intf) {
+        this->SetTunnelSource(NULL);
+    }
+    return rc;
+}
+
+
 
 /* ************ VlanInterface ************ */
 
-VlanInterface::VlanInterface(uint16_t vlan_id)
+VlanInterface::VlanInterface(vlan_id_t vlan_id)
     : VirtualInterface("null", INTF_TYPE_LAN)
 {
 
@@ -1082,14 +1135,14 @@ VlanInterface::IsSameSubnet(uint32_t ip_addr) {
     return ((this->ip_addr & subnet_mask) == (ip_addr & subnet_mask));
 }
 
-uint32_t
+vlan_id_t
 VlanInterface::GetVlanId() {
 
-    return (uint32_t)this->vlan_id;
+    return (vlan_id_t)this->vlan_id;
 }
 
 VlanInterface *
-VlanInterface::VlanInterfaceLookUp(node_t *node, uint32_t vlan_id) {
+VlanInterface::VlanInterfaceLookUp(node_t *node, vlan_id_t vlan_id) {
 
     VlanInterface *vlan_intf = NULL;
 
@@ -1151,7 +1204,20 @@ VlanInterface::SendPacketOut(pkt_block_t *pkt_block) {
 }
 
 bool 
-VlanInterface::IsInterfaceUp(uint16_t vlan_id) {
+VlanInterface::IsInterfaceUp(vlan_id_t vlan_id) {
 
     return this->is_up;
+}
+
+bool 
+VlanInterface::CanDelete() {
+
+    bool rc = this->VirtualInterface::CanDelete();
+    if  (!rc) return false;
+
+    /* This vlan has access member ports*/
+    if (!this->access_member_intf_lst.empty()) {
+        return false;
+    }
+    return rc;
 }

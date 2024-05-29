@@ -70,7 +70,7 @@ void
 node_set_intf_switchport(node_t *node, const char *intf_name) ;
 
 void
-node_set_intf_vlan_membership(node_t *node, const char *intf_name, uint32_t vlan_id, bool IsTrunk);
+node_set_intf_vlan_membership(node_t *node, const char *intf_name, vlan_id_t vlan_id, bool IsTrunk);
 
 /*VLAN support*/
 
@@ -157,7 +157,7 @@ l2_frame_recv_qualify_on_interface(
                                     node_t *node,
                                     Interface *interface, 
                                     pkt_block_t *pkt_block,
-                                    uint32_t *output_vlan_id);
+                                    vlan_id_t *output_vlan_id);
 
 void
 promote_pkt_to_layer2(
@@ -186,6 +186,7 @@ void tag_pkt_with_vlan_id (pkt_block_t *pkt_block, int vlan_id );
 
 typedef struct mac_table_entry_{
 
+    vlan_id_t vlan_id;
     mac_addr_t mac;
     byte oif_name[IF_NAME_SIZE];
     glthread_t mac_entry_glue;

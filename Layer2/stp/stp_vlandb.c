@@ -70,7 +70,7 @@ stp_init_vlan_db(node_t *node) {
 
 stp_vlan_node_t *
 stp_lookup_vlan_node(node_t *node,
-					 uint32_t vlan_id) {
+					 vlan_id_t vlan_id) {
 	
 	stp_vlan_node_t stp_vlan_node_template;
 
@@ -120,7 +120,7 @@ stp_insert_vlan_intf_node(stp_vlan_node_t *stp_vlan_node,
 
 stp_vlan_intf_node_t *
 stp_lookup_vlan_intf_node_under_vlan(node_t *node,
-								uint32_t vlan_id,
+								vlan_id_t vlan_id,
 								uint16_t ifindex) {
 
 	stp_vlan_node_t *stp_vlan_node = 
@@ -148,7 +148,7 @@ stp_lookup_vlan_intf_node_under_vlan(node_t *node,
 
 stp_vlan_intf_info_t *
 stp_lookup_vlan_intf_info(node_t *node,
-						  uint32_t vlan_id,
+						  vlan_id_t vlan_id,
 						  uint16_t ifindex) {
 
 	stp_vlan_intf_node_t *stp_vlan_intf_node =
@@ -265,7 +265,7 @@ stp_insert_intf_vlan_node(stp_intf_node_t *stp_intf_node,
 
 stp_intf_vlan_node_t *
 stp_lookup_intf_vlan_node_under_intf(node_t *node,
-									 uint32_t vlan_id,
+									 vlan_id_t vlan_id,
 									 uint16_t ifindex) {
 
 	stp_intf_node_t *stp_intf_node =
@@ -299,7 +299,7 @@ stp_print_vlan_intf_info(stp_vlan_intf_info_t *stp_vlan_intf_info) {
 
 void
 stp_print_vlan_db(node_t *node, 
-				  uint32_t vlan_id,
+				  vlan_id_t vlan_id,
 				  uint16_t ifindex) {
 	
 	avltree_t *avltree;
@@ -400,7 +400,7 @@ stp_print_vlan_db(node_t *node,
 bool
 stp_create_update_vlan_intf_info(
 			node_t *node,
-			uint32_t vlan_id,
+			vlan_id_t vlan_id,
 			uint16_t ifindex,
 			stp_vlan_intf_info_t *stp_vlan_intf_info_template) {
 

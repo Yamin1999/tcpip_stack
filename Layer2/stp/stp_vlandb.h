@@ -36,7 +36,7 @@ typedef struct stp_vlan_intf_node_{
 
 struct stp_vlan_node_{
 
-	uint16_t vlan_id;	/* key */
+	vlan_id_t vlan_id;	/* key */
 	stp_vlan_config_t *stp_vlan_config;
 	avltree_t intf_avl_root;
 	avltree_node_t glue;
@@ -50,16 +50,16 @@ stp_get_vlan_db_root(node_t *node);
 
 stp_vlan_node_t *
 stp_lookup_vlan_node(node_t *node,
-                     uint32_t vlan_id);
+                     vlan_id_t vlan_id);
 
 stp_vlan_intf_node_t *
 stp_lookup_vlan_intf_node_under_vlan(node_t *node,
-                                uint32_t vlan_id,
+                                vlan_id_t vlan_id,
                                 uint16_t ifindex);
 
 stp_vlan_intf_info_t *
 stp_lookup_vlan_intf_info(node_t *node,
-                          uint32_t vlan_id,
+                          vlan_id_t vlan_id,
                           uint16_t ifindex);
 
 void
@@ -72,7 +72,7 @@ typedef struct stp_intf_node_ stp_intf_node_t;
 /* For reverse lookup */
 typedef struct stp_intf_vlan_node_{
 
-	uint16_t vlan_id;   /*  key */
+	vlan_id_t vlan_id;   /*  key */
 	stp_vlan_intf_info_t *stp_vlan_intf_info;
 	stp_intf_node_t *stp_intf_node;
 	avltree_node_t glue;
@@ -105,18 +105,18 @@ stp_insert_intf_node(node_t *node,
 
 stp_intf_vlan_node_t *
 stp_lookup_intf_vlan_node_under_intf(node_t *node,
-					 uint32_t vlan_id,
+					 vlan_id_t vlan_id,
 					 uint16_t ifindex);
 
 void
 stp_print_vlan_db(node_t *node,
-                  uint32_t vlan_id,
+                  vlan_id_t vlan_id,
                   uint16_t ifindex);
 
 bool
 stp_create_update_vlan_intf_info(
             node_t *node,
-            uint32_t vlan_id,
+            vlan_id_t vlan_id,
             uint16_t ifindex,
             stp_vlan_intf_info_t *stp_vlan_intf_info_template);
 

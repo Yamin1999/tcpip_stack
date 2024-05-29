@@ -42,6 +42,7 @@
 typedef unsigned char byte;
 typedef unsigned char* c_string; 
 typedef void unused;
+typedef uint16_t vlan_id_t;
 
 #define TO_BE_OVERRIDDEN_BY_DERIEVED_CLASS    assert(0)
 

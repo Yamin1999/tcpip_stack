@@ -44,14 +44,40 @@ gre_tunnel_create (node_t *node, uint16_t tunnel_id) {
 
     tunnel->att_node = node;
 
-    tcp_ip_init_intf_log_info(tunnel);
-
     return true;
 }
 
 bool
 gre_tunnel_destroy (node_t *node, uint16_t tunnel_id) {
+    
+    int i;
+    Interface *tunnel;
+    byte intf_name[IF_NAME_SIZE];
 
+    snprintf ((char *)intf_name, IF_NAME_SIZE, "tunnel%d", tunnel_id);
+
+    for( i = 0 ; i < MAX_INTF_PER_NODE; i++){
+
+        tunnel = node->intf[i];
+        if (!tunnel) continue;
+        if (string_compare (tunnel->if_name.c_str(), intf_name, IF_NAME_SIZE)) continue;
+        break;
+    }
+
+    if (i == MAX_INTF_PER_NODE) {
+        cprintf ("Error : Tunnel %s Do Not  Exist\n", intf_name);
+        return false;
+    }
+
+    if (!tunnel->CanDelete()) {
+        cprintf ("Error : Tunnel is in use, can not be deleted\n");
+        return false;
+    }
+
+    node->intf[i] = NULL;
+   // GRETunnelInterface *gre_tunnel = dynamic_cast <GRETunnelInterface *> (tunnel);
+   // delete gre_tunnel;
+   delete tunnel;
     return true;
 }
 

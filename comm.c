@@ -53,6 +53,7 @@ extern graph_t *topo;
 
 extern void
 l2_switch_recv_frame(node_t *node,
+                                     vlan_id_t vlan_id,
                                      Interface *interface,
                                      pkt_block_t *pkt_block);
 
@@ -144,7 +145,7 @@ dp_pkt_receive (node_t *node,
                            Interface *interface,
                            pkt_block_t *pkt_block){
 
-    uint32_t vlan_id_to_tag = 0;
+    vlan_id_t vlan_id_to_tag = 0;
   
     tcp_dump_recv_logger(node, interface, pkt_block, ETH_HDR);
 
@@ -175,7 +176,7 @@ dp_pkt_receive (node_t *node,
         if (vlan_id_to_tag) {
             tag_pkt_with_vlan_id (pkt_block, vlan_id_to_tag);
         }
-        l2_switch_recv_frame(node, interface, pkt_block);
+        l2_switch_recv_frame(node, vlan_id_to_tag, interface, pkt_block);
         assert(!pkt_block_dereference(pkt_block));
     }
 
