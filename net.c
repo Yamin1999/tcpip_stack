@@ -254,38 +254,6 @@ is_same_subnet(c_string ip_addr,
     return false;
 }
 
-/*When pkt moves from top to down in TCP/IP stack, we would need
-  room in the pkt buffer to attach more new headers. Below function
-  simply shifts the pkt content present in the start of the pkt buffer
-  towards right so that new room is created*/
-byte *
-pkt_buffer_shift_right(byte *pkt,
-                                    uint32_t pkt_size, 
-                                    uint32_t total_buffer_size){
-
-    byte *temp = NULL;
-    bool need_temp_memory = false;
-
-    if(pkt_size * 2 > (total_buffer_size - PKT_BUFFER_RIGHT_ROOM)){
-        need_temp_memory = true;
-    }
-    
-    if(need_temp_memory){
-        temp = (byte *)calloc(1, pkt_size);
-        memcpy(temp, pkt, pkt_size);
-        memset(pkt, 0, total_buffer_size);
-        memcpy(pkt + (total_buffer_size - pkt_size - PKT_BUFFER_RIGHT_ROOM), 
-            temp, pkt_size);
-        free(temp);
-        return pkt + (total_buffer_size - pkt_size - PKT_BUFFER_RIGHT_ROOM);
-    }
-    
-    memcpy(pkt + (total_buffer_size - pkt_size - PKT_BUFFER_RIGHT_ROOM), 
-        pkt, pkt_size);
-    memset(pkt, 0, pkt_size);
-    return pkt + (total_buffer_size - pkt_size - PKT_BUFFER_RIGHT_ROOM);
-}
-
 void
 dump_interface_stats(Interface *interface){
 
