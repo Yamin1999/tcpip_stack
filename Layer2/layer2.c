@@ -197,8 +197,9 @@ l2_forward_ip_packet(node_t *node,
      * ip address*/
     if (oif && (next_hop_ip == IF_IP(oif))) {
         /*send to self*/
-        memset(ethernet_hdr->dst_mac.mac, 0, MAC_ADDR_SIZE);
+
         memset(ethernet_hdr->src_mac.mac, 0, MAC_ADDR_SIZE);
+        memcpy(ethernet_hdr->dst_mac.mac, IF_MAC(oif), MAC_ADDR_SIZE);
         SET_COMMON_ETH_FCS(ethernet_hdr, ethernet_payload_size, 0);
         send_pkt_to_self(pkt_block, oif);
         return;
