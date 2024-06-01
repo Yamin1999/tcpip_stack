@@ -38,6 +38,13 @@
 
 extern void
 snp_flow_init_flow_tree_root(avltree_t *avl_root);
+extern void 
+tcp_ip_de_init_intf_log_info(Interface *intf);
+extern int 
+access_group_unconfig (node_t *node, 
+                                         Interface *intf, 
+                                         char *dirn, 
+                                         access_list_t *acc_lst) ;
 
 /* A fn to send the pkt as it is (unchanged) out on the interface */
 static int
@@ -217,8 +224,6 @@ Interface::Interface(std::string if_name, InterfaceType_t iftype)
     this->l3_egress_acc_lst = NULL;
 
     this->isis_intf_info = NULL;
-
-    snp_flow_init_flow_tree_root(&this->flow_avl_root);
 }
 
 Interface::~Interface()
@@ -228,6 +233,7 @@ Interface::~Interface()
      assert(this->dynamic_ref_count == 0);
     pthread_spin_destroy(&this->spin_lock_l3_ingress_acc_lst);
     pthread_spin_destroy(&this->spin_lock_l3_egress_acc_lst);
+    cprintf ("%s : Interface %s deleted\n", this->att_node->node_name, this->if_name.c_str());
 }
 
 uint32_t
@@ -258,6 +264,8 @@ void Interface::PrintInterfaceDetails()
     }
 
     cprintf("Metric = %u\n", this->GetIntfCost());
+    cprintf ("config_ref_count  = %u, dynamic_ref_count = %u\n", 
+        this->config_ref_count, this->dynamic_ref_count);
 }
 
 node_t *
@@ -387,18 +395,104 @@ Interface:: IsInterfaceUp(vlan_id_t vlan_id) {
 }
 
 bool 
-Interface::CanDelete() {
+Interface::IsCrossReferenced() {
 
-        if (this->l2_ingress_acc_lst || 
-            this->l2_egress_acc_lst ||
-            this->l3_ingress_acc_lst ||
-            this->l3_egress_acc_lst ||
-            this->isis_intf_info) {
-
-            return false;
-    }
-    return true;
+    return (this->config_ref_count > 1 );
 }
+
+void 
+Interface::InterfaceReleaseAllResources() {
+
+    tcp_ip_de_init_intf_log_info (this);
+
+    if (this->link) {
+        /* Nothing to do, we dont break topology !*/
+    }
+
+    if (this->l2_ingress_acc_lst) {
+        assert(0); /* Not Supported Yet*/
+    }
+
+    if (this->l2_egress_acc_lst) {
+        assert(0); /* Not Supported Yet*/
+    }
+
+    if (this->l3_ingress_acc_lst) {
+        access_group_unconfig (this->att_node, this, "in", this->l3_ingress_acc_lst);
+    }
+
+    if (this->l3_egress_acc_lst) {
+        access_group_unconfig (this->att_node, this, "out", this->l3_egress_acc_lst);
+    }
+
+    /* This is configuration, this fn call must not see it set*/
+    assert (!this->isis_intf_info);
+}
+
+
+void 
+Interface::InterfaceLockStatic() {
+
+    this->config_ref_count++;
+}
+void 
+Interface::InterfaceLockDynamic() {
+
+    this->dynamic_ref_count++;
+}
+
+bool
+Interface::InterfaceUnLockStatic() {
+
+    assert (this->config_ref_count);
+    this->config_ref_count--;
+
+    if (this->config_ref_count == 0 &&
+         this->dynamic_ref_count == 0 ) {
+
+        /* Delete the interface and all its resources */
+        this->InterfaceReleaseAllResources();
+
+        if (this->iftype != INTF_TYPE_PHY) {
+            delete this;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool
+Interface::InterfaceUnLockDynamic() {
+
+    assert (this->dynamic_ref_count);
+    this->dynamic_ref_count--;
+
+    if (this->config_ref_count == 0 &&
+         this->dynamic_ref_count == 0 ) {
+
+        /* Delete the interface and all its resources */
+        this->InterfaceReleaseAllResources();
+
+        if (this->iftype != INTF_TYPE_PHY) {
+            delete this;
+            return true;
+        }
+    }
+    return false;
+}
+
+uint16_t 
+Interface::GetConfigRefCount() {
+
+    return this->config_ref_count;
+}
+
+uint16_t 
+Interface::GetDynamicRefCount() {
+
+    return this->dynamic_ref_count;
+}
+
 
 /* ************ PhysicalInterface ************ */
 PhysicalInterface::PhysicalInterface(std::string ifname, InterfaceType_t iftype, mac_addr_t *mac_add)
@@ -554,7 +648,7 @@ void PhysicalInterface::SetSwitchport(bool enable)
     {
         this->InterfaceSetIpAddressMask(0, 0);
         this->l2_mode = LAN_MODE_NONE;
-        this->iftype = INTF_TYPE_LAN;
+        this->iftype = INTF_TYPE_VLAN;
     }
     else
     {
@@ -564,7 +658,7 @@ void PhysicalInterface::SetSwitchport(bool enable)
             return;
         }
         this->l2_mode = LAN_MODE_NONE;
-        this->iftype = INTF_TYPE_P2P;
+        this->iftype = INTF_TYPE_PHY;
     }
     this->switchport = enable;
 }
@@ -676,23 +770,23 @@ PhysicalInterface::IntfConfigVlan(vlan_id_t vlan_id, bool add)
         return false;
     if (this->used_as_underlying_tunnel_intf > 0)
     {
-        cprintf("Error : Intf being used as underlying tunnel interface\n");
+        cprintf("Error : Intf being used as underlying tunnel interface");
+        return false;
+    }
+
+    if (this->GetL2Mode() == LAN_TRUNK_MODE) {
+        cprintf ("Error : Cannot (Un)configure Access Vlan to Interface in Trunk Mode");
         return false;
     }
 
     if (add)
     {
-        if (this->GetL2Mode() == LAN_TRUNK_MODE) {
-            cprintf ("Error : Cannot configure Access Vlan to Interface in Trunk Mode\n");
-            return false;
-        }
-
         if (this->access_vlan_intf && 
                 this->access_vlan_intf->GetVlanId() == vlan_id) return true;
 
         if (this->access_vlan_intf)
         {
-            cprintf("Error : Access Mode Interface already in vlan %u\n", this->access_vlan_intf->GetVlanId());
+            cprintf("Error : Access Mode Interface already in vlan %u", this->access_vlan_intf->GetVlanId());
             return false;
         }
 
@@ -700,11 +794,13 @@ PhysicalInterface::IntfConfigVlan(vlan_id_t vlan_id, bool add)
         
         if (!this->access_vlan_intf)
         {
-            cprintf("Error : Vlan Interface not found\n");
+            cprintf("Error : Vlan Interface not found");
             return false;
         }
         this->access_vlan_intf->access_member_intf_lst.push_back(this);
         this->l2_mode = LAN_ACCESS_MODE;
+        this->access_vlan_intf->InterfaceLockStatic();
+        this->InterfaceLockStatic();
         return true;
     }
     else
@@ -714,13 +810,15 @@ PhysicalInterface::IntfConfigVlan(vlan_id_t vlan_id, bool add)
                 this->access_vlan_intf->access_member_intf_lst.erase(
                     std::remove (this->access_vlan_intf->access_member_intf_lst.begin(), this->access_vlan_intf->access_member_intf_lst.end(), this),
                     this->access_vlan_intf->access_member_intf_lst.end());
-
+                this->InterfaceUnLockStatic();
+                this->access_vlan_intf->InterfaceUnLockStatic();
                 this->access_vlan_intf = NULL;
                 this->l2_mode = LAN_MODE_NONE;
+
                 return true;
             }
             {
-                cprintf("Error : Interface not in vlan %u\n", vlan_id);
+                cprintf("Error : Interface not in vlan %u", vlan_id);
                 return false;
             }
     }
@@ -769,18 +867,24 @@ PhysicalInterface:: IsInterfaceUp(vlan_id_t vlan_id) {
     return true;
 }
 
-bool 
-PhysicalInterface::CanDelete() {
+void 
+PhysicalInterface::InterfaceReleaseAllResources() {
 
-    bool rc = this->Interface::CanDelete();
-    if (!rc) return false;
+    assert (this->used_as_underlying_tunnel_intf == 0);
 
-    if (this->switchport) {
-        if (this->access_vlan_intf) {
-            return false;
-        }
+    /* Handling attached TSP*/
+    if (this->trans_svc) {
+        this->IntfUnConfigTransportSvc (this->trans_svc->trans_svc);
     }
-    return rc;
+    
+    /* Handling access Vlan Interface*/
+    if (this->access_vlan_intf) {
+        this->IntfConfigVlan (this->access_vlan_intf->GetVlanId(), false);
+    }
+
+    this->SetSwitchport (false);
+
+    this->Interface::InterfaceReleaseAllResources();
 }
 
 
@@ -808,18 +912,17 @@ void VirtualInterface::PrintInterfaceDetails()
 
 bool 
 VirtualInterface::IsInterfaceUp(vlan_id_t vlan_id) {
-
     TO_BE_OVERRIDDEN_BY_DERIEVED_CLASS;
 }
 
 
-bool 
-VirtualInterface::CanDelete() {
+void 
+VirtualInterface::InterfaceReleaseAllResources() {
 
-    bool rc =  this->Interface::CanDelete();
-    if (!rc) return false;
-    return rc;
+    /* Nothing to release */
+    this->Interface::InterfaceReleaseAllResources();
 }
+
 
 
 /* ************ GRETunnelInterface ************ */
@@ -849,7 +952,8 @@ bool GRETunnelInterface::IsGRETunnelActive()
 {
 
     if ((this->config_flags & GRE_TUNNEL_TUNNEL_ID_SET) &&
-             (this->config_flags & GRE_TUNNEL_SRC_ADDR_SET) &&
+         (this->config_flags & GRE_TUNNEL_SRC_ADDR_SET || 
+                this->config_flags & GRE_TUNNEL_SRC_INTF_SET) &&
         (this->config_flags & GRE_TUNNEL_DST_ADDR_SET) &&
             (this->config_flags & GRE_TUNNEL_OVLAY_IP_SET))
     {
@@ -1035,16 +1139,14 @@ GRETunnelInterface::IsInterfaceUp(vlan_id_t vlan_id) {
     return this->is_up;
 }
 
-bool 
-GRETunnelInterface::CanDelete() {
-
-    bool rc = this->VirtualInterface::CanDelete();
-    if (!rc) return false;
+void 
+GRETunnelInterface::InterfaceReleaseAllResources() {
 
     if (this->tunnel_src_intf) {
         this->SetTunnelSource(NULL);
     }
-    return rc;
+
+    this->VirtualInterface::InterfaceReleaseAllResources();
 }
 
 
@@ -1052,7 +1154,7 @@ GRETunnelInterface::CanDelete() {
 /* ************ VlanInterface ************ */
 
 VlanInterface::VlanInterface(vlan_id_t vlan_id)
-    : VirtualInterface("null", INTF_TYPE_LAN)
+    : VirtualInterface("null", INTF_TYPE_VLAN)
 {
 
     this->vlan_id = vlan_id;
@@ -1209,15 +1311,9 @@ VlanInterface::IsInterfaceUp(vlan_id_t vlan_id) {
     return this->is_up;
 }
 
-bool 
-VlanInterface::CanDelete() {
+void 
+VlanInterface::InterfaceReleaseAllResources() {
 
-    bool rc = this->VirtualInterface::CanDelete();
-    if  (!rc) return false;
-
-    /* This vlan has access member ports*/
-    if (!this->access_member_intf_lst.empty()) {
-        return false;
-    }
-    return rc;
+    assert (this->access_member_intf_lst.empty());
+    VirtualInterface::InterfaceReleaseAllResources();
 }

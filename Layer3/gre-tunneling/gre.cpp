@@ -43,7 +43,7 @@ gre_tunnel_create (node_t *node, uint16_t tunnel_id) {
     node->intf[empty_intf_slot] = tunnel;
 
     tunnel->att_node = node;
-
+    tunnel->InterfaceLockStatic();
     return true;
 }
 
@@ -69,7 +69,7 @@ gre_tunnel_destroy (node_t *node, uint16_t tunnel_id) {
         return false;
     }
 
-    if (!tunnel->CanDelete()) {
+    if (!tunnel->IsCrossReferenced()) {
         cprintf ("Error : Tunnel is in use, can not be deleted\n");
         return false;
     }
@@ -202,7 +202,7 @@ gre_tunnel_set_lcl_ip_addr(node_t *node,
         interface_set_ip_addr(node, tunnel, intf_ip_addr, mask);
     }
     else {
-         interface_unset_ip_addr(node, tunnel);
+         interface_unset_ip_addr(node, tunnel, intf_ip_addr, mask);
     }
 }
 

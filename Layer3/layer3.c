@@ -487,7 +487,6 @@ rt_table_delete_route(
     l3_route_t *l3_route = NULL;
     uint32_t bin_ip, bin_mask;
     bitmap_t prefix_bm, mask_bm;
-    byte dst_str_with_mask[16];
     
     pthread_rwlock_wrlock(&rt_table->rwlock);
 
@@ -497,9 +496,10 @@ rt_table_delete_route(
         pthread_rwlock_unlock(&rt_table->rwlock);
         return;
     }
+    
     thread_using_route(l3_route);
 
-    bin_ip = tcp_ip_covert_ip_p_to_n(dst_str_with_mask);
+    bin_ip = tcp_ip_covert_ip_p_to_n(ip_addr);
     bin_ip = htonl(bin_ip);
     bin_mask = tcp_ip_convert_dmask_to_bin_mask((uint8_t)mask);
     bin_mask = ~bin_mask;
@@ -760,7 +760,7 @@ rt_table_add_route (rt_table_t *rt_table,
                                 const char *gw, 
                                 Interface *oif,
                                 uint32_t spf_metric,
-                                uint8_t proto_id){
+                                uint16_t proto_id){
 
    bool new_route = false;
 
@@ -826,9 +826,21 @@ rt_table_add_route (rt_table_t *rt_table,
             nexthop->gw_ip[0] = '\0';
         }
         nexthop->gw_ip[15] = '\0';
+        nexthop->proto = proto_id;
         nexthop->oif = oif;
         nexthop->ifindex = oif->ifindex;
-        nexthop->proto = proto_id;
+
+        switch (proto_id) {
+            case PROTO_STATIC:
+                oif->InterfaceLockStatic();
+            break;
+            case PROTO_ISIS:
+                oif->InterfaceLockDynamic();
+            break;
+            default:
+                assert (0);
+        }
+        
         l3_route_wrlock(l3_route);
 		l3_route_insert_nexthop(l3_route, nexthop, nxthop_proto);
         l3_route_unlock(l3_route);

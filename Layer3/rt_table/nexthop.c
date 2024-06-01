@@ -3,20 +3,35 @@
 #include "../../utils.h"
 #include "../../tcp_public.h"
 
-int
-nh_flush_nexthops(nexthop_t **nexthop){
+int nh_flush_nexthops(nexthop_t **nexthop)
+{
 
     int i = 0;
     int count = 0;
 
-    if(!nexthop) return 0;
+    if (!nexthop)
+        return 0;
 
-    for( ; i < MAX_NXT_HOPS; i++){
+    for (; i < MAX_NXT_HOPS; i++)
+    {
 
-        if(nexthop[i]){
+        if (nexthop[i])
+        {
             assert(nexthop[i]->ref_count);
             nexthop[i]->ref_count--;
-            if(nexthop[i]->ref_count == 0){
+            if (nexthop[i]->ref_count == 0)
+            {
+                switch (nexthop[i]->proto)
+                {
+                case PROTO_STATIC:
+                    nexthop[i]->oif->InterfaceUnLockStatic();
+                    break;
+                case PROTO_ISIS:
+                    nexthop[i]->oif->InterfaceUnLockDynamic();
+                    break;
+                default:
+                    assert(0);
+                }
                 XFREE(nexthop[i]);
             }
             nexthop[i] = NULL;
@@ -27,7 +42,7 @@ nh_flush_nexthops(nexthop_t **nexthop){
 }
 
 nexthop_t *
-nh_create_new_nexthop(c_string node_name, uint32_t oif_index, c_string gw_ip, uint8_t proto){
+nh_create_new_nexthop(c_string node_name, uint32_t oif_index, c_string gw_ip, uint16_t proto){
 
     nexthop_t *nexthop = ( nexthop_t *)XCALLOC(0, 1, nexthop_t);
     nexthop->ifindex = oif_index;

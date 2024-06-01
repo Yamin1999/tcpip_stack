@@ -80,9 +80,9 @@ interface_set_ip_addr(node_t *node, Interface *intf,
 }
 
 void
-interface_unset_ip_addr(node_t *node, Interface *intf) {
+interface_unset_ip_addr(node_t *node, Interface *intf, 
+                                        c_string intf_ip_addr, uint8_t mask) {
 
-    uint8_t mask;
     byte ip_addr_str[16];
     uint32_t ip_addr_int;
     uint8_t existing_mask;
@@ -96,13 +96,21 @@ interface_unset_ip_addr(node_t *node, Interface *intf) {
     }
 
     intf->InterfaceGetIpAddressMask(&existing_ip_addr, &existing_mask);
+
+    ip_addr_int = tcp_ip_covert_ip_p_to_n(intf_ip_addr);
+
+    if (ip_addr_int != existing_ip_addr || mask != existing_mask) {
+        cprintf ("Error : IP address and mask do not match\n");
+        return;
+    }
+
     intf_prop_changed.ip_addr.ip_addr = existing_ip_addr;
     intf_prop_changed.ip_addr.mask = existing_mask;
     SET_BIT(if_change_flags, IF_IP_ADDR_CHANGE_F);
 
     rt_table_delete_route(NODE_RT_TABLE(node),  
                                             tcp_ip_covert_ip_n_to_p(existing_ip_addr, ip_addr_str),
-                                            existing_mask,
+                                            32,
                                             PROTO_STATIC);
 
     apply_mask(ip_addr_str, existing_mask, ip_addr_str_applied_mask);

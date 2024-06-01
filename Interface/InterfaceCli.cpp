@@ -211,10 +211,10 @@ intf_config_handler(int cmdcode, Stack_t *tlv_stack,
             intf_prop_changed.access_vlan = interface->GetVlanId();
             switch(enable_or_disable){
                 case CONFIG_ENABLE:
-                    interface->IntfConfigVlan(vlan_id, true);
+                    if (!interface->IntfConfigVlan(vlan_id, true) ) return -1;
                     break;
                 case CONFIG_DISABLE:
-                    interface->IntfConfigVlan(vlan_id, false);
+                    if (!interface->IntfConfigVlan(vlan_id, false) ) return -1;
                     break;
                 default:
                     ;
@@ -232,7 +232,7 @@ intf_config_handler(int cmdcode, Stack_t *tlv_stack,
                     interface_set_ip_addr(node, interface, intf_ip_addr, mask);
                     break;
                 case CONFIG_DISABLE:
-                    interface_unset_ip_addr(node, interface);
+                    interface_unset_ip_addr(node, interface, intf_ip_addr, mask);
                     break;
                 default:
                     ;
@@ -264,6 +264,7 @@ intf_config_handler(int cmdcode, Stack_t *tlv_stack,
                     node->vlan_intf_db = new std::unordered_map<uint16_t, VlanInterface *>;
                 }
                 node->vlan_intf_db->insert(std::make_pair(vlan_id, vlan_intf));
+                vlan_intf->InterfaceLockStatic();
             }
             break;
             case CONFIG_DISABLE:
@@ -272,13 +273,20 @@ intf_config_handler(int cmdcode, Stack_t *tlv_stack,
                     static_cast<VlanInterface *>(VlanInterface::VlanInterfaceLookUp(node, vlan_id));
                 if (!vlan_intf)
                     return 0;
-                if (!vlan_intf->access_member_intf_lst.empty())
-                {
+                
+                if (vlan_intf->IsCrossReferenced()) {
                     cprintf("Error : Vlan is in use\n");
                     return -1;
                 }
+
                 node->vlan_intf_db->erase(vlan_id);
-                delete vlan_intf;
+                if (vlan_intf->InterfaceUnLockStatic() ) {
+                    return 0;
+                }
+                /* Interface us being dynamically used by some entities, send Delete notification */
+                SET_BIT(if_change_flags, IF_DELETE_F);
+                nfc_intf_invoke_notification_to_sbscribers(
+					vlan_intf, &intf_prop_changed, if_change_flags);
             }
             break;
             default:;

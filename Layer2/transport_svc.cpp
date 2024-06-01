@@ -465,22 +465,27 @@ show_vlan_members (int cmdcode,
         for (auto it_vlan = vlan_intf_db->begin(); it_vlan != vlan_intf_db->end(); ++it_vlan) {
 
             i = it_vlan->first;
-            cprintf (" vlan %d\n", i);
+            VlanInterface *vlan_intf = it_vlan->second;
+
+            cprintf (" vlan %d    config_ref_count = %d, dynamic_ref_count = %d\n", i, vlan_intf->GetConfigRefCount(), vlan_intf->GetDynamicRefCount());
 
             if (!TransPortSvcDB) continue;
 
-            VlanInterface *vlan_intf = it_vlan->second;
+            
             Interface *member_intf;
 
             ITERATE_VLAN_MEMBER_PORTS_TRUNK_BEGIN(vlan_intf, member_intf) {
 
-                cprintf("  %s (Trunk)\n", member_intf->if_name.c_str());
+                cprintf("  %s (Trunk)    config_ref_count = %d, dynamic_ref_count = %d\n", member_intf->if_name.c_str(), 
+                member_intf->GetConfigRefCount(), 
+                member_intf->GetDynamicRefCount());
             
             } ITERATE_VLAN_MEMBER_PORTS_TRUNK_END;
 
             ITERATE_VLAN_MEMBER_PORTS_ACCESS_BEGIN(vlan_intf, member_intf) {
 
-                cprintf("  %s (Access)\n", member_intf->if_name.c_str());
+                cprintf("  %s (Access)       config_ref_count = %d, dynamic_ref_count = %d\n", member_intf->if_name.c_str(),
+                member_intf->GetConfigRefCount(), member_intf->GetDynamicRefCount() );
 
             } ITERATE_VLAN_MEMBER_PORTS_ACCESS_END;
 

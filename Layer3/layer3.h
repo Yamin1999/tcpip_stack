@@ -162,7 +162,7 @@ next_next_hop_first ( void ) {
          nh_proto = next_next_hop_proto(nh_proto))
 
 static inline nxthop_proto_id_t
-l3_rt_map_proto_id_to_nxthop_index(uint8_t proto_id) {
+l3_rt_map_proto_id_to_nxthop_index(uint16_t proto_id) {
 
     switch(proto_id) {
         case PROTO_STATIC:
@@ -258,7 +258,7 @@ rt_table_add_route(rt_table_t *rt_table,
                    const char *gw, 
                    Interface *oif,
                    uint32_t spf_metric,
-                   uint8_t proto_id);
+                   uint16_t proto_id);
 
 /* MP Safe */
 void

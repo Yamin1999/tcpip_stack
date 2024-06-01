@@ -317,8 +317,8 @@ task_cancel_job(event_dispatcher_t *ev_dis, task_t *task){
 
 	/* Dont kill yourself while you are still executing
 	 * and you are one SHOT */
-	if(ev_dis->current_task->task_type == TASK_ONE_SHOT &&
-		ev_dis->current_task == task) {
+	if(ev_dis->current_task == task &&
+		ev_dis->current_task->task_type == TASK_ONE_SHOT) {
 		assert(0);
 	}
 	

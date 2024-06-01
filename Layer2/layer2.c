@@ -121,6 +121,7 @@ node_set_intf_vlan_membership(node_t *node,
             node->vlan_intf_db = new std::unordered_map<uint16_t, VlanInterface *>;
         }
         node->vlan_intf_db->insert(std::make_pair(vlan_id, vlan_intf));
+        vlan_intf->InterfaceLockStatic();
     }
 
     if (Trunk) {

@@ -8,7 +8,7 @@ typedef struct nexthop_{
     /* Below 3 fields are the keys of the nexthop */
     uint32_t ifindex;  
     byte gw_ip[16];
-    uint8_t proto;
+    uint16_t proto;
     unsigned char node_name[NODE_NAME_SIZE];
     /* internal fields */
     uint32_t ref_count;
@@ -20,7 +20,7 @@ int
 nh_flush_nexthops(nexthop_t **nexthop);
 
 nexthop_t *
-nh_create_new_nexthop(c_string node_name, uint32_t oif_index, c_string gw_ip, uint8_t proto);
+nh_create_new_nexthop(c_string node_name, uint32_t oif_index, c_string gw_ip, uint16_t proto);
 
 bool 
 nh_insert_new_nexthop_nh_array(

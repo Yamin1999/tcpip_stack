@@ -68,6 +68,7 @@ tcp_dump_send_logger(node_t *node, Interface *intf,
 
 void tcp_ip_init_node_log_info(node_t *node);
 void tcp_ip_init_intf_log_info(Interface *intf);
+void tcp_ip_de_init_intf_log_info(Interface *intf);
 void tcp_ip_set_all_log_info_params(log_t *log_info, bool status);
 void tcp_ip_show_log_status(node_t *node);
 void tcp_dump_l3_fwding_logger(node_t *node, c_string oif_name, c_string gw_ip);

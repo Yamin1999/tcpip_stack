@@ -475,7 +475,7 @@ extern void
 rt_table_add_route(rt_table_t *rt_table,
         const char *dst, char mask,
         const char *gw, Interface *oif, uint32_t spf_metric,
-        uint8_t proto);
+        uint16_t proto);
 
 static int
 l3_config_handler(int cmdcode, Stack_t *tlv_stack, op_mode enable_or_disable){
@@ -521,7 +521,7 @@ l3_config_handler(int cmdcode, Stack_t *tlv_stack, op_mode enable_or_disable){
             switch(enable_or_disable){
                 case CONFIG_ENABLE:
                 {
-                    Interface *intf;
+                    Interface *intf = NULL;
                     if(intf_name){
                         intf = node_get_intf_by_name(node, (const char *)intf_name);
                         if(!intf){

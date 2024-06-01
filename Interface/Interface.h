@@ -44,17 +44,17 @@ class TransportService;
 #define IF_VLAN_MEMBERSHIP_CHANGE_F (1 << 3)
 #define IF_TSP_CHANGE_F ( 1<<4 )
 #define IF_METRIC_CHANGE_F          (1 << 5)
-
+#define IF_DELETE_F                         (1 << 6)
 class Interface {
 
     private:
-       
+        uint16_t config_ref_count;
+        uint16_t dynamic_ref_count;
     protected:
+ 
         Interface(std::string if_name, InterfaceType_t iftype);
     public:
         InterfaceType_t iftype;
-        uint16_t config_ref_count;
-        uint16_t dynamic_ref_count;
         std::string if_name;
         node_t *att_node;
         log_t log_info;
@@ -81,8 +81,6 @@ class Interface {
         /* L5 protocols */
         void *isis_intf_info;
 
-        avltree_t flow_avl_root;
-
         uint32_t GetIntfCost();
         node_t *GetNbrNode ();
         Interface *GetOtherInterface();
@@ -107,13 +105,14 @@ class Interface {
         virtual bool IntfConfigTransportSvc(std::string& trans_svc);
         virtual bool IntfUnConfigTransportSvc(std::string& trans_svc);
         virtual bool IsInterfaceUp(vlan_id_t vlan_id);
-        virtual bool CanDelete(); 
-        #if 0
-        virtual void InterfaceLockStatic() = 0;
-        virtual void InterfaceLockDynamic() = 0;
-        virtual void InterfaceUnLockStatic() = 0;
-        virtual void InterfaceUnLockDynamic() = 0;
-        #endif
+        bool IsCrossReferenced(); 
+        void InterfaceLockStatic() ;
+        void InterfaceLockDynamic();
+        bool InterfaceUnLockStatic();
+        bool InterfaceUnLockDynamic() ;
+        void InterfaceReleaseAllResources();
+        uint16_t GetConfigRefCount();
+        uint16_t GetDynamicRefCount();
 };
 
 
@@ -164,7 +163,7 @@ class PhysicalInterface : public Interface {
         virtual bool IntfConfigTransportSvc(std::string& trans_svc) final;
         virtual bool IntfUnConfigTransportSvc(std::string& trans_svc) final;
         virtual bool IsInterfaceUp(vlan_id_t vlan_id) final;
-        virtual bool CanDelete(); 
+        virtual void InterfaceReleaseAllResources() ;
 };
 
 typedef struct linkage_ {
@@ -185,7 +184,7 @@ class VirtualInterface : public Interface {
         virtual ~VirtualInterface();
         virtual void PrintInterfaceDetails ();
         virtual bool IsInterfaceUp(vlan_id_t vlan_id);
-        virtual bool CanDelete(); 
+        virtual void InterfaceReleaseAllResources() ;
 };
 
 
@@ -214,7 +213,7 @@ class VlanInterface : public VirtualInterface {
         static VlanInterface *VlanInterfaceLookUp(node_t *node, vlan_id_t vlan_id);
         virtual int SendPacketOut(pkt_block_t *pkt_block) final;
         virtual bool IsInterfaceUp(vlan_id_t vlan_id) final;
-        virtual bool CanDelete();
+        virtual void InterfaceReleaseAllResources() ;
 };
 
 
@@ -259,7 +258,7 @@ public:
     virtual bool IsSameSubnet(uint32_t ip_addr);
     virtual mac_addr_t * GetMacAddr() final;
     virtual bool IsInterfaceUp(vlan_id_t vlan_id) final;
-    virtual bool CanDelete();
+    virtual void InterfaceReleaseAllResources() ;
 };
 
 

@@ -539,6 +539,24 @@ tcp_ip_init_intf_log_info(Interface *intf){
     log_info->acc_lst_filter = NULL;
 }
 
+void
+tcp_ip_de_init_intf_log_info(Interface *intf){
+    
+    log_t *log_info     = &intf->log_info;
+    log_info->all       = false;
+    log_info->recv      = false;
+    log_info->send      = false;
+    log_info->is_stdout = false;
+    if (log_info->log_file) {
+        close (log_info->log_file);
+        log_info->log_file = NULL;
+    }
+    if ( log_info->acc_lst_filter ) {
+        access_list_dereference(intf->att_node, log_info->acc_lst_filter);
+        log_info->acc_lst_filter = NULL;
+    }
+}
+
 static void display_expected_flag(param_t *param, Stack_t *tlv_stack){
 
     cprintf(" : all | no-all\n");
