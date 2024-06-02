@@ -198,7 +198,6 @@ validate_node_extistence(Stack_t *tlv_stack, c_string node_name){
     node_t *node = node_get_node_by_name(topo, node_name);
     if(node)
         return LEAF_VALIDATION_SUCCESS;
-    printf("Error : Node %s do not exist\n", node_name);
     return LEAF_VALIDATION_FAILED;
 }
 
@@ -207,7 +206,6 @@ validate_vlan_id(c_string vlan_value){
 
     uint32_t vlan = atoi((const char *)vlan_value);
     if(!vlan){
-        printf("Error : Invalid Vlan Value\n");
         return LEAF_VALIDATION_FAILED;
     }
     if(vlan >= 1 && vlan <= 4095)

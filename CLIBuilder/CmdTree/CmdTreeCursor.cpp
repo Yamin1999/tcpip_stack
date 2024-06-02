@@ -987,14 +987,16 @@ cmdt_cursor_process_double_quotes (cmd_tree_cursor_t *cmdtc) {
 
                 cmdtc->cmdtc_state = cmdt_cur_state_single_word_match;
                 cmdtc->curr_param = glue_to_param (glthread_get_next (&cmdtc->matching_params_list));
-
+                
+                if (cmdtc->leaf_param){
+                    cmd_tree_leaf_char_save (cmdtc->curr_leaf_value, c, cmdtc->icursor);
+                }
+                
                 if (cmdtc->curr_param) {
 
                     /* No Action*/
                 }
-                else if (cmdtc->leaf_param){
-                    cmd_tree_leaf_char_save (cmdtc->curr_leaf_value, c, cmdtc->icursor);
-                }
+
                 cmdtc->icursor++;
                 assert(cmdtc->icursor == 1);
                 return cmdt_cursor_ok;

@@ -38,13 +38,14 @@ class TransportService;
 
 /* Interface Change Flags, used for Notification to 
  * Applications*/
-#define IF_UP_DOWN_CHANGE_F         (1 << 0)
-#define IF_IP_ADDR_CHANGE_F           (1 << 1)
-#define IF_OPER_MODE_CHANGE_F    (1 << 2)
+#define IF_UP_DOWN_CHANGE_F (1 << 0)
+#define IF_IP_ADDR_CHANGE_F (1 << 1)
+#define IF_OPER_MODE_CHANGE_F (1 << 2)
 #define IF_VLAN_MEMBERSHIP_CHANGE_F (1 << 3)
 #define IF_TSP_CHANGE_F ( 1<<4 )
-#define IF_METRIC_CHANGE_F          (1 << 5)
-#define IF_DELETE_F                         (1 << 6)
+#define IF_METRIC_CHANGE_F (1 << 5)
+#define IF_DELETE_F (1 << 6)
+#define IF_CREATE_F (1 << 7)
 class Interface {
 
     private:

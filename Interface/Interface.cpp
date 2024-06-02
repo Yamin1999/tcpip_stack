@@ -32,6 +32,7 @@
 #include "../EventDispatcher/event_dispatcher.h"
 #include "../Layer2/layer2.h"
 #include "../Layer3/layer3.h"
+#include "../Layer3/gre-tunneling/gre.h"
 #include "../CLIBuilder/libcli.h"
 #include "../Layer2/transport_svc.h"
 
@@ -294,14 +295,14 @@ Interface::GetOtherInterface()
 int Interface::SendPacketOut(pkt_block_t *pkt_block)
 {
 
-    TO_BE_OVERRIDDEN_BY_DERIEVED_CLASS;
+    cprintf ("Error : Operation %s not supported\n", __func__);
     return -1;
 }
 
 void Interface::SetMacAddr(mac_addr_t *mac_add)
 {
 
-    TO_BE_OVERRIDDEN_BY_DERIEVED_CLASS;
+    cprintf ("Error : Operation %s not supported\n", __func__);
 }
 
 mac_addr_t *
@@ -318,42 +319,38 @@ bool Interface::IsIpConfigured()
 void Interface::InterfaceSetIpAddressMask(uint32_t ip_addr, uint8_t mask)
 {
 
-    TO_BE_OVERRIDDEN_BY_DERIEVED_CLASS;
+    cprintf ("Error : Operation %s not supported\n", __func__);
 }
 
 void Interface::InterfaceGetIpAddressMask(uint32_t *ip_addr, uint8_t *mask)
 {
-
-    TO_BE_OVERRIDDEN_BY_DERIEVED_CLASS;
+    cprintf ("Error : Operation %s not supported\n", __func__);
 }
 
 vlan_id_t
 Interface::GetVlanId()
 {
-
-    TO_BE_OVERRIDDEN_BY_DERIEVED_CLASS;
+    cprintf ("Error : Operation %s not supported\n", __func__);
 }
 
 bool Interface::IsVlanTrunked(vlan_id_t vlan_id)
 {
-
-    TO_BE_OVERRIDDEN_BY_DERIEVED_CLASS;
+    cprintf ("Error : Operation %s not supported\n", __func__);
 }
 
 void Interface::SetSwitchport(bool enable)
 {
-
-    TO_BE_OVERRIDDEN_BY_DERIEVED_CLASS;
+    cprintf ("Error : Operation %s not supported\n", __func__);
 }
 
 bool Interface::IntfConfigTransportSvc(std::string& trans_svc) 
 {
-    TO_BE_OVERRIDDEN_BY_DERIEVED_CLASS;
+   cprintf ("Error : Operation %s not supported\n", __func__);
 }
 
 bool Interface::IntfUnConfigTransportSvc(std::string& trans_svc) 
 {
-    TO_BE_OVERRIDDEN_BY_DERIEVED_CLASS;
+    cprintf ("Error : Operation %s not supported\n", __func__);
 }
 
 bool Interface::GetSwitchport()
@@ -370,14 +367,13 @@ Interface::GetL2Mode()
 
 void Interface::SetL2Mode(IntfL2Mode l2_mode)
 {
-
-    TO_BE_OVERRIDDEN_BY_DERIEVED_CLASS;
+    cprintf ("Error : Operation %s not supported\n", __func__);
 }
 
 bool Interface::IntfConfigVlan(vlan_id_t vlan_id, bool add)
 {
 
-    TO_BE_OVERRIDDEN_BY_DERIEVED_CLASS;
+    cprintf ("Error : Operation %s not supported\n", __func__);
 }
 
 bool Interface::IsSameSubnet(uint32_t ip_addr)
@@ -385,13 +381,13 @@ bool Interface::IsSameSubnet(uint32_t ip_addr)
 
     if (!this->IsIpConfigured())
         return false;
-     TO_BE_OVERRIDDEN_BY_DERIEVED_CLASS;
+     cprintf ("Error : Operation %s not supported\n", __func__);
 }
 
 bool 
 Interface:: IsInterfaceUp(vlan_id_t vlan_id) {
 
-        TO_BE_OVERRIDDEN_BY_DERIEVED_CLASS;
+        cprintf ("Error : Operation %s not supported\n", __func__);
 }
 
 bool 
@@ -912,7 +908,7 @@ void VirtualInterface::PrintInterfaceDetails()
 
 bool 
 VirtualInterface::IsInterfaceUp(vlan_id_t vlan_id) {
-    TO_BE_OVERRIDDEN_BY_DERIEVED_CLASS;
+    cprintf ("Error : Operation %s not supported\n", __func__);
 }
 
 
@@ -950,6 +946,7 @@ GRETunnelInterface::GetTunnelId()
 
 bool GRETunnelInterface::IsGRETunnelActive()
 {
+    bool rc = false;
 
     if ((this->config_flags & GRE_TUNNEL_TUNNEL_ID_SET) &&
          (this->config_flags & GRE_TUNNEL_SRC_ADDR_SET || 
@@ -957,9 +954,18 @@ bool GRETunnelInterface::IsGRETunnelActive()
         (this->config_flags & GRE_TUNNEL_DST_ADDR_SET) &&
             (this->config_flags & GRE_TUNNEL_OVLAY_IP_SET))
     {
-        return true;
+        rc = true;
     }
-    return false;
+
+    if ( this->tunnel_src_intf) {
+
+        if ( !this->tunnel_src_intf->IsInterfaceUp(0)  || 
+                !this->tunnel_src_intf->IsIpConfigured()) {
+            rc = false;
+        }
+    }
+
+    return rc;
 }
 
 bool 
@@ -1118,7 +1124,8 @@ void GRETunnelInterface::PrintInterfaceDetails()
     this->VirtualInterface::PrintInterfaceDetails();
 }
 
-int GRETunnelInterface::SendPacketOut(pkt_block_t *pkt_block)
+int 
+GRETunnelInterface::SendPacketOut(pkt_block_t *pkt_block)
 {
     uint8_t *pkt;
     pkt_size_t pkt_size;
@@ -1128,8 +1135,9 @@ int GRETunnelInterface::SendPacketOut(pkt_block_t *pkt_block)
     if (!this->IsGRETunnelActive()) {
         return -1;
     }
-    pkt = pkt_block_get_pkt(pkt_block, &pkt_size);
-    tcp_ip_send_ip_data(node, (c_string)pkt, (uint32_t)pkt_size, GRE_HDR, this->tunnel_dst_ip);
+    
+    gre_packet_attach_headers_to_payload (pkt_block);
+
     return 0;
 }
 

@@ -28,12 +28,52 @@
 #include "tcpconst.h"
 #include "pkt_block.h"
 
+typedef enum {
+
+    PKT_BLOCK_INFO_NONE,
+    PKT_BLOCK_GRE_ENCAP_INFO
+
+} pkt_block_meta_info_type_t;
+
+typedef struct pkt_block_meta_ {
+
+    pkt_block_meta_info_type_t info_type;
+    union {
+
+        struct {
+
+            uint16_t gre_protocol;
+
+            union {
+
+                struct {
+                    uint32_t src_ip;
+                    uint32_t dst_ip;
+                    uint16_t prot;
+                } ip_hdr_info; 
+
+                struct {
+                    uint8_t src_mac[6];
+                    uint8_t dst_mac[6];
+                    uint16_t vlan_id;
+                } eth_hdr_info;
+
+            } gre_u;
+
+        } gre_encap_info;
+
+    } u;
+
+} pkt_block_meta_t;
+
+
 struct pkt_block_ {
 
     uint8_t *pkt;
     pkt_size_t pkt_size;
     hdr_type_t hdr_type; /* Starting hdr type */
     uint8_t ref_count;
+    pkt_block_meta_t meta_info;
 } ;
 
 void

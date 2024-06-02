@@ -8,13 +8,25 @@
 typedef struct pkt_block_ pkt_block_t;
 class Interface;
 
-bool
-gre_tunnel_activate (node_t *node, Interface *tunnel_intf);
+#pragma pack (push,1)
+typedef struct gre_header_ {
 
-void
-gre_tunnel_deactivate (node_t *node, Interface *tunnel_intf);
+    // First 32 bits (4 bytes)
+    uint16_t flags_version;   // 1st 2 bytes: Flags (C, R, K, S, s, Recur) and Version
+    uint16_t protocol_type;   // 2nd 2 bytes: Protocol Type
 
-void
-gre_tunnel_send_pkt_out (node_t *node, Interface *tunnel_intf, pkt_block_t *pkt_block);
+    // Optional fields (only present if indicated by flags)
+    uint16_t checksum;        // Checksum field (optional, 2 bytes)
+    uint16_t reserved1;       // Reserved1 field (optional, 2 bytes)
+    uint32_t key;             // Key field (optional, 4 bytes)
+    uint32_t sequence_number; // Sequence Number field (optional, 4 bytes)
+    uint32_t routing_info[];  // Routing Information (optional, variable length)
+
+} gre_hdr_t;
+
+#pragma pack(pop)
+
+void 
+gre_packet_attach_headers_to_payload (pkt_block_t *pkt_block);
 
 #endif 

@@ -52,9 +52,12 @@ gre_tunnel_destroy (node_t *node, uint16_t tunnel_id) {
     
     int i;
     Interface *tunnel;
+    uint32_t if_change_flags = 0;
     byte intf_name[IF_NAME_SIZE];
+    intf_prop_changed_t intf_prop_changed;
 
     snprintf ((char *)intf_name, IF_NAME_SIZE, "tunnel%d", tunnel_id);
+    memset (&intf_prop_changed, 0, sizeof (intf_prop_changed_t));
 
     for( i = 0 ; i < MAX_INTF_PER_NODE; i++){
 
@@ -69,15 +72,20 @@ gre_tunnel_destroy (node_t *node, uint16_t tunnel_id) {
         return false;
     }
 
-    if (!tunnel->IsCrossReferenced()) {
+    if (tunnel->IsCrossReferenced()) {
         cprintf ("Error : Tunnel is in use, can not be deleted\n");
         return false;
     }
 
     node->intf[i] = NULL;
-   // GRETunnelInterface *gre_tunnel = dynamic_cast <GRETunnelInterface *> (tunnel);
-   // delete gre_tunnel;
-   delete tunnel;
+
+    if (!tunnel->InterfaceUnLockStatic()) {
+        /* Send Delete notification to all Subscribers */
+        SET_BIT(if_change_flags, IF_DELETE_F);
+        nfc_intf_invoke_notification_to_sbscribers(
+					tunnel, &intf_prop_changed, if_change_flags);        
+    }
+
     return true;
 }
 
@@ -217,9 +225,16 @@ gre_interface_updates (event_dispatcher_t *ev_dis, void *arg, unsigned int arg_s
 	intf_prop_changed_t *old_intf_prop_changed =
             intf_notif_data->old_intf_prop_changed;
 
+    /* GRE tunnel module dont need these events */
+    if (intf->iftype == INTF_TYPE_GRE_TUNNEL ||
+         intf->iftype ==  INTF_TYPE_VLAN) {
+        return;
+     }
+
     switch(flags) {
         case IF_UP_DOWN_CHANGE_F:
             //isis_handle_interface_up_down (intf, old_intf_prop_changed->up_status);
+            cprintf ("Gre recved Up down notif\n");
             break;
         case IF_IP_ADDR_CHANGE_F:
             /*isis_handle_interface_ip_addr_changed (intf, 
@@ -238,4 +253,10 @@ void
 gre_one_time_registration() {
 
     nfc_intf_register_for_events(gre_interface_updates);
+}
+
+void 
+gre_packet_attach_headers_to_payload (pkt_block_t *pkt_block) {
+
+
 }

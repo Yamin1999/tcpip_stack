@@ -136,8 +136,13 @@ intf_config_handler(int cmdcode, Stack_t *tlv_stack,
     } TLV_LOOP_END;
 
     node = node_get_node_by_name(topo, node_name);
+
     if (intf_name) {
         interface = node_get_intf_by_name(node, (const char *)intf_name);
+        if (!interface) {
+            cprintf ("Error : Interface do not exist\n");
+            return -1;
+        }
     }
 
     uint32_t if_change_flags = 0;
