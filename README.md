@@ -31,8 +31,8 @@ Get your hands dirty with industry-level network programming.
 Learn cooking up, parsing and reading the packet buffers
 Understand End-To-End Architecture and Design of Network Application and TCP/IP Stack
 Conquer Interviews for the role of Network Developer Engineer
-Decorate your GitHub, and add a strong project to your HAT, Expected LOCs of this course shall exceed 50k !
+Decorate your GitHub, and add a strong project to your HAT, Expected LOCs of this course shall exceed 70k !
 This project will fill up the gap between theoretical knowledge and the Implementation version of it. How does it sound that you have written code by your own hands to resolve ARP, packet forwarding, etc. Decorate your resume and GitHub with this project.
 
-Last updated : 2 Apr 2023
+Last updated : 2 June 2024
 ( Miss you Maa !! )
