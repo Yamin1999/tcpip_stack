@@ -49,7 +49,7 @@ init_mac_table(mac_table_t **mac_table){
 }
 
 mac_table_entry_t *
-mac_table_lookup(mac_table_t *mac_table, c_string mac){
+mac_table_lookup(mac_table_t *mac_table, vlan_id_t vlan, c_string mac){
 
     glthread_t *curr;
     mac_table_entry_t *mac_table_entry;
@@ -57,7 +57,9 @@ mac_table_lookup(mac_table_t *mac_table, c_string mac){
     ITERATE_GLTHREAD_BEGIN(&mac_table->mac_entries, curr){
 
         mac_table_entry = mac_entry_glue_to_mac_entry(curr);
-        if(string_compare(mac_table_entry->mac.mac, mac, sizeof(mac_addr_t)) == 0){
+        if(string_compare(mac_table_entry->mac.mac, mac, sizeof(mac_addr_t)) == 0 &&
+                mac_table_entry->vlan_id == vlan){
+
             return mac_table_entry;
         }
     } ITERATE_GLTHREAD_END(&mac_table->mac_entries, curr);
@@ -79,10 +81,10 @@ clear_mac_table(mac_table_t *mac_table){
 }
 
 void
-delete_mac_table_entry(mac_table_t *mac_table, c_string mac){
+delete_mac_table_entry(mac_table_t *mac_table, vlan_id_t vlan_id, c_string mac){
 
     mac_table_entry_t *mac_table_entry;
-    mac_table_entry = mac_table_lookup(mac_table, mac);
+    mac_table_entry = mac_table_lookup(mac_table, vlan_id, mac);
     if(!mac_table_entry)
         return;
     remove_glthread(&mac_table_entry->mac_entry_glue);
@@ -91,14 +93,17 @@ delete_mac_table_entry(mac_table_t *mac_table, c_string mac){
 
 #define IS_MAC_TABLE_ENTRY_EQUAL(mac_entry_1, mac_entry_2)   \
     (string_compare(mac_entry_1->mac.mac, mac_entry_2->mac.mac, sizeof(mac_addr_t)) == 0 && \
-            string_compare(mac_entry_1->oif_name, mac_entry_2->oif_name, IF_NAME_SIZE) == 0)
+            string_compare(mac_entry_1->oif_name, mac_entry_2->oif_name, IF_NAME_SIZE) == 0 && \
+            mac_entry_1->vlan_id == mac_entry_2->vlan_id)
 
 
 bool
 mac_table_entry_add(mac_table_t *mac_table, mac_table_entry_t *mac_table_entry){
 
+    assert (mac_table_entry->vlan_id >= 1 && mac_table_entry->vlan_id <= 4095);
+    
     mac_table_entry_t *mac_table_entry_old = mac_table_lookup(mac_table,
-            mac_table_entry->mac.mac);
+            mac_table_entry->vlan_id, mac_table_entry->mac.mac);
 
     if(mac_table_entry_old &&
             IS_MAC_TABLE_ENTRY_EQUAL(mac_table_entry_old, mac_table_entry)){
@@ -107,7 +112,7 @@ mac_table_entry_add(mac_table_t *mac_table, mac_table_entry_t *mac_table_entry){
     }
 
     if(mac_table_entry_old){
-        delete_mac_table_entry(mac_table, mac_table_entry_old->mac.mac);
+        delete_mac_table_entry(mac_table, mac_table_entry_old->vlan_id, mac_table_entry_old->mac.mac);
     }
 
     init_glthread(&mac_table_entry->mac_entry_glue);
@@ -192,8 +197,11 @@ l2_switch_forward_frame(
 
     pkt_size_t pkt_size;
     ethernet_hdr_t *ethernet_hdr;
+    vlan_8021q_hdr_t *vlan_8021q_hdr = NULL;
 
     ethernet_hdr = (ethernet_hdr_t *)pkt_block_get_pkt(pkt_block, &pkt_size);
+
+    assert ((vlan_8021q_hdr = is_pkt_vlan_tagged (ethernet_hdr))) ;  
 
     /*If dst mac is broadcast mac, then flood the frame*/
     if (IS_MAC_BROADCAST_ADDR(ethernet_hdr->dst_mac.mac)){
@@ -203,7 +211,9 @@ l2_switch_forward_frame(
 
     /*Check the mac table to forward the frame*/
     mac_table_entry_t *mac_table_entry = 
-        mac_table_lookup(NODE_MAC_TABLE(node), ethernet_hdr->dst_mac.mac);
+        mac_table_lookup(NODE_MAC_TABLE(node), 
+                                      GET_802_1Q_VLAN_ID(vlan_8021q_hdr),
+                                      ethernet_hdr->dst_mac.mac);
 
     if(!mac_table_entry){
         l2_switch_flood_pkt_out(node, recv_intf, pkt_block);
@@ -228,11 +238,14 @@ l2_switch_recv_frame(node_t *node,
 
     pkt_size_t pkt_size;
 
-    ethernet_hdr_t *ethernet_hdr = 
-        (ethernet_hdr_t *)pkt_block_get_pkt(pkt_block, &pkt_size);
+    if (pkt_block_get_starting_hdr (pkt_block) != ETH_HDR){
+        return;
+    }
 
-    c_string dst_mac = (c_string)ethernet_hdr->dst_mac.mac;
-    c_string src_mac = (c_string)ethernet_hdr->src_mac.mac;
+    vlan_ethernet_hdr_t *vlan_ethernet_hdr = 
+        (vlan_ethernet_hdr_t *)pkt_block_get_pkt(pkt_block, &pkt_size);
+
+    c_string src_mac = (c_string)vlan_ethernet_hdr->src_mac.mac;
 
     l2_switch_perform_mac_learning(node, vlan_id, src_mac, interface->if_name.c_str());
     l2_switch_forward_frame(node, interface, pkt_block);

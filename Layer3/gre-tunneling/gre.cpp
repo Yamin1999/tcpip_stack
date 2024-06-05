@@ -14,7 +14,6 @@ gre_tunnel_create (node_t *node, uint16_t tunnel_id) {
     tunnel = node_get_intf_by_name(node, (const char *)intf_name);
 
     if (tunnel) {
-        cprintf ("Error : %s already exist\n", intf_name);
         return false;
     }
 
