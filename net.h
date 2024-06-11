@@ -120,16 +120,12 @@ init_node_nw_prop(node_t *node, node_nw_prop_t *node_nw_prop) {
     init_arp_table(&(node_nw_prop->arp_table));
     init_mac_table(&(node_nw_prop->mac_table));
     init_rt_table(node, &(node_nw_prop->rt_table));
-	//stp_init_stp_node_info(&(node_nw_prop->stp_node_info));
     node_nw_prop->send_log_buffer = (c_string)calloc(1, TCP_PRINT_BUFFER_SIZE);
     node_nw_prop->recv_log_buffer = (c_string)calloc(1, TCP_PRINT_BUFFER_SIZE);
     node_nw_prop->log_buffer =  (c_string)calloc(1, TCP_LOG_BUFFER_LEN);
     init_tcp_logging(node);
 	init_glthread(&(node_nw_prop->traffic_gen_db_head));
 }
-
-extern void
-snp_flow_init_flow_tree_root(avltree_t *avl_root) ;
 
 #define NODE_LO_ADDR(node_ptr) (node_ptr->node_nw_prop.lb_addr.ip_addr)
 #define NODE_ARP_TABLE(node_ptr)    (node_ptr->node_nw_prop.arp_table)
@@ -142,8 +138,6 @@ snp_flow_init_flow_tree_root(avltree_t *avl_root) ;
 
 #define NODE_GET_TRAFFIC_GEN_DB_HEAD(node_ptr)	\
 	(&node_ptr->node_nw_prop.traffic_gen_db_head)
-#define IF_GET_FLOW_DB(intf_ptr) \
-    (&((intf_ptr)->intf_nw_props.flow_avl_root))
 
 /*APIs to set Network Node properties*/
 bool node_set_loopback_address(node_t *node, const char *ip_addr);

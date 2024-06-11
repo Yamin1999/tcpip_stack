@@ -131,14 +131,16 @@ pkt_block_dereference(pkt_block_t *pkt_block) {
 
     if (pkt_block->ref_count == 0) {
         pkt_block_free(pkt_block);
-        return ref_count;
+        return 0;
     }
 
     pkt_block->ref_count--;
 
     if (pkt_block->ref_count == 0) {
         pkt_block_free(pkt_block);
+        return 0;
     }
+
     return ref_count - 1;
 }
 

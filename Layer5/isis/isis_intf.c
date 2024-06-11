@@ -30,6 +30,7 @@ isis_interface_qualify_to_send_hellos(Interface *intf){
 static void
 isis_transmit_hello(event_dispatcher_t *ev_dis,  void *arg, uint32_t arg_size) {
 
+    pkt_size_t pkt_size;
     pkt_block_t *pkt_block;
 
     if (!arg) return;
@@ -40,14 +41,17 @@ isis_transmit_hello(event_dispatcher_t *ev_dis,  void *arg, uint32_t arg_size) {
     node_t *node = isis_timer_data->node;
     Interface *egress_intf = isis_timer_data->intf;
     char *hello_pkt = isis_timer_data->data;
-    pkt_size_t pkt_size = (pkt_size_t )isis_timer_data->data_size;
+    pkt_size_t hello_pkt_size = (pkt_size_t )isis_timer_data->data_size;
 
-    if (hello_pkt && pkt_size) {
-        ISIS_INTF_INCREMENT_STATS(egress_intf, hello_pkt_sent);
-        pkt_block = pkt_block_get_new((uint8_t *)hello_pkt, pkt_size);
-        egress_intf->SendPacketOut(pkt_block);
-        XFREE(pkt_block);
-    }
+    assert (hello_pkt && hello_pkt_size) ;
+
+    ISIS_INTF_INCREMENT_STATS(egress_intf, hello_pkt_sent);
+    pkt_block = pkt_block_get_new((uint8_t *)hello_pkt, hello_pkt_size);
+    assert(pkt_block_get_starting_hdr(pkt_block) == ETH_HDR);
+    ethernet_hdr_t *eth_hdr = (ethernet_hdr_t *)pkt_block_get_pkt(pkt_block, &pkt_size);
+    memcpy(eth_hdr->src_mac.mac, IF_MAC(egress_intf), sizeof(eth_hdr->src_mac.mac));
+    egress_intf->SendPacketOut(pkt_block);
+    XFREE(pkt_block);
 }
 
 void
@@ -55,6 +59,7 @@ isis_send_hello_immediately (Interface *intf) {
 
      byte *hello_pkt;
      bool new_hello;
+     pkt_size_t pkt_size;
      pkt_block_t *pkt_block;
      size_t hello_pkt_size;
      isis_timer_data_t *isis_timer_data;
@@ -79,6 +84,9 @@ isis_send_hello_immediately (Interface *intf) {
 
             ISIS_INTF_INCREMENT_STATS(intf, hello_pkt_sent);
             pkt_block = pkt_block_get_new(hello_pkt, hello_pkt_size);
+            assert(pkt_block_get_starting_hdr(pkt_block) == ETH_HDR);
+            ethernet_hdr_t *eth_hdr = (ethernet_hdr_t *)pkt_block_get_pkt(pkt_block, &pkt_size);
+            memcpy(eth_hdr->src_mac.mac, IF_MAC(intf), sizeof(eth_hdr->src_mac.mac));
             intf->SendPacketOut(pkt_block);
             new_hello ? pkt_block_free (pkt_block) : XFREE(pkt_block);
     }

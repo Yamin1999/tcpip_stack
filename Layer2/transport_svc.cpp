@@ -440,6 +440,7 @@ show_vlan_members (int cmdcode,
     uint16_t i;
     node_t *node;
     tlv_struct_t *tlv;
+    Interface *member_intf;
     c_string node_name = NULL;
     std::unordered_map<std::string , TransportService *> *TransPortSvcDB;
     std::unordered_map<std::uint16_t , VlanInterface *> *vlan_intf_db;
@@ -471,21 +472,26 @@ show_vlan_members (int cmdcode,
 
             if (!TransPortSvcDB) continue;
 
-            
-            Interface *member_intf;
-
             ITERATE_VLAN_MEMBER_PORTS_TRUNK_BEGIN(vlan_intf, member_intf) {
 
+            #if 0
                 cprintf("  %s (Trunk)    config_ref_count = %d, dynamic_ref_count = %d\n", member_intf->if_name.c_str(), 
                 member_intf->GetConfigRefCount(), 
                 member_intf->GetDynamicRefCount());
+            #else 
+                cprintf("  %s (Trunk)\n", member_intf->if_name.c_str());
+            #endif
             
             } ITERATE_VLAN_MEMBER_PORTS_TRUNK_END;
 
             ITERATE_VLAN_MEMBER_PORTS_ACCESS_BEGIN(vlan_intf, member_intf) {
 
+            #if 0
                 cprintf("  %s (Access)       config_ref_count = %d, dynamic_ref_count = %d\n", member_intf->if_name.c_str(),
                 member_intf->GetConfigRefCount(), member_intf->GetDynamicRefCount() );
+            #else 
+                cprintf("  %s (Access) \n", member_intf->if_name.c_str());
+            #endif 
 
             } ITERATE_VLAN_MEMBER_PORTS_ACCESS_END;
 
