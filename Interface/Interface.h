@@ -21,6 +21,7 @@
 
 #include <string>
 #include <stdint.h>
+#include <atomic>
 #include "../Tree/libtree.h"
 #include "InterfacEnums.h"
 #include "../tcp_ip_trace.h"
@@ -74,10 +75,8 @@ class Interface {
         access_list_t *l2_egress_acc_lst;
 
         /* L3 properties :  Ingress & egress L3 Access_list */
-        pthread_spinlock_t spin_lock_l3_ingress_acc_lst;
-        access_list_t *l3_ingress_acc_lst;
-        pthread_spinlock_t spin_lock_l3_egress_acc_lst;
-        access_list_t *l3_egress_acc_lst;
+        std::atomic<access_list_t *> l3_ingress_acc_lst2;
+        std::atomic<access_list_t *> l3_egress_acc_lst2;
 
         /* L5 protocols */
         void *isis_intf_info;

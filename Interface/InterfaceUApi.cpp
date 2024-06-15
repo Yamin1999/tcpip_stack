@@ -29,16 +29,16 @@ interface_set_ip_addr(node_t *node, Interface *intf,
         intf_prop_changed.ip_addr.mask = 0;
 
         /* Add eg : 1.1.1.1/32 */
-        rt_table_add_route(NODE_RT_TABLE(node), 
-                                     (const char *)intf_ip_addr, 32, 
-                                     0, intf, 0, PROTO_STATIC);
+        rt_ipv4_route_add (node, 
+                                    tcp_ip_covert_ip_p_to_n(intf_ip_addr), 32, 
+                                    0, intf, 0, PROTO_STATIC, true);    
 
         apply_mask((c_string)intf_ip_addr, mask, dst_str_with_mask); 
 
         /* Add eg : 1.1.1.0/24 */
-        rt_table_add_route(NODE_RT_TABLE(node), 
-                                     (const char *)dst_str_with_mask, mask, 
-                                     0, intf, 0, PROTO_STATIC);
+        rt_ipv4_route_add (node, 
+                                     tcp_ip_covert_ip_p_to_n(dst_str_with_mask), mask, 
+                                     0, intf, 0, PROTO_STATIC, true);
 
         nfc_intf_invoke_notification_to_sbscribers(intf,  
                 &intf_prop_changed, if_change_flags);

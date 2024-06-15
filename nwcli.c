@@ -531,8 +531,10 @@ l3_config_handler(int cmdcode, Stack_t *tlv_stack, op_mode enable_or_disable){
                             return -1;
                         }
                     }
-                    rt_table_add_route(NODE_RT_TABLE(node), (const char *)dest, mask, 
-                        (const char *)gwip, intf, 0, PROTO_STATIC);
+                    rt_ipv4_route_add (node, 
+                        tcp_ip_covert_ip_p_to_n(dest), mask, 
+                        gwip ? tcp_ip_covert_ip_p_to_n (gwip) : 0, 
+                        intf, 0, PROTO_STATIC, true);
                 }
                 break;
                 case CONFIG_DISABLE:

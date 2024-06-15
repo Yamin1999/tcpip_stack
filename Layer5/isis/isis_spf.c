@@ -154,11 +154,21 @@ isis_spf_install_routes(node_t *spf_root, ted_node_t *ted_spf_root){
                         spf_result->node->node_name,
                         tcp_ip_covert_ip_n_to_p(spf_result->node->rtr_id, ip_addr), 32);            
 
-            rt_table_add_route(rt_table, 
-                    tcp_ip_covert_ip_n_to_p(spf_result->node->rtr_id, ip_addr), 32, 
-                    nexthop->gw_ip, nexthop->oif, 
-                    spf_result->spf_metric,
-                    PROTO_ISIS);
+            #if 0
+                rt_table_add_route(rt_table, 
+                        tcp_ip_covert_ip_n_to_p(spf_result->node->rtr_id, ip_addr), 32, 
+                        nexthop->gw_ip, nexthop->oif, 
+                        spf_result->spf_metric,
+                        PROTO_ISIS);
+            #else 
+                rt_ipv4_route_add (spf_root, 
+                        spf_result->node->rtr_id, 32,
+                        tcp_ip_covert_ip_p_to_n(nexthop->gw_ip),
+                        nexthop->oif,
+                        spf_result->spf_metric,
+                        PROTO_ISIS, true);       
+
+            #endif 
             count++;
         }
 

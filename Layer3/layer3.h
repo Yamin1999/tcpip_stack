@@ -290,4 +290,14 @@ tcp_ip_send_ip_data(node_t *node,
                                   uint32_t dest_ip_address);
 
 
+void
+rt_ipv4_route_add (node_t *node, 
+                                uint32_t prefix, 
+                                uint8_t mask, 
+                                uint32_t gw_ip,
+                                Interface *oif,
+                                uint32_t metric,
+                                uint16_t proto_id,
+                                bool async) ;
+                                
 #endif /* __LAYER3__ */

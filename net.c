@@ -102,9 +102,9 @@ bool node_set_loopback_address(node_t *node, const char *ip_addr){
     NODE_LO_ADDR(node)[15] = '\0';
 
     /*Add it as direct route in routing table*/
-    rt_table_add_route(NODE_RT_TABLE(node), 
-                                     (const char *)ip_addr, 32, 
-                                     0, 0, 0, PROTO_STATIC);        
+    rt_ipv4_route_add (node, 
+                                    tcp_ip_covert_ip_p_to_n(ip_addr), 32, 
+                                    0, 0, 0, PROTO_STATIC, true);        
     return true;
 }
 

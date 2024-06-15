@@ -219,10 +219,8 @@ Interface::Interface(std::string if_name, InterfaceType_t iftype)
     this->l2_egress_acc_lst = NULL;
     this->l2_ingress_acc_lst = NULL;
 
-    pthread_spin_init(&this->spin_lock_l3_ingress_acc_lst, PTHREAD_PROCESS_PRIVATE);
-    this->l3_ingress_acc_lst = NULL;
-    pthread_spin_init(&this->spin_lock_l3_egress_acc_lst, PTHREAD_PROCESS_PRIVATE);
-    this->l3_egress_acc_lst = NULL;
+    this->l3_ingress_acc_lst2 = NULL;
+    this->l3_egress_acc_lst2 = NULL;
 
     this->isis_intf_info = NULL;
 }
@@ -231,9 +229,7 @@ Interface::~Interface()
 {
 
     assert(this->config_ref_count == 0);
-     assert(this->dynamic_ref_count == 0);
-    pthread_spin_destroy(&this->spin_lock_l3_ingress_acc_lst);
-    pthread_spin_destroy(&this->spin_lock_l3_egress_acc_lst);
+    assert(this->dynamic_ref_count == 0);
     cprintf ("%s : Interface %s deleted\n", this->att_node->node_name, this->if_name.c_str());
 }
 
@@ -251,13 +247,15 @@ void Interface::PrintInterfaceDetails()
 
     cprintf("State : Administratively %s\n", this->is_up ? "Up" : "Down");
 
+#if 0
     cprintf("L2 access Lists : Ingress - %s, Egress - %s\n",
            this->l2_ingress_acc_lst ? (const char *)this->l2_ingress_acc_lst->name : "None",
            this->l2_egress_acc_lst ? (const char *)this->l2_egress_acc_lst->name : "None");
 
     cprintf("L3 access Lists : Ingress - %s, Egress - %s\n",
-           this->l3_ingress_acc_lst ? (const char *)this->l3_ingress_acc_lst->name : "None",
-           this->l3_egress_acc_lst ? (const char *)this->l3_egress_acc_lst->name : "None");
+           this->l3_ingress_acc_lst2 ? (const char *)this->l3_ingress_acc_lst2->name : "None",
+           this->l3_egress_acc_lst2 ? (const char *)this->l3_egress_acc_lst2->name : "None");
+#endif 
 
     if (this->isis_intf_info)
     {
@@ -413,12 +411,12 @@ Interface::InterfaceReleaseAllResources() {
         assert(0); /* Not Supported Yet*/
     }
 
-    if (this->l3_ingress_acc_lst) {
-        access_group_unconfig (this->att_node, this, "in", this->l3_ingress_acc_lst);
+    if (this->l3_ingress_acc_lst2) {
+        access_group_unconfig (this->att_node, this, "in", this->l3_ingress_acc_lst2);
     }
 
-    if (this->l3_egress_acc_lst) {
-        access_group_unconfig (this->att_node, this, "out", this->l3_egress_acc_lst);
+    if (this->l3_egress_acc_lst2) {
+        access_group_unconfig (this->att_node, this, "out", this->l3_egress_acc_lst2);
     }
 
     /* This is configuration, this fn call must not see it set*/

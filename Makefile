@@ -38,6 +38,7 @@ OBJS=gluethread/glthread.o \
 		  Layer3/gre-tunneling/grecli.o \
 		  Layer3/gre-tunneling/gre.o \
 		  Layer3/rt_table/nexthop.o \
+		  Layer3/rt_table/np_rt_table.o \
 		  Layer3/netfilter.o \
 		  Layer3/rt_notif.o	\
 		  Layer4/layer4.o  \
@@ -72,6 +73,7 @@ OBJS=gluethread/glthread.o \
 		  Interface/InterfaceUApi.o \
 		  Interface/InterfaceCli.o \
 		  PostgresLibpq/postgresLib.o \
+		  cp2dp.o \
 		  #Layer2/stp/stp_state_machine.o \
 		  Layer2/stp/stp_bpdu.o \
 		  Layer2/stp/stp_init.o \
@@ -143,6 +145,9 @@ tcp_stack_init.o:tcp_stack_init.c
 graph.o:graph.c
 	${CC} ${CFLAGS} -c -I . graph.c -o graph.o
 
+cp2dp.o:cp2dp.cpp
+	${CC} ${CFLAGS} -c -I . cp2dp.cpp -o cp2dp.o
+
 cli_interface.o:cli_interface.c
 	${CC} ${CFLAGS} -c -I . cli_interface.c -o cli_interface.o
 
@@ -181,6 +186,9 @@ Layer3/layer3.o:Layer3/layer3.c
 
 Layer3/rt_table/nexthop.o:Layer3/rt_table/nexthop.c
 	${CC} ${CFLAGS} -c -I . Layer3/rt_table/nexthop.c -o Layer3/rt_table/nexthop.o
+
+Layer3/rt_table/np_rt_table.o:Layer3/rt_table/np_rt_table.cpp
+	${CC} ${CFLAGS} -c -I . Layer3/rt_table/np_rt_table.cpp -o Layer3/rt_table/np_rt_table.o
 
 Layer3/rt_notif.o:Layer3/rt_notif.c
 	${CC} ${CFLAGS} -c -I . Layer3/rt_notif.c -o Layer3/rt_notif.o

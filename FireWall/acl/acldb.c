@@ -921,17 +921,9 @@ access_list_evaluate_ip_packet (node_t *node,
                   dst_port = 0;
 
     access_list_t *access_list;
-
-    pthread_spinlock_t *spin_lock = ingress ?
-        &intf->spin_lock_l3_ingress_acc_lst:
-        &intf->spin_lock_l3_egress_acc_lst;
-
-    pthread_spin_lock(spin_lock);
     
-    access_list = ingress ? intf->l3_ingress_acc_lst :
-                        intf->l3_egress_acc_lst;
-
-    pthread_spin_unlock(spin_lock);
+    access_list = ingress ? intf-> l3_ingress_acc_lst2 : \
+                                        intf->l3_egress_acc_lst2;
 
     if (!access_list) return ACL_PERMIT;
 
@@ -970,39 +962,40 @@ access_list_evaluate_ethernet_packet (node_t *node,
 }
 
 /* Access Group Mgmt APIs */
-/* Return 0 on success */                    
+/* Return 0 on success */
 int 
 access_group_config(node_t *node, 
                                    Interface *intf, 
                                    char *dirn, 
                                    access_list_t *acc_lst) {
 
-    pthread_spinlock_t *spin_lock;
-    access_list_t **configured_access_lst = NULL;
-
     if (string_compare(dirn, "in", 2) == 0 && strlen(dirn) == 2) {
-        configured_access_lst = &intf->l3_ingress_acc_lst;
-        spin_lock = &intf->spin_lock_l3_ingress_acc_lst;
+        if (intf->l3_ingress_acc_lst2) {
+            cprintf ("Error : Access List already applied\n");
+            return -1;
+        }
     }
     else if (string_compare(dirn, "out", 3) == 0 && strlen(dirn) == 3) {
-        configured_access_lst = &intf->l3_egress_acc_lst;
-        spin_lock = &intf->spin_lock_l3_egress_acc_lst;
+        if (intf->l3_egress_acc_lst2) {
+            cprintf ("Error : Access List already applied\n");
+            return -1;
+        }
     }
     else {
         cprintf ("Error : Direction can be - 'in' or 'out' only\n");
         return -1;
     }
 
-    if (*configured_access_lst) {
-        cprintf ("Error : Access List %s already applied\n", (*configured_access_lst)->name);
-        return -1;
+    if (string_compare(dirn, "in", 2) == 0 && strlen(dirn) == 2) {
+        intf->l3_ingress_acc_lst2 = acc_lst;
+        access_list_reference(acc_lst);
+    }
+    else if (string_compare(dirn, "out", 3) == 0 && strlen(dirn) == 3) {
+        intf->l3_egress_acc_lst2 = acc_lst;
+        access_list_reference(acc_lst);
     }
 
-    pthread_spin_lock(spin_lock);
-    *configured_access_lst = acc_lst;
-    access_list_reference(acc_lst);
-    pthread_spin_unlock(spin_lock);
-
+    
     if (!access_list_is_compiled (acc_lst) &&
          access_list_should_compile (acc_lst)) {
 
@@ -1018,39 +1011,41 @@ access_group_unconfig (node_t *node,
                                        char *dirn, 
                                       access_list_t *acc_lst) {
     
-    glthread_t *curr;
-    acl_entry_t *acl_entry;
-    pthread_spinlock_t *spin_lock;
-    access_list_t **configured_access_lst = NULL;
-
     if (string_compare(dirn, "in", 2) == 0 && strlen(dirn) == 2) {
-        configured_access_lst = &intf->l3_ingress_acc_lst;
-        spin_lock = &intf->spin_lock_l3_ingress_acc_lst;
+        if (intf->l3_ingress_acc_lst2 != acc_lst) {
+            cprintf ("Error : Access List not applied\n");
+            return -1;
+        }
     }
     else if (string_compare(dirn, "out", 3) == 0 && strlen(dirn) == 3) {
-        configured_access_lst = &intf->l3_egress_acc_lst;
-        spin_lock = &intf->spin_lock_l3_egress_acc_lst;
+        if (intf->l3_egress_acc_lst2 != acc_lst) {
+            cprintf ("Error : Access List not applied\n");
+            return -1;
+        }
     }
     else {
-        cprintf ("Error : Direction can in - 'in' or 'out' only\n");
+        cprintf ("Error : Direction can be - 'in' or 'out' only\n");
         return -1;
     }
 
-    if (!( *configured_access_lst )) {
-        cprintf ("Error : Access List %s not applied\n", (*configured_access_lst)->name);
-        return -1;
-    }
+    access_list_reference(acc_lst);  
 
-    pthread_spin_lock(spin_lock);
-    *configured_access_lst = NULL;
-    access_list_dereference(node, acc_lst);
-    pthread_spin_unlock(spin_lock);
+    if (string_compare(dirn, "in", 2) == 0 && strlen(dirn) == 2) {
+        intf->l3_ingress_acc_lst2 = NULL;
+        access_list_dereference(node, acc_lst);  
+    }
+    else if (string_compare(dirn, "out", 3) == 0 && strlen(dirn) == 3) {
+        intf->l3_egress_acc_lst2 = NULL;
+        access_list_dereference(node, acc_lst);  
+    }
 
     if ( access_list_is_compiled(acc_lst) &&
            access_list_should_decompile (acc_lst)) {
 
         access_list_trigger_uninstall_job (node, acc_lst, NULL);
     }
+
+    access_list_dereference(node, acc_lst);  
     return 0;
 }
 
