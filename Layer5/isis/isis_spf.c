@@ -154,21 +154,13 @@ isis_spf_install_routes(node_t *spf_root, ted_node_t *ted_spf_root){
                         spf_result->node->node_name,
                         tcp_ip_covert_ip_n_to_p(spf_result->node->rtr_id, ip_addr), 32);            
 
-            #if 0
-                rt_table_add_route(rt_table, 
-                        tcp_ip_covert_ip_n_to_p(spf_result->node->rtr_id, ip_addr), 32, 
-                        nexthop->gw_ip, nexthop->oif, 
-                        spf_result->spf_metric,
-                        PROTO_ISIS);
-            #else 
                 rt_ipv4_route_add (spf_root, 
                         spf_result->node->rtr_id, 32,
-                        tcp_ip_covert_ip_p_to_n(nexthop->gw_ip),
+                        tcp_ip_convert_ip_p_to_n(nexthop->gw_ip),
                         nexthop->oif,
                         spf_result->spf_metric,
                         PROTO_ISIS, true);       
 
-            #endif 
             count++;
         }
 
@@ -188,7 +180,6 @@ isis_spf_install_routes(node_t *spf_root, ted_node_t *ted_spf_root){
 
                     mask32bit = tcp_ip_convert_dmask_to_bin_mask (ted_prefix->mask);
                     prefix32bit = ted_prefix->prefix & mask32bit;
-
 
                     l3route = rt_table_lookup_exact_match(rt_table, 
                                         tcp_ip_covert_ip_n_to_p(prefix32bit, ip_addr),
@@ -219,12 +210,13 @@ isis_spf_install_routes(node_t *spf_root, ted_node_t *ted_spf_root){
                                     ISIS_ROUTE, spf_result->node->node_name,
                                     tcp_ip_covert_ip_n_to_p(prefix32bit, ip_addr), ted_prefix->mask);      
 
-                            rt_table_add_route(rt_table, 
-                                    tcp_ip_covert_ip_n_to_p(prefix32bit, ip_addr),
-                                    ted_prefix->mask, 
-                                    nexthop->gw_ip, nexthop->oif, 
+                            rt_ipv4_route_add (spf_root, 
+                                    prefix32bit, ted_prefix->mask, 
+                                    tcp_ip_convert_ip_p_to_n(nexthop->gw_ip),
+                                    nexthop->oif,
                                     spf_result->spf_metric + ted_prefix->metric,
-                                    PROTO_ISIS);
+                                    PROTO_ISIS, true);       
+
                              count++;
                         }
 
@@ -247,10 +239,8 @@ isis_spf_install_routes(node_t *spf_root, ted_node_t *ted_spf_root){
                                     ISIS_ROUTE, spf_result->node->node_name,
                                     tcp_ip_covert_ip_n_to_p(prefix32bit, ip_addr), ted_prefix->mask); 
 
-                        rt_table_delete_route (rt_table, 
-                                 tcp_ip_covert_ip_n_to_p(prefix32bit, ip_addr), 
-                                 ted_prefix->mask, 
-                                 PROTO_ISIS);
+                        rt_ipv4_route_del (spf_root,
+                                 prefix32bit, ted_prefix->mask,  PROTO_ISIS, true);
 
                         for (i = 0; i < MAX_NXT_HOPS; i++){
 
@@ -261,12 +251,13 @@ isis_spf_install_routes(node_t *spf_root, ted_node_t *ted_spf_root){
                                     ISIS_ROUTE, spf_result->node->node_name,
                                     tcp_ip_covert_ip_n_to_p(prefix32bit, ip_addr), ted_prefix->mask);      
 
-                            rt_table_add_route(rt_table, 
-                                    tcp_ip_covert_ip_n_to_p(prefix32bit, ip_addr),
-                                    ted_prefix->mask, 
-                                    nexthop->gw_ip, nexthop->oif, 
+                            rt_ipv4_route_add (spf_root, 
+                                    prefix32bit, ted_prefix->mask, 
+                                    tcp_ip_convert_ip_p_to_n(nexthop->gw_ip),
+                                    nexthop->oif,
                                     spf_result->spf_metric + ted_prefix->metric,
-                                    PROTO_ISIS);
+                                    PROTO_ISIS, true);       
+
                              count++;
                         }
                         continue;
@@ -282,12 +273,13 @@ isis_spf_install_routes(node_t *spf_root, ted_node_t *ted_spf_root){
                                     ISIS_ROUTE, spf_result->node->node_name,
                                     tcp_ip_covert_ip_n_to_p(prefix32bit, ip_addr), ted_prefix->mask);  
 
-                        rt_table_add_route(rt_table, 
-                                    tcp_ip_covert_ip_n_to_p(prefix32bit, ip_addr),
-                                    ted_prefix->mask, 
-                                    nexthop->gw_ip, nexthop->oif, 
+                        rt_ipv4_route_add (spf_root, 
+                                    prefix32bit, ted_prefix->mask, 
+                                    tcp_ip_convert_ip_p_to_n(nexthop->gw_ip),
+                                    nexthop->oif,
                                     spf_result->spf_metric + ted_prefix->metric,
-                                    PROTO_ISIS);
+                                    PROTO_ISIS, true);       
+
                          count++;
                     }
              } ITERATE_AVL_TREE_END;
@@ -758,7 +750,7 @@ isis_compute_spf (node_t *spf_root){
 
     ted_spf_root = ted_lookup_node(
                                 node_info->ted_db,
-                                tcp_ip_covert_ip_p_to_n (NODE_LO_ADDR(spf_root)), 0);
+                                tcp_ip_convert_ip_p_to_n (NODE_LO_ADDR(spf_root)), 0);
 
     if (!ted_spf_root) return;
 
@@ -869,7 +861,7 @@ isis_show_spf_results (node_t *node){
     if (!ted_db) return;
 
     ted_node = ted_lookup_node(ted_db, 
-                        tcp_ip_covert_ip_p_to_n (NODE_LO_ADDR(node)), 0);
+                        tcp_ip_convert_ip_p_to_n (NODE_LO_ADDR(node)), 0);
 
     if (!ted_node) return;
 

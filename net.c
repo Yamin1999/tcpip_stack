@@ -103,7 +103,7 @@ bool node_set_loopback_address(node_t *node, const char *ip_addr){
 
     /*Add it as direct route in routing table*/
     rt_ipv4_route_add (node, 
-                                    tcp_ip_covert_ip_p_to_n(ip_addr), 32, 
+                                    tcp_ip_convert_ip_p_to_n(ip_addr), 32, 
                                     0, 0, 0, PROTO_STATIC, true);        
     return true;
 }
@@ -219,7 +219,7 @@ node_get_matching_subnet_interface(node_t *node, c_string ip_addr){
     uint32_t ip_addr_int;
     uint8_t mask;
 
-    ip_addr_int =  tcp_ip_covert_ip_p_to_n (ip_addr);
+    ip_addr_int =  tcp_ip_convert_ip_p_to_n (ip_addr);
 
     for( ; i < MAX_INTF_PER_NODE; i++){
     

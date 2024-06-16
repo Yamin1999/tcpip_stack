@@ -443,7 +443,7 @@ isis_regenerate_lsp_fragment (node_t *node, isis_fragment_t *fragment, uint32_t 
 
     lsp_pkt_hdr->isis_pkt_type = ISIS_L1_LSP_PKT_TYPE;
     lsp_pkt_hdr->seq_no = (++fragment->seq_no);
-    lsp_pkt_hdr->rtr_id = tcp_ip_covert_ip_p_to_n(NODE_LO_ADDR(node));
+    lsp_pkt_hdr->rtr_id = tcp_ip_convert_ip_p_to_n(NODE_LO_ADDR(node));
     lsp_pkt_hdr->pn_no = fragment->pn_no;
     lsp_pkt_hdr->fr_no = fragment->fr_no;
 
@@ -1084,13 +1084,10 @@ isis_regen_all_fragments_from_scratch (event_dispatcher_t *ev_dis, void *arg, ui
 
     rt_table = NODE_RT_TABLE (node);
 
-    pthread_rwlock_rdlock(&rt_table->rwlock);
-
     ITERATE_GLTHREAD_BEGIN (&rt_table->route_list.list_head, curr) {
 
         mnode = list_glue_to_mtrie_node(curr);
         l3_route = (l3_route_t *)mnode->data;
-        thread_using_route(l3_route);
 
         /* Reject routes which ISIS already knows */
         if (l3_route->nexthops[nxthop_proto][0]) {
@@ -1098,27 +1095,23 @@ isis_regen_all_fragments_from_scratch (event_dispatcher_t *ev_dis, void *arg, ui
             trace (ISIS_TR(node), TR_ISIS_POLICY,
                 "%s : Route %s/%d already known to ISIS\n",
                 ISIS_EXPOLICY,  l3_route->dest, l3_route->mask);
-            thread_using_route_done(l3_route);
             continue;
         }
 
         if (isis_evaluate_policy(node,
                 node_info->export_policy,
-                tcp_ip_covert_ip_p_to_n(l3_route->dest), l3_route->mask) != PFX_LST_PERMIT) {
+                tcp_ip_convert_ip_p_to_n(l3_route->dest), l3_route->mask) != PFX_LST_PERMIT) {
 
             trace (ISIS_TR(node), TR_ISIS_POLICY,
                 "%s : Route %s/%d rejected due to export policy.\n",
                 ISIS_EXPOLICY, l3_route->dest, l3_route->mask);
-            thread_using_route_done(l3_route);
             continue;
         }
 
         isis_export_route (node, l3_route);
-        thread_using_route_done(l3_route);
 
     }  ITERATE_GLTHREAD_END (&rt_table->route_list.list_head, curr) ;
 
-    pthread_rwlock_unlock(&rt_table->rwlock);
     UNSET_BIT64 (node_info->event_control_flags, ISIS_EVENT_FULL_LSP_REGEN_BIT);
    
     if (isis_get_waitlisted_advt_data_count (node)) return;

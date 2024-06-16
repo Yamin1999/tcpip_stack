@@ -18,7 +18,7 @@ interface_set_ip_addr(node_t *node, Interface *intf,
         return;
     }
 
-    ip_addr_int = tcp_ip_covert_ip_p_to_n(intf_ip_addr);
+    ip_addr_int = tcp_ip_convert_ip_p_to_n(intf_ip_addr);
     
     /* new config */
     if (!intf->IsIpConfigured()) {
@@ -30,14 +30,14 @@ interface_set_ip_addr(node_t *node, Interface *intf,
 
         /* Add eg : 1.1.1.1/32 */
         rt_ipv4_route_add (node, 
-                                    tcp_ip_covert_ip_p_to_n(intf_ip_addr), 32, 
+                                    tcp_ip_convert_ip_p_to_n(intf_ip_addr), 32, 
                                     0, intf, 0, PROTO_STATIC, true);    
 
         apply_mask((c_string)intf_ip_addr, mask, dst_str_with_mask); 
 
         /* Add eg : 1.1.1.0/24 */
         rt_ipv4_route_add (node, 
-                                     tcp_ip_covert_ip_p_to_n(dst_str_with_mask), mask, 
+                                     tcp_ip_convert_ip_p_to_n(dst_str_with_mask), mask, 
                                      0, intf, 0, PROTO_STATIC, true);
 
         nfc_intf_invoke_notification_to_sbscribers(intf,  
@@ -97,7 +97,7 @@ interface_unset_ip_addr(node_t *node, Interface *intf,
 
     intf->InterfaceGetIpAddressMask(&existing_ip_addr, &existing_mask);
 
-    ip_addr_int = tcp_ip_covert_ip_p_to_n(intf_ip_addr);
+    ip_addr_int = tcp_ip_convert_ip_p_to_n(intf_ip_addr);
 
     if (ip_addr_int != existing_ip_addr || mask != existing_mask) {
         cprintf ("Error : IP address and mask do not match\n");

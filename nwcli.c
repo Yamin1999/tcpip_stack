@@ -532,13 +532,15 @@ l3_config_handler(int cmdcode, Stack_t *tlv_stack, op_mode enable_or_disable){
                         }
                     }
                     rt_ipv4_route_add (node, 
-                        tcp_ip_covert_ip_p_to_n(dest), mask, 
-                        gwip ? tcp_ip_covert_ip_p_to_n (gwip) : 0, 
+                        tcp_ip_convert_ip_p_to_n(dest), mask, 
+                        gwip ? tcp_ip_convert_ip_p_to_n (gwip) : 0, 
                         intf, 0, PROTO_STATIC, true);
                 }
                 break;
                 case CONFIG_DISABLE:
-                    rt_table_delete_route(NODE_RT_TABLE(node), dest, mask, PROTO_STATIC);
+                    rt_ipv4_route_del (node, 
+                            tcp_ip_convert_ip_p_to_n(dest), 
+                            mask, PROTO_STATIC, true);
                     break;
                 default:
                     ;

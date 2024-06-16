@@ -36,7 +36,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "../gluethread/glthread.h"
-#include "../Threads/refcount.h"
 #include "../notif.h"
 #include "../tcpconst.h"
 #include "../EventDispatcher/event_dispatcher.h"
@@ -122,7 +121,6 @@ typedef struct rt_table_{
     prefix_list_t *import_policy;
     prefix_list_t *export_policy;
     glthread_t flash_request_list_head;
-    pthread_rwlock_t rwlock;
 } rt_table_t;
 
 #define RT_ADD_F        (1 << 0)
@@ -191,8 +189,7 @@ typedef struct l3_route_{
     uint8_t rt_flags;
     glthread_t notif_glue;
     glthread_t flash_glue;
-    ref_count_t ref_count;
-    pthread_rwlock_t lock;
+    uint32_t rt_ref_count;
 } l3_route_t;
 GLTHREAD_TO_STRUCT(notif_glue_to_l3_route, l3_route_t, notif_glue);
 GLTHREAD_TO_STRUCT(flash_glue_to_l3_route, l3_route_t, flash_glue);
@@ -201,37 +198,14 @@ GLTHREAD_TO_STRUCT(flash_glue_to_l3_route, l3_route_t, flash_glue);
 	hrs_min_sec_format((unsigned int)difftime(time(NULL), \
         l3_route_ptr->install_time), buff, size)
 
-static inline void
-l3_route_rdlock (l3_route_t *l3_route) {
-    pthread_rwlock_rdlock(&l3_route->lock);
-}
-
-static inline void
-l3_route_wrlock (l3_route_t *l3_route) {
-    pthread_rwlock_wrlock(&l3_route->lock);
-}
-
-static inline void
-l3_route_unlock (l3_route_t *l3_route) {
-    pthread_rwlock_unlock(&l3_route->lock);
-}
-
 l3_route_t * l3_route_get_new_route () ;
 void l3_route_free(l3_route_t *l3_route);
 
-static inline void
-thread_using_route (l3_route_t *l3_route) {
+uint32_t
+l3_route_dec_ref_count ( l3_route_t *l3_route) ;
 
-    ref_count_inc(l3_route->ref_count);
-}
-
-static inline void
-thread_using_route_done (l3_route_t *l3_route) {
-    
-    if (ref_count_dec(l3_route->ref_count)) {
-        l3_route_free(l3_route);
-    }
-}
+void 
+l3_route_inc_ref_count ( l3_route_t *l3_route);
 
 bool
 l3_is_direct_route(l3_route_t *l3_route);
@@ -254,11 +228,11 @@ rt_table_delete_route(rt_table_t *rt_table, c_string ip_addr, char mask, uint16_
 /* MP Safe */
 void
 rt_table_add_route(rt_table_t *rt_table, 
-                   const char *dst, char mask,
-                   const char *gw, 
-                   Interface *oif,
-                   uint32_t spf_metric,
-                   uint16_t proto_id);
+                                const char *dst, char mask,
+                                const char *gw, 
+                                Interface *oif,
+                                uint32_t spf_metric,
+                                uint16_t proto_id);
 
 /* MP Safe */
 void
@@ -267,7 +241,7 @@ dump_rt_table(rt_table_t *rt_table);
 /* MP Unsafe */
 l3_route_t *
 l3rib_lookup_lpm(rt_table_t *rt_table,
-                 uint32_t dest_ip);
+                              uint32_t dest_ip);
 
 /* MP Unsafe */
 l3_route_t *
@@ -299,5 +273,12 @@ rt_ipv4_route_add (node_t *node,
                                 uint32_t metric,
                                 uint16_t proto_id,
                                 bool async) ;
-                                
+
+void
+rt_ipv4_route_del (node_t *node, 
+                               uint32_t prefix, 
+                               uint8_t mask, 
+                               uint16_t proto_id,
+                               bool async) ;
+
 #endif /* __LAYER3__ */

@@ -97,7 +97,7 @@ tcp_ip_covert_ip_n_to_p(uint32_t ip_addr,
                         c_string output_buffer);
 
 uint32_t
-tcp_ip_covert_ip_p_to_n(c_string ip_addr);
+tcp_ip_convert_ip_p_to_n(c_string ip_addr);
 
 static inline uint32_t
 tcp_ip_convert_dmask_to_bin_mask(uint8_t dmask) {

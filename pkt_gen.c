@@ -119,8 +119,8 @@ main(int argc, char **argv){
     ip_hdr->total_length = IP_HDR_COMPUTE_DEFAULT_TOTAL_LEN(0);
 #endif
 
-    ip_hdr->src_ip = tcp_ip_covert_ip_p_to_n(SRC_IP_ADDR);
-    ip_hdr->dst_ip = tcp_ip_covert_ip_p_to_n(DEST_IP_ADDR);
+    ip_hdr->src_ip = tcp_ip_convert_ip_p_to_n(SRC_IP_ADDR);
+    ip_hdr->dst_ip = tcp_ip_convert_ip_p_to_n(DEST_IP_ADDR);
     
 
 #ifdef INCLUDE_UDP_HDR

@@ -132,7 +132,7 @@ init_node_nw_prop(node_t *node, node_nw_prop_t *node_nw_prop) {
 #define NODE_MAC_TABLE(node_ptr)    (node_ptr->node_nw_prop.mac_table)
 #define NODE_RT_TABLE(node_ptr)     (node_ptr->node_nw_prop.rt_table)
 #define NODE_FLAGS(node_ptr)        (node_ptr->node_nw_prop.flags)
-#define NODE_LO_ADDR_INT(node_ptr) (tcp_ip_covert_ip_p_to_n(NODE_LO_ADDR(node_ptr)))
+#define NODE_LO_ADDR_INT(node_ptr) (tcp_ip_convert_ip_p_to_n(NODE_LO_ADDR(node_ptr)))
 #define NODE_LOG_FILE(node_ptr) (node_ptr->node_nw_prop.log_file)
 #define NODE_LOG_BUFF(node_ptr) (node_ptr->node_nw_prop.log_buffer)
 

@@ -399,7 +399,7 @@ isis_our_lsp(node_t *node, isis_lsp_pkt_t *lsp_pkt) {
     isis_node_info_t *node_info = ISIS_NODE_INFO(node);
 
     uint32_t *rtr_id = isis_get_lsp_pkt_rtr_id(lsp_pkt);
-    uint32_t self_loop_back = tcp_ip_covert_ip_p_to_n(
+    uint32_t self_loop_back = tcp_ip_convert_ip_p_to_n(
                                 NODE_LO_ADDR(node));
 
     return *rtr_id == self_loop_back;

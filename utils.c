@@ -53,7 +53,7 @@ apply_mask(unsigned char *prefix, char mask, unsigned char *str_prefix){
         return;
     }
     /*Convert Given IP address into binary format*/
-    binary_prefix = tcp_ip_covert_ip_p_to_n(prefix);
+    binary_prefix = tcp_ip_convert_ip_p_to_n(prefix);
 
     /*Compute Mask in binary format as well*/
     subnet_mask = subnet_mask << (32 - mask);
@@ -88,7 +88,7 @@ tcp_ip_covert_ip_n_to_p(uint32_t ip_addr,
 }
 
 uint32_t
-tcp_ip_covert_ip_p_to_n(c_string ip_addr){
+tcp_ip_convert_ip_p_to_n(c_string ip_addr){
 
     uint32_t binary_prefix = 0;
     inet_pton(AF_INET, (const char *)ip_addr, &binary_prefix);

@@ -64,9 +64,9 @@ object_group_config_handler (int cmdcode,
     else if (parser_match_leaf_id (tlv->leaf_id, "subnet-mask"))
         subnet_mask = tlv->value;           
     else if (parser_match_leaf_id (tlv->leaf_id, "range-lb"))
-        lb = tcp_ip_covert_ip_p_to_n(tlv->value);       
+        lb = tcp_ip_convert_ip_p_to_n(tlv->value);       
     else if (parser_match_leaf_id (tlv->leaf_id, "range-ub")) {
-        ub = tcp_ip_covert_ip_p_to_n(tlv->value);             
+        ub = tcp_ip_convert_ip_p_to_n(tlv->value);             
         if (ub < lb) {
             cprintf ("Error : Invalid Range\n");
             return -1;
@@ -124,7 +124,7 @@ object_group_config_handler (int cmdcode,
                         object_group_t *p_og = object_group_lookup_ht_by_name(node, node->object_group_ght, objgrp_name);
 
                         if (p_og) {
-                            host_addr_int = tcp_ip_covert_ip_p_to_n(host_addr);
+                            host_addr_int = tcp_ip_convert_ip_p_to_n(host_addr);
                             object_group_network_construct_name(OBJECT_GRP_NET_HOST, host_addr_int, 0, c_obj_grp_name);
                             object_group_t *c_og = object_group_find_child_object_group(p_og, c_obj_grp_name);
                             if (c_og) {
@@ -137,7 +137,7 @@ object_group_config_handler (int cmdcode,
                             return 0;
                         }
 
-                        host_addr_int = tcp_ip_covert_ip_p_to_n(host_addr);
+                        host_addr_int = tcp_ip_convert_ip_p_to_n(host_addr);
                         object_group_network_construct_name(OBJECT_GRP_NET_HOST, host_addr_int, 0, c_obj_grp_name);
                         object_group_t *c_og = object_group_malloc(c_obj_grp_name, OBJECT_GRP_NET_HOST);
                         c_og->u.host = host_addr_int;
@@ -158,7 +158,7 @@ object_group_config_handler (int cmdcode,
                     }
 
                     glthread_t *curr;
-                    uint32_t host_addr_int = tcp_ip_covert_ip_p_to_n(host_addr);
+                    uint32_t host_addr_int = tcp_ip_convert_ip_p_to_n(host_addr);
                     obj_grp_list_node_t *obj_grp_list_node;
 
                      ITERATE_GLTHREAD_BEGIN(&og->u.nested_og_list_head, curr) {
@@ -191,8 +191,8 @@ object_group_config_handler (int cmdcode,
                         object_group_t *p_og = object_group_lookup_ht_by_name(node, node->object_group_ght, objgrp_name);
 
                         if (p_og) {
-                            host_addr_int1 = tcp_ip_covert_ip_p_to_n(subnet_addr);
-                            host_addr_int2 = tcp_ip_covert_ip_p_to_n(subnet_mask);
+                            host_addr_int1 = tcp_ip_convert_ip_p_to_n(subnet_addr);
+                            host_addr_int2 = tcp_ip_convert_ip_p_to_n(subnet_mask);
                             object_group_network_construct_name(OBJECT_GRP_NET_ADDR, host_addr_int1, host_addr_int2, c_obj_grp_name);
                             object_group_t *c_og = object_group_find_child_object_group(p_og, c_obj_grp_name);
                             if (c_og) {
@@ -206,8 +206,8 @@ object_group_config_handler (int cmdcode,
                             return 0;
                         }
 
-                        host_addr_int1 = tcp_ip_covert_ip_p_to_n(subnet_addr);
-                        host_addr_int2 = tcp_ip_covert_ip_p_to_n(subnet_mask);
+                        host_addr_int1 = tcp_ip_convert_ip_p_to_n(subnet_addr);
+                        host_addr_int2 = tcp_ip_convert_ip_p_to_n(subnet_mask);
                         object_group_network_construct_name(OBJECT_GRP_NET_HOST, host_addr_int1, host_addr_int2, c_obj_grp_name);
                         object_group_t *c_og = object_group_malloc(c_obj_grp_name, OBJECT_GRP_NET_ADDR);
                         c_og->u.subnet.network = host_addr_int1;
@@ -229,8 +229,8 @@ object_group_config_handler (int cmdcode,
                     }
 
                     glthread_t *curr;
-                    uint32_t host_addr_int1 = tcp_ip_covert_ip_p_to_n(subnet_addr);
-                    uint32_t host_addr_int2 = tcp_ip_covert_ip_p_to_n(subnet_mask);
+                    uint32_t host_addr_int1 = tcp_ip_convert_ip_p_to_n(subnet_addr);
+                    uint32_t host_addr_int2 = tcp_ip_convert_ip_p_to_n(subnet_mask);
                     obj_grp_list_node_t *obj_grp_list_node;
 
                      ITERATE_GLTHREAD_BEGIN(&og->u.nested_og_list_head, curr) {

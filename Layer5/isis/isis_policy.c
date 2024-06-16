@@ -280,7 +280,7 @@ isis_is_route_exported (node_t *node, l3_route_t *l3route ) {
     bitmap_t prefix_bm, mask_bm;
     isis_node_info_t *node_info;
 
-    bin_ip = tcp_ip_covert_ip_p_to_n (l3route->dest);
+    bin_ip = tcp_ip_convert_ip_p_to_n (l3route->dest);
     bin_ip = htonl(bin_ip);
 
     bin_mask = tcp_ip_convert_dmask_to_bin_mask(l3route->mask);
@@ -326,13 +326,13 @@ isis_export_route (node_t *node, l3_route_t *l3route) {
 
     exported_rt = (isis_adv_data_t *)XCALLOC(0, 1, isis_adv_data_t);
     exported_rt->tlv_no = ISIS_TLV_IP_REACH;
-    exported_rt->u.pfx.prefix = htonl(tcp_ip_covert_ip_p_to_n (l3route->dest));
+    exported_rt->u.pfx.prefix = htonl(tcp_ip_convert_ip_p_to_n (l3route->dest));
     exported_rt->u.pfx.mask = l3route->mask;
     exported_rt->u.pfx.metric = ISIS_DEFAULT_INTF_COST;
     exported_rt->tlv_size = isis_get_adv_data_size (exported_rt);
 
     node_info = ISIS_NODE_INFO(node);
-    bin_ip = tcp_ip_covert_ip_p_to_n(l3route->dest);
+    bin_ip = tcp_ip_convert_ip_p_to_n(l3route->dest);
     bin_ip = htonl(bin_ip);
     bin_mask = tcp_ip_convert_dmask_to_bin_mask(l3route->mask);
     bin_mask = ~bin_mask;
@@ -404,7 +404,7 @@ isis_unexport_route (node_t *node, l3_route_t *l3route) {
     trace (ISIS_TR(node), TR_ISIS_POLICY, "%s : UnExporting Route %s/%d\n",
         ISIS_EXPOLICY, l3route->dest, l3route->mask);
 
-    bin_ip = tcp_ip_covert_ip_p_to_n (l3route->dest);
+    bin_ip = tcp_ip_convert_ip_p_to_n (l3route->dest);
     bin_ip = htonl(bin_ip);
 
     bin_mask = tcp_ip_convert_dmask_to_bin_mask(l3route->mask);
@@ -485,7 +485,7 @@ void
 
     policy_eval_failed = isis_evaluate_policy(node,
                                  node_info->export_policy,
-                                 tcp_ip_covert_ip_p_to_n(l3route->dest), l3route->mask) != PFX_LST_PERMIT;
+                                 tcp_ip_convert_ip_p_to_n(l3route->dest), l3route->mask) != PFX_LST_PERMIT;
 
     if (policy_eval_failed) {
 

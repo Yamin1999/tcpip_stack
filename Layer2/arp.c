@@ -39,7 +39,7 @@ send_arp_broadcast_request(node_t *node,
             return;
         }
 
-        if (IF_IP(oif) == tcp_ip_covert_ip_p_to_n( ip_addr)) {
+        if (IF_IP(oif) == tcp_ip_convert_ip_p_to_n( ip_addr)) {
             cprintf("Error : %s : Attempt to resolve ARP for local Ip-address : %s\n",
                     node->node_name, ip_addr);
              tcp_ip_free_pkt_buffer ((byte *)ethernet_hdr, ETH_HDR_SIZE_EXCL_PAYLOAD + payload_size);
@@ -67,7 +67,7 @@ send_arp_broadcast_request(node_t *node,
 
     memset(arp_hdr->dst_mac.mac, 0,  MAC_ADDR_SIZE);
 
-    arp_hdr->dst_ip = tcp_ip_covert_ip_p_to_n(ip_addr);
+    arp_hdr->dst_ip = tcp_ip_convert_ip_p_to_n(ip_addr);
 
     SET_COMMON_ETH_FCS(ethernet_hdr, sizeof(arp_hdr_t), 0); /*Not used*/
 

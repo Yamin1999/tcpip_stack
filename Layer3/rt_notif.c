@@ -16,11 +16,11 @@ rt_table_add_route_to_notify_list (
 
     uint8_t old_flags = l3route->rt_flags;
 
+    l3_route_inc_ref_count (l3route);
+
     if (!IS_GLTHREAD_LIST_EMPTY(&l3route->notif_glue)) {
         remove_glthread(&l3route->notif_glue);
-        if (ref_count_dec(l3route->ref_count)){
-            assert(0);
-        }
+        l3_route_dec_ref_count(l3route);
     }
 
     UNSET_BIT8(l3route->rt_flags, RT_ADD_F);
@@ -34,7 +34,8 @@ rt_table_add_route_to_notify_list (
             SET_BIT(l3route->rt_flags, flag);
     }
     glthread_add_next(&rt_table->rt_notify_list_head, &l3route->notif_glue);
-    ref_count_inc(l3route->ref_count);
+    l3_route_inc_ref_count (l3route);
+    l3_route_dec_ref_count(l3route);
 }
 
 static void
@@ -48,15 +49,12 @@ rt_table_notif_job_cb(event_dispatcher_t *ev_dis, void *arg, uint32_t arg_size) 
 
     rt_route_notif_data_t rt_route_notif_data;
 
-    pthread_rwlock_rdlock(&rt_table->rwlock);
-
     /* Start Sending Notifications Now */
     ITERATE_GLTHREAD_BEGIN_REVERSE(&rt_table->rt_notify_list_head, curr) {
 
         l3route = notif_glue_to_l3_route(curr);
         rt_route_notif_data.l3route = l3route;
         rt_route_notif_data.node = rt_table->node;
-        thread_using_route(l3route);
 
         nfc_invoke_notif_chain(NULL,
                                                &rt_table->nfc_rt_updates, 
@@ -65,21 +63,18 @@ rt_table_notif_job_cb(event_dispatcher_t *ev_dis, void *arg, uint32_t arg_size) 
                                                TASK_PRIORITY_COMPUTE);
 
         remove_glthread(&l3route->notif_glue);
-        if (ref_count_dec(l3route->ref_count)) {
-            assert(0);
+        if (l3_route_dec_ref_count(l3route) == 0) {
+           continue;
         }
 
         if ( IS_BIT_SET(l3route->rt_flags, RT_DEL_F) ) {
-                thread_using_route_done(l3route);
                 continue;
         }
 
         UNSET_BIT8(l3route->rt_flags, RT_ADD_F);
         UNSET_BIT8(l3route->rt_flags, RT_UPDATE_F);
-        thread_using_route_done(l3route);
 
     } ITERATE_GLTHREAD_END_REVERSE(&rt_table->rt_notify_list_head, curr)
-    pthread_rwlock_unlock(&rt_table->rwlock);
 }
 
 void
@@ -137,16 +132,10 @@ static void
             l3route = flash_glue_to_l3_route(curr);
             UNSET_BIT8(l3route->rt_flags, RT_FLASH_REQ_F);
             remove_glthread(&l3route->flash_glue);
+            l3_route_dec_ref_count(l3route);
 
-            if ( IS_BIT_SET(l3route->rt_flags, RT_DEL_F)) {
-                /* Will delete automatically as it is reference count object now */
-                //l3_route_unlock(l3route); 
-            }
-            
-            if (ref_count_dec(l3route->ref_count)) {
-                l3_route_free(l3route);
-            }
      } ITERATE_GLTHREAD_END(&rt_table->rt_flash_list_head, curr)
+
  }
 
 static void
@@ -161,9 +150,7 @@ rt_table_process_one_flash_client (rt_table_t *rt_table,  nfc_app_cb cbk) {
         l3route = flash_glue_to_l3_route(curr);
         route_notif_data.l3route = l3route;
         route_notif_data.node = rt_table->node;
-        thread_using_route(l3route);
         cbk(NULL, &route_notif_data, sizeof(route_notif_data));
-        thread_using_route_done(l3route);
 
     }ITERATE_GLTHREAD_END_REVERSE (&rt_table->rt_flash_list_head, curr) 
 }
@@ -200,17 +187,17 @@ static void
 rt_table_add_route_to_flash_list (rt_table_t *rt_table,
                                                       l3_route_t *l3route) {
     
+    l3_route_inc_ref_count(l3route);
+
     if (!IS_GLTHREAD_LIST_EMPTY(&l3route->flash_glue)) {
         remove_glthread (&l3route->flash_glue);
-        if (ref_count_dec(l3route->ref_count)) {
-            l3_route_free(l3route);
-            assert(0);
-        }
+        l3_route_dec_ref_count(l3route);
     }
 
     SET_BIT(l3route->rt_flags, RT_FLASH_REQ_F);
     glthread_add_next(&rt_table->rt_flash_list_head, &l3route->flash_glue);
-    ref_count_inc(l3route->ref_count);
+    l3_route_inc_ref_count(l3route);
+    l3_route_dec_ref_count(l3route);
 }
 
 static void
@@ -222,19 +209,13 @@ static void
     
      if (rt_table->flash_job) return;
 
-    pthread_rwlock_rdlock(&rt_table->rwlock);
-
      ITERATE_GLTHREAD_BEGIN(&rt_table->route_list.list_head, curr) {
 
         mnode = list_glue_to_mtrie_node(curr);
         l3route = (l3_route_t *)mnode->data;
-        thread_using_route(l3route);
         rt_table_add_route_to_flash_list (rt_table, l3route);
-        thread_using_route_done(l3route);
 
     } ITERATE_GLTHREAD_END(&rt_table->route_list, curr)
-
-    pthread_rwlock_unlock(&rt_table->rwlock);
 
     if (! rt_table->flash_job) {
         rt_table->flash_job = task_create_new_job( 

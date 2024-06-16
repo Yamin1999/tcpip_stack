@@ -36,7 +36,7 @@ event_dispatcher_init(event_dispatcher_t *ev_dis, const char *name){
 	strncpy((char *)ev_dis->name, name, sizeof(ev_dis->name) - 1);
 	ev_dis->name[sizeof(ev_dis->name) - 1] = '0';
 	pthread_mutex_init(&ev_dis->ev_dis_mutex, NULL);
-	init_glthread(&ev_dis->task_array_head[TASK_PRIORITY_CP_TO_DP]);
+	init_glthread(&ev_dis->task_array_head[TASK_PRIORITY_CRITICAL]);
 	init_glthread(&ev_dis->task_array_head[TASK_PRIORITY_HIGH]);
 	init_glthread(&ev_dis->task_array_head[TASK_PRIORITY_MEDIUM]);
 	init_glthread(&ev_dis->task_array_head[TASK_PRIORITY_LOW]);
@@ -147,7 +147,7 @@ static task_t *
 event_dispatcher_get_next_task_to_run(event_dispatcher_t *ev_dis){
 
 	glthread_t *curr;
-	curr = dequeue_glthread_first(&ev_dis->task_array_head[TASK_PRIORITY_CP_TO_DP]);
+	curr = dequeue_glthread_first(&ev_dis->task_array_head[TASK_PRIORITY_CRITICAL]);
 	if (curr) return glue_to_task(curr);
 	curr = dequeue_glthread_first(&ev_dis->task_array_head[TASK_PRIORITY_HIGH]);
 	if (curr) return glue_to_task(curr);
@@ -211,6 +211,7 @@ event_dispatcher_thread(void *arg) {
 		EV_DIS_UNLOCK(ev_dis);
 
 		if (debug) {
+
 			printf("invoking the task\n");
 		}
 
@@ -362,7 +363,7 @@ task_get_new_pkt(char *pkt, uint32_t pkt_size){
 }
 
 char *
-task_get_next_pkt(event_dispatcher_t *ev_dis, uint32_t *pkt_size){
+task_get_next_pkt (event_dispatcher_t *ev_dis, uint32_t *pkt_size){
 
 	pkt_t *pkt;
 	task_t *task;

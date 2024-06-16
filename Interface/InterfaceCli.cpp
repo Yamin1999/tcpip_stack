@@ -310,7 +310,7 @@ intf_config_handler(int cmdcode, Stack_t *tlv_stack,
                     cprintf("Error : Vlan Interface not created\n");
                     return -1;
                 }
-                vlan_intf->InterfaceSetIpAddressMask(tcp_ip_covert_ip_p_to_n(intf_ip_addr), mask);
+                vlan_intf->InterfaceSetIpAddressMask(tcp_ip_convert_ip_p_to_n(intf_ip_addr), mask);
             }
             break;
             case CONFIG_DISABLE:

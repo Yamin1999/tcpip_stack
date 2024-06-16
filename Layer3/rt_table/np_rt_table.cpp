@@ -41,10 +41,16 @@ np_rt_table_process_msg(node_t *node, dp_msg_t *dp_msg) {
                     rt_update_msg->metric,
                     rt_update_msg->proto_id);
             break;
-            
+
         case DP_DEL:
-            //rt_table_del_route(rt_table, (rt_table_entry_t *)dp_msg->data);
+
+             rt_update_msg = (rt_update_msg_t *)dp_msg->data;
+             rt_table_delete_route (rt_table, 
+                        (unsigned char *)tcp_ip_covert_ip_n_to_p (rt_update_msg->prefix, dest_str),
+                        rt_update_msg->mask,
+                        rt_update_msg->proto_id);
             break;
+
         case DP_UPDATE:
             //rt_table_update_route(rt_table, (rt_table_entry_t *)dp_msg->data);
             break;
