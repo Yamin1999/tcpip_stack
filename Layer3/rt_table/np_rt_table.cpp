@@ -33,10 +33,11 @@ np_rt_table_process_msg(node_t *node, dp_msg_t *dp_msg) {
                 }
             }
 
-            rt_table_add_route(rt_table, 
+            rt_table_add_route (rt_table, 
                     (const char *)tcp_ip_covert_ip_n_to_p (rt_update_msg->prefix, dest_str),
                     rt_update_msg->mask,
-                    (const char *)tcp_ip_covert_ip_n_to_p (rt_update_msg->gateway, gw_str),
+                    rt_update_msg->gateway ? 
+                    (const char *)tcp_ip_covert_ip_n_to_p (rt_update_msg->gateway, gw_str) : NULL,
                     rt_update_msg->oif,
                     rt_update_msg->metric,
                     rt_update_msg->proto_id);
@@ -54,6 +55,7 @@ np_rt_table_process_msg(node_t *node, dp_msg_t *dp_msg) {
         case DP_UPDATE:
             //rt_table_update_route(rt_table, (rt_table_entry_t *)dp_msg->data);
             break;
+            
         case DP_READ:
             break;
         default:

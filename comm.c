@@ -88,7 +88,7 @@ dp_pkt_recvr_job_cbk (event_dispatcher_t *ev_dis, void *pkt, uint32_t pkt_size){
         pkt_block = pkt_block_get_new((uint8_t *)pkt, ev_dis_pkt_data->pkt_size);
         pkt_block_set_starting_hdr_type(pkt_block, ETH_HDR);
 
-        /* Bump the ref counter since pkt is not being injected into data path*/
+        /* Bump the ref counter since pkt is now being injected into data path*/
         pkt_block_reference(pkt_block);
 
 		dp_pkt_receive(receving_node,
@@ -121,7 +121,7 @@ send_pkt_to_self (
 
     pkt = pkt_block_get_pkt(pkt_block, &pkt_size);
 
-	ev_dis_pkt_data = (ev_dis_pkt_data_t *)calloc(1, sizeof(ev_dis_pkt_data_t));
+	ev_dis_pkt_data = (ev_dis_pkt_data_t *)XCALLOC(NULL, 1, ev_dis_pkt_data_t);
 
 	ev_dis_pkt_data->recv_node = nbr_node;
 	ev_dis_pkt_data->recv_intf = other_interface;
@@ -264,11 +264,12 @@ _pkt_receive(node_t *receving_node,
 
     pkt_block = pkt_block_get_new(NULL, 0);
 
-    pkt_block_set_new_pkt(pkt_block,
+    pkt_block_set_new_pkt (pkt_block,
                                             (uint8_t *)pkt_with_aux_data + IF_NAME_SIZE, 
                                             pkt_size - IF_NAME_SIZE);
 
-    pkt_block_set_starting_hdr_type(pkt_block, ETH_HDR);
+    pkt_block_set_starting_hdr_type (pkt_block, ETH_HDR);
+
     send_pkt_to_self (pkt_block, recv_intf);
     XFREE(pkt_block);
 }

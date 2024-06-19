@@ -407,6 +407,7 @@ transport_svc_show_handler (int cmdcode,
     node = node_get_node_by_name(topo, node_name);
 
     TransPortSvcDB = node->TransPortSvcDB;
+    if (!TransPortSvcDB) return 0;
 
     /* Iterate over  TransPortSvcDB*/
     for (auto it = TransPortSvcDB->begin(); it != TransPortSvcDB->end(); ++it) {
@@ -468,19 +469,20 @@ show_vlan_members (int cmdcode,
             i = it_vlan->first;
             VlanInterface *vlan_intf = it_vlan->second;
 
-            cprintf (" vlan %d    config_ref_count = %d, dynamic_ref_count = %d\n", i, vlan_intf->GetConfigRefCount(), vlan_intf->GetDynamicRefCount());
+            cprintf (" vlan %d    config_ref_count = %d, dynamic_ref_count = %d\n", 
+                i, vlan_intf->GetConfigRefCount(), vlan_intf->GetDynamicRefCount());
 
             if (!TransPortSvcDB) continue;
 
             ITERATE_VLAN_MEMBER_PORTS_TRUNK_BEGIN(vlan_intf, member_intf) {
 
-            #if 0
-                cprintf("  %s (Trunk)    config_ref_count = %d, dynamic_ref_count = %d\n", member_intf->if_name.c_str(), 
-                member_intf->GetConfigRefCount(), 
-                member_intf->GetDynamicRefCount());
-            #else 
-                cprintf("  %s (Trunk)\n", member_intf->if_name.c_str());
-            #endif
+                #if 0
+                    cprintf("  %s (Trunk)    config_ref_count = %d, dynamic_ref_count = %d\n", member_intf->if_name.c_str(), 
+                    member_intf->GetConfigRefCount(), 
+                    member_intf->GetDynamicRefCount());
+                #else 
+                    cprintf("  %s (Trunk)\n", member_intf->if_name.c_str());
+                #endif
             
             } ITERATE_VLAN_MEMBER_PORTS_TRUNK_END;
 

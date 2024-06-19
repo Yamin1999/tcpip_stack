@@ -25,7 +25,6 @@ extern void object_network_mem_init () ;
 extern void prefix_list_mem_init ();
 extern void object_group_mem_init ();
 extern void comm_mem_init();
-extern void ref_count_mem_init ();
 
 #include "Tree/libtree.h"
 #include "LinuxMemoryManager/uapi_mm.h"
@@ -57,5 +56,4 @@ tcp_stack_miscellaneous_mem_init() {
     MM_REG_STRUCT(0, mtrie_t);
     MM_REG_STRUCT(0, mtrie_node_t);
     MM_REG_STRUCT(0, Stack_t);
-    ref_count_mem_init ();
 }

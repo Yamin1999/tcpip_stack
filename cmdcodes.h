@@ -86,7 +86,8 @@
 #define CMDCODE_SHOW_PREFIX_LST_ALL 35
 #define CMDCODE_SHOW_PREFIX_LST_ONE 36
 
-#define CMDCODE_CONF_RIB_IMPORT_POLICY 37  /* conf node <node-name> [no] rib <rib-name> import-policy <prefix-lst-name> */
+/* conf node <node-name> [no] rib <rib-name> import-policy <prefix-lst-name> */
+#define CMDCODE_CONF_RIB_IMPORT_POLICY 37  
 
 #define CMDCODE_INTF_CONFIG_LOOPBACK 38
 
@@ -97,7 +98,6 @@
 
 /* conf node <node-name> [no]  interface <if-name> traceoptions access-list <access-list-name>*/
 #define CMDCODE_DEBUG_ACCESS_LIST_FILTER_NAME_INTF 41
-
 
 /* config node <node-name> transport-service-profile <transport-service-name> */
 #define CMDCODE_CONFIG_NODE_TRANSPORT_SVC   42
@@ -120,7 +120,7 @@
 /* config node <node-name> interface vlan <vlan-id> <up|down> */
 #define CMDCODE_CONFIG_INTF_VLAN_UP_DOWN  50
 
-/* show vlan members */
+/* show node <node-name> vlan members */
 #define CMDCODE_SHOW_VLAN_MEMBERS   51
 
 #endif /* __CMDCODES__ */

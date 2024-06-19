@@ -686,81 +686,22 @@ nw_init_cli(){
     param_t *config = libcli_get_config_hook();
     param_t *run    = libcli_get_run_hook();
     param_t *clear    = libcli_get_clear_hook();
-    //param_t *debug_show = libcli_get_debug_show_hook();
     param_t *root = libcli_get_root_hook();
 
-#if 0
     {
-        /*debug show node*/
-        static param_t node;
-        init_param(&node, CMD, "node", 0, 0, INVALID, 0, "\"node\" keyword");
-        libcli_register_param(debug_show, &node);
-        {
-            /*debug show node <node-name>*/
-            static param_t node_name;
-            init_param(&node_name, LEAF, 0, 0, validate_node_extistence, STRING, "node-name", "Node Name");
-            libcli_register_param(&node, &node_name);
-            {
-                    /*debug show node <node-name> access-list...*/
-                    static param_t access_lst;
-                    init_param(&access_lst, CMD, "access-list", 0, 0, INVALID, 0, "Access List");
-                    libcli_register_param(&node_name, &access_lst);
-                    {
-                        /*debug show node <node-name> access-list <access-list-name> ...*/
-                        static param_t access_list_name;
-                        init_param(&access_list_name, LEAF, 0, 0, 0, STRING, "access-list-name", "Access List Name");
-                        libcli_register_param(&access_lst, &access_list_name);
-                        {
-                            static param_t tcam;
-                            init_param(&tcam, CMD, "tcam", debug_show_node_handler, 0, INVALID, 0, "Tcam format");
-                            libcli_register_param(&access_list_name, &tcam);
-                            libcli_set_param_cmd_code(&tcam, CMDCODE_DEBUG_SHOW_NODE_MTRIE_ACL);
-                        }
-                    }
-                }
-            {
-                 /*debug show node <node-name> mtrie ...*/
-                static param_t mtrie;
-                init_param(&mtrie, CMD, "mtrie", 0, 0, INVALID, 0, "mtrie");
-                libcli_register_param(&node_name, &mtrie);
-                {
-                    static param_t rt;
-                    init_param(&rt, CMD, "rt", debug_show_node_handler, 0, INVALID, 0, "Routing Table");
-                    libcli_register_param(&mtrie, &rt);
-                    libcli_set_param_cmd_code(&rt, CMDCODE_DEBUG_SHOW_NODE_MTRIE_RT);
-                }
-            }
-            {
-                /*debug show node <node-name> timer*/
-                static param_t timer;
-                init_param(&timer, CMD, "timer", debug_show_node_handler, 0, INVALID, 0, "Timer State");
-                libcli_register_param(&node_name, &timer);
-                libcli_set_param_cmd_code(&timer, CMDCODE_DEBUG_SHOW_NODE_TIMER);
-				{
-					/*debug show node <node-name> timer logs*/
-					static param_t logs;
-					init_param(&logs, CMD, "logging", debug_show_node_handler, 0, INVALID, 0, "Timer Logging");
-					libcli_register_param(&timer, &logs);
-					libcli_set_param_cmd_code(&logs, CMDCODE_DEBUG_SHOW_NODE_TIMER_LOGGING);
-				}
-            }
-        }
-    }
-
-    {
-        /* debug show mem-usage*/
+        /* debug mem-usage*/
         static param_t mem_usage;
         init_param(&mem_usage, CMD, "mem-usage", display_mem_usage, 0, INVALID, 0, "Memory Usage");
-        libcli_register_param(debug_show, &mem_usage);
+        libcli_register_param(debug, &mem_usage);
         libcli_set_param_cmd_code(&mem_usage, CMDCODE_DEBUG_SHOW_MEMORY_USAGE);
         {
-            /* debug show mem-usage detail*/
+            /* debug mem-usage detail*/
             static param_t detail;
             init_param(&detail, CMD, "detail", display_mem_usage, 0, INVALID, 0, "Memory Usage Detail");
             libcli_register_param(&mem_usage, &detail);
             libcli_set_param_cmd_code(&detail, CMDCODE_DEBUG_SHOW_MEMORY_USAGE_DETAIL);
             {
-                /*  debug show mem-usage detail <struct-name> */
+                /*  debug mem-usage detail <struct-name> */
                 static param_t struct_name;
                 init_param(&struct_name, LEAF, 0, display_mem_usage, 0, STRING, "struct-name", "Structure Name Filter");
                 libcli_register_param(&detail, &struct_name);
@@ -768,7 +709,6 @@ nw_init_cli(){
             }
         }
     }
-    #endif
 
     /* Debug commands */
     {
@@ -781,6 +721,50 @@ nw_init_cli(){
             static param_t node_name;
             init_param(&node_name, LEAF, 0, 0, validate_node_extistence, STRING, "node-name", "Node Name");
             libcli_register_param(&node, &node_name);
+                        {
+                    /*debug node <node-name> access-list...*/
+                    static param_t access_lst;
+                    init_param(&access_lst, CMD, "access-list", 0, 0, INVALID, 0, "Access List");
+                    libcli_register_param(&node_name, &access_lst);
+                    {
+                        /*debug node <node-name> access-list <access-list-name> ...*/
+                        static param_t access_list_name;
+                        init_param(&access_list_name, LEAF, 0, 0, 0, STRING, "access-list-name", "Access List Name");
+                        libcli_register_param(&access_lst, &access_list_name);
+                        {
+                            static param_t tcam;
+                            init_param(&tcam, CMD, "tcam", debug_show_node_handler, 0, INVALID, 0, "Tcam format");
+                            libcli_register_param(&access_list_name, &tcam);
+                            libcli_set_param_cmd_code(&tcam, CMDCODE_DEBUG_SHOW_NODE_MTRIE_ACL);
+                        }
+                    }
+                }
+             {
+                 /*debug node <node-name> mtrie ...*/
+                static param_t mtrie;
+                init_param(&mtrie, CMD, "mtrie", 0, 0, INVALID, 0, "mtrie");
+                libcli_register_param(&node_name, &mtrie);
+                {
+                    static param_t rt;
+                    init_param(&rt, CMD, "rt", debug_show_node_handler, 0, INVALID, 0, "Routing Table");
+                    libcli_register_param(&mtrie, &rt);
+                    libcli_set_param_cmd_code(&rt, CMDCODE_DEBUG_SHOW_NODE_MTRIE_RT);
+                }
+            }
+            {
+                /*debug node <node-name> timer*/
+                static param_t timer;
+                init_param(&timer, CMD, "timer", debug_show_node_handler, 0, INVALID, 0, "Timer State");
+                libcli_register_param(&node_name, &timer);
+                libcli_set_param_cmd_code(&timer, CMDCODE_DEBUG_SHOW_NODE_TIMER);
+				{
+					/*debug show node <node-name> timer logs*/
+					static param_t logs;
+					init_param(&logs, CMD, "logging", debug_show_node_handler, 0, INVALID, 0, "Timer Logging");
+					libcli_register_param(&timer, &logs);
+					libcli_set_param_cmd_code(&logs, CMDCODE_DEBUG_SHOW_NODE_TIMER_LOGGING);
+				}
+            }
 		    {
 			    /* debug node <node-name> protocol */
 				static param_t protocol;

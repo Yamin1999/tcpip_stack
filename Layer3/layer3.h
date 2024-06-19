@@ -191,6 +191,7 @@ typedef struct l3_route_{
     glthread_t flash_glue;
     uint32_t rt_ref_count;
 } l3_route_t;
+
 GLTHREAD_TO_STRUCT(notif_glue_to_l3_route, l3_route_t, notif_glue);
 GLTHREAD_TO_STRUCT(flash_glue_to_l3_route, l3_route_t, flash_glue);
 

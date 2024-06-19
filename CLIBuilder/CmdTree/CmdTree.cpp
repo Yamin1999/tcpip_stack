@@ -661,7 +661,7 @@ cmd_tree_construct_filter_subtree () {
 }
 
 static void 
-libcli_augment_show_cmds_internal (param_t *param) {
+libcli_augment_cmd_tree_with_filters (param_t *param) {
 
     int i;
     if (!param) return;
@@ -669,7 +669,7 @@ libcli_augment_show_cmds_internal (param_t *param) {
     if (param == &pipe) return;
 
     for (i = CHILDREN_START_INDEX ; i <= CHILDREN_END_INDEX; i++) {
-        libcli_augment_show_cmds_internal (param->options[i]);
+        libcli_augment_cmd_tree_with_filters (param->options[i]);
     }
 
     if (param->callback) {
@@ -681,10 +681,17 @@ static void
  libcli_augment_show_cmds () {
 
     param_t *show_param = libcli_get_show_hook();
-    libcli_augment_show_cmds_internal (show_param);
+    libcli_augment_cmd_tree_with_filters (show_param);
  }
 
- void 
+ static void 
+ libcli_augment_debug_cmds () {
+
+    param_t *debug_param = libcli_get_debug_hook();
+    libcli_augment_cmd_tree_with_filters (debug_param);
+ }
+
+void
 cmd_tree_init () {
 
     init_token_array();
@@ -697,6 +704,7 @@ libcli_init_done () {
 
     cmd_tree_construct_filter_subtree();
     libcli_augment_show_cmds ();
+    libcli_augment_debug_cmds ();
     libcli_support_cmd_negation (libcli_get_config_hook());
     libcli_cleanup_parent_pointers ();
 }

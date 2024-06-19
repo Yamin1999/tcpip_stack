@@ -43,9 +43,9 @@ extern void
 tcp_ip_de_init_intf_log_info(Interface *intf);
 extern int 
 access_group_unconfig (node_t *node, 
-                                         Interface *intf, 
-                                         char *dirn, 
-                                         access_list_t *acc_lst) ;
+                       Interface *intf, 
+                       char *dirn, 
+                       access_list_t *acc_lst) ;
 
 /* A fn to send the pkt as it is (unchanged) out on the interface */
 static int
@@ -529,7 +529,7 @@ void PhysicalInterface::PrintInterfaceDetails()
 
     byte ip_addr[16];
 
-    cprintf("\t MAC : %02x:%02x:%02x:%02x:%02x:%02x\n",
+    cprintf("MAC : %02x:%02x:%02x:%02x:%02x:%02x\n",
            this->mac_add.mac[0],
            this->mac_add.mac[1],
            this->mac_add.mac[2],
@@ -539,14 +539,16 @@ void PhysicalInterface::PrintInterfaceDetails()
 
     if (this->IsIpConfigured())
     {
-        cprintf("IP Addr : %s/%d\n", tcp_ip_covert_ip_n_to_p(this->ip_addr, ip_addr), this->mask);
+        cprintf("IP Addr : %s/%d\n", 
+            tcp_ip_covert_ip_n_to_p(this->ip_addr, ip_addr), this->mask);
     }
     else
     {
         cprintf("IP Addr : Not Configured\n");
     }
 
-    cprintf("Vlan L2 Mode : %s\n", PhysicalInterface::L2ModeToString(this->l2_mode).c_str());
+    cprintf("Vlan L2 Mode : %s\n",
+        PhysicalInterface::L2ModeToString(this->l2_mode).c_str());
 
     this->Interface::PrintInterfaceDetails();
 }
@@ -1110,7 +1112,7 @@ void GRETunnelInterface::PrintInterfaceDetails()
         uint32_t ip_addr;
         uint8_t mask;
         this->tunnel_src_intf->InterfaceGetIpAddressMask(&ip_addr, &mask);
-        ("Tunnel Src Ip : %s\n", tcp_ip_covert_ip_n_to_p(ip_addr, ip_str));
+        cprintf("Tunnel Src Ip : %s\n", tcp_ip_covert_ip_n_to_p(ip_addr, ip_str));
     }
     else {
         cprintf("Tunnel Src Ip : Nil\n"); 

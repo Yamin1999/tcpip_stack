@@ -545,12 +545,12 @@ l2_frame_recv_qualify_on_interface(
 
     /* If interface is working in L3 mode, then accept the frame only when
      * its dst mac matches with receiving interface MAC*/
-    if(interface->IsIpConfigured()  &&
-        memcmp(IF_MAC(interface), 
-        ethernet_hdr->dst_mac.mac, 
-        MAC_ADDR_SIZE) == 0){
-        /*case 1*/
-        return true;
+    if(interface->IsIpConfigured()  && 
+            memcmp(IF_MAC(interface), 
+            ethernet_hdr->dst_mac.mac, 
+            MAC_ADDR_SIZE) == 0){
+            /*case 1*/
+            return true;
     }
 
     /*If interface is working in L3 mode, then accept the frame with

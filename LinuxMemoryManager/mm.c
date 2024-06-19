@@ -50,6 +50,7 @@ static vm_page_t *vm_page_mm_instance = NULL;
 static mm_instance_t *next_mm_instance = NULL;
 pthread_spinlock_t spin_lock;
 static vm_page_family_t *last_cached_pg_family = NULL;
+extern int cprintf (const char* format, ...);
 
 void
 mm_init(){
@@ -113,7 +114,7 @@ mm_sbrk_get_available_page_from_heap_segment(int units){
     vm_page_curr = (vm_page_t *)sbrk(SYSTEM_PAGE_SIZE * units);
 
     if(!vm_page_curr){
-        printf("Error : Heap Segment Expansion Failed, error no = %d\n", errno);
+        cprintf("Error : Heap Segment Expansion Failed, error no = %d\n", errno);
     }
     return vm_page_curr;
 }
@@ -135,7 +136,7 @@ mm_get_new_vm_page_from_kernel(int units){
             0,0);
 
     if (region == MAP_FAILED) {
-        printf("Error : VM Page allocation Failed\n");
+        cprintf("Error : VM Page allocation Failed\n");
         return NULL;
     }
     vm_page = (vm_page_t *)region;
@@ -241,7 +242,7 @@ MARK_VM_PAGE_EMPTY(((vm_page_t *)ptr));
     free(ptr); 
 #elif defined(__USE_MMAP__)
     if(rc = munmap(ptr, units * SYSTEM_PAGE_SIZE)){
-        printf("Error : Could not munmap VM page (%u) to kernel, errno = %d\n", ((vm_page_t *)ptr)->page_size, errno);
+        cprintf("Error : Could not munmap VM page (%u) to kernel, errno = %d\n", ((vm_page_t *)ptr)->page_size, errno);
     }
 #elif defined(__USE_BRK__)
     mm_sbrk_free_vm_page((vm_page_t *)ptr, units);
@@ -567,7 +568,7 @@ xcalloc(mm_instance_t *mm_inst, char *struct_name, int units){
     
     if(!pg_family){
         
-        printf("Error : Structure %s not registered with Memory Manager\n",
+        cprintf("Error : Structure %s not registered with Memory Manager\n",
             struct_name);
         assert(0);
         return NULL;
@@ -749,18 +750,17 @@ mm_is_vm_page_empty(vm_page_t *vm_page){
 void
 mm_print_vm_page_details(vm_page_t *vm_page, uint32_t i){
 
-    printf("\tPage Index : %u \n", vm_page->page_index);
-    printf("\t\t next = %p, prev = %p\n", vm_page->next, vm_page->prev);
-    printf("\t\t page family = %s, page_size = %uB\n", 
+    cprintf("\tPage Index : %u \n", vm_page->page_index);
+    cprintf("\t\t next = %p, prev = %p\n", vm_page->next, vm_page->prev);
+    cprintf("\t\t page family = %s, page_size = %uB\n", 
         vm_page->pg_family->struct_name, vm_page->page_size);
 
     uint32_t j = 0;
     block_meta_data_t *curr;
     ITERATE_VM_PAGE_ALL_BLOCKS_BEGIN(vm_page, curr){
 
-        printf(ANSI_COLOR_YELLOW "\t\t\t%-14p Block %-3u %s  block_size = %-6u  "
-                "offset = %-6u  prev = %-14p  next = %p\n"
-                ANSI_COLOR_RESET, curr + 1,
+        cprintf("\t\t\t%-14p Block %-3u %s  block_size = %-6u  "
+                "offset = %-6u  prev = %-14p  next = %p\n" , curr + 1,
                 j++, curr->is_free ? "F R E E D" : "ALLOCATED",
                 curr->block_size, curr->offset, 
                 curr->prev_block ? curr->prev_block + 1 : 0,
@@ -785,7 +785,7 @@ mm_print_memory_usage(mm_instance_t *mm_inst,  unsigned char *struct_name){
         mm_inst->first_vm_page_for_families :
         first_vm_page_for_families;
 
-    printf("\nPage Size = %zu Bytes\n", SYSTEM_PAGE_SIZE);
+    cprintf("\nPage Size = %zu Bytes\n", SYSTEM_PAGE_SIZE);
 
     ITERATE_PAGE_FAMILIES_BEGIN(vm_page_for_families_global, vm_page_family_curr){
 
@@ -798,15 +798,11 @@ mm_print_memory_usage(mm_instance_t *mm_inst,  unsigned char *struct_name){
 
         number_of_struct_families++;
 
-        printf(ANSI_COLOR_GREEN "vm_page_family : %s, struct size = %u\n" 
-                ANSI_COLOR_RESET,
+        cprintf("vm_page_family : %s, struct size = %u  App Used Memory %uB,  #Sys Calls %u\n", 
                 vm_page_family_curr->struct_name,
-                vm_page_family_curr->struct_size);
-        printf(ANSI_COLOR_CYAN "\tApp Used Memory %uB, #Sys Calls %u\n"
-                ANSI_COLOR_RESET,
-                vm_page_family_curr->total_memory_in_use_by_app,
-                vm_page_family_curr->\
-                no_of_system_calls_to_alloc_dealloc_vm_pages);
+                vm_page_family_curr->struct_size, 
+                vm_page_family_curr->total_memory_in_use_by_app, 
+                vm_page_family_curr->no_of_system_calls_to_alloc_dealloc_vm_pages);
         
         total_memory_in_use_by_application += 
             vm_page_family_curr->total_memory_in_use_by_app;
@@ -819,14 +815,13 @@ mm_print_memory_usage(mm_instance_t *mm_inst,  unsigned char *struct_name){
             mm_print_vm_page_details(vm_page, i++);
 
         } ITERATE_VM_PAGE_END(vm_page_family_curr, vm_page);
-        printf("\n");
+        cprintf("\n");
+
     } ITERATE_PAGE_FAMILIES_END(vm_page_for_families_global, vm_page_family_curr);
 
-    printf(ANSI_COLOR_MAGENTA "\nTotal Applcation Memory Usage : %u Bytes\n"
-        ANSI_COLOR_RESET, total_memory_in_use_by_application);
+    cprintf("\nTotal Applcation Memory Usage : %u Bytes\n", total_memory_in_use_by_application);
 
-    printf(ANSI_COLOR_MAGENTA "# Of VM Pages in Use : %u (%lu Bytes)\n" \
-        ANSI_COLOR_RESET,
+    cprintf("# Of VM Pages in Use : %u (%lu Bytes)\n", \
         cumulative_vm_pages_claimed_from_kernel, 
         SYSTEM_PAGE_SIZE * cumulative_vm_pages_claimed_from_kernel);
 
@@ -837,17 +832,16 @@ mm_print_memory_usage(mm_instance_t *mm_inst,  unsigned char *struct_name){
         (float)(total_memory_in_use_by_application * 100)/\
         (float)(cumulative_vm_pages_claimed_from_kernel * SYSTEM_PAGE_SIZE);
     }
-    printf(ANSI_COLOR_MAGENTA "Memory In Use by Application = %f%%\n"
-        ANSI_COLOR_RESET,
+    cprintf("Memory In Use by Application = %f%%\n", 
         memory_app_use_to_total_memory_ratio);
 
-    printf("Total Memory being used by Memory Manager = %lu Bytes\n",
+    cprintf("Total Memory being used by Memory Manager = %lu Bytes\n",
         cumulative_vm_pages_claimed_from_kernel * SYSTEM_PAGE_SIZE); 
 
     MM_UNLOCK(mm_inst);
 
     if (!struct_name) {
-        printf ("Printing Variable Buffers \n");
+        cprintf ("Printing Variable Buffers \n");
         mm_print_variable_buffers(mm_inst);
     }
 
@@ -909,7 +903,7 @@ mm_print_block_usage(mm_instance_t *mm_inst){
             } ITERATE_VM_PAGE_ALL_BLOCKS_END(vm_page_curr, block_meta_data_curr);
         } ITERATE_VM_PAGE_END(vm_page_family_curr, vm_page_curr);
 
-    printf("%-20s   TBC : %-4u    FBC : %-4u    OBC : %-4u AppMemUsage : %u\n",
+    cprintf("%-20s   TBC : %-4u    FBC : %-4u    OBC : %-4u AppMemUsage : %u\n",
         vm_page_family_curr->struct_name, total_block_count,
         free_block_count, occupied_block_count, application_memory_usage);
 
@@ -964,7 +958,7 @@ mm_print_variable_buffers(mm_instance_t *mm_inst) {
             } ITERATE_VM_PAGE_ALL_BLOCKS_END(vm_page_curr, block_meta_data_curr);
         } ITERATE_VM_PAGE_END(misc_vm_page_family_global, vm_page_curr);
 
-    printf("%-20s   TBC : %-4u    FBC : %-4u    OBC : %-4u AppMemUsage : %u\n",
+    cprintf("%-20s   TBC : %-4u    FBC : %-4u    OBC : %-4u AppMemUsage : %u\n",
         misc_vm_page_family.struct_name, total_block_count,
         free_block_count, occupied_block_count, application_memory_usage);
 
@@ -991,7 +985,7 @@ mm_print_registered_page_families(mm_instance_t *mm_inst){
             vm_page_family_curr){
 
 
-            printf("Page Family : %s, Size = %u\n", 
+            cprintf("Page Family : %s, Size = %u\n", 
                 vm_page_family_curr->struct_name,
                 vm_page_family_curr->struct_size);
 

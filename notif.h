@@ -27,7 +27,7 @@
 
 typedef struct event_dispatcher_ event_dispatcher_t;
 
-#define MAX_NOTIF_KEY_SIZE	1536
+#define MAX_NOTIF_KEY_SIZE	2048
 
 typedef void (*nfc_app_cb)(event_dispatcher_t *, void *, unsigned int);
 typedef bool (*nfc_pkt_trap) (char *, unsigned int);

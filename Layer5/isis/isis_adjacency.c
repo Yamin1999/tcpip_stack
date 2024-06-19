@@ -1111,8 +1111,8 @@ isis_adjacency_withdraw_p2p_is_reach (isis_adjacency_t *adjacency) {
 */
 static isis_tlv_wd_return_code_t
 isis_adjacency_withdraw_lan_is_reach (isis_adjacency_t *adjacency) {
-    
-    isis_adv_data_t *adv_data;
+
+     isis_adv_data_t *adv_data;
      isis_tlv_wd_return_code_t rc;
 
      assert (isis_adjacency_is_lan (adjacency));

@@ -225,7 +225,6 @@ pkt_block_get_arp_hdr (pkt_block_t *pkt_block) {
     }
 }
 
-
 void
 pkt_block_free_internals (pkt_block_t *pkt_block) {
 

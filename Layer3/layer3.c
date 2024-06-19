@@ -172,8 +172,8 @@ layer3_ip_route_pkt(node_t *node,
 
     if(!l3_route){
         /*Router do not know what to do with the pkt. drop it*/
-        cprintf("Router %s : Cannot Route IP : %s\n", 
-                    node->node_name, dest_ip_addr);
+        //cprintf("Router %s : Cannot Route IP : %s\n", 
+        //         node->node_name, dest_ip_addr);
         return;
     }
 
@@ -189,27 +189,26 @@ layer3_ip_route_pkt(node_t *node,
         /* case 1 : local delivery:  dst ip address in pkt must exact match with
          * ip of any local interface of the router, including loopback*/
 
-        if (is_layer3_local_delivery(node, ip_hdr->dst_ip)){
+        if (is_layer3_local_delivery(node, ip_hdr->dst_ip)) {
 
             l4_hdr = (char *)INCREMENT_IPHDR(ip_hdr);
             l5_hdr = l4_hdr;
 
-            switch(ip_hdr->protocol){
+            switch(ip_hdr->protocol) {
+
                 case MTCP:
                     promote_pkt_to_layer4(node, interface, 
 								pkt_block, ip_hdr->protocol);
                     return;
                 case ICMP_PROTO:
                     cprintf("IP Address : %s, ping success\n", dest_ip_addr);
-                    refresh();
-                    //pkt_block_dereference(pkt_block);
-                    break;
+                    return;
                 case UDP_PROTO:
                         promote_pkt_to_layer4 (
                                               node, interface,
 											  pkt_block,
                                               UDP_HDR);
-                        return;
+                    return;
                 case IP_IN_IP:
                     /*Packet has reached ERO, now set the packet onto its new 
                       Journey from ERO to final destination*/
@@ -217,29 +216,33 @@ layer3_ip_route_pkt(node_t *node,
                                                             (uint8_t *)INCREMENT_IPHDR(ip_hdr),
                                                             IP_HDR_PAYLOAD_SIZE(ip_hdr));
                     layer3_ip_route_pkt(node,
-									interface, 
-                                    pkt_block);
+                                                      interface, 
+                                                      pkt_block);
+                    return;
                 case GRE_PROTO:
                     cprintf ("GRE pkt recvd\n");
-                default:
-                    ;
+                    break;
+                default: ;
+
             }
 
-			promote_pkt_from_layer3_to_layer5(
-                                              node, interface,
-											  pkt_block,
-                                              IP_HDR);
+            promote_pkt_from_layer3_to_layer5(
+                                                node, interface,
+                                                pkt_block,
+                                                IP_HDR);
         }
          
         /* case 2 : It means, the dst ip address lies in direct connected
          * subnet of this router, time for l2 routing*/
 
-        demote_pkt_to_layer2(
+        demote_pkt_to_layer2 (
                 node,           /*Current processing node*/
                 ip_hdr->dst_ip,     /*next hop IP is dest itself as dest is present in local subnet*/
                 NULL,           /*No oif as dest is present in local subnet*/
                 pkt_block,  /*Network Layer payload and size*/
                 IP_HDR);        /*Network Layer need to tell Data link layer, what type of payload it is passing down*/
+
+        return;
     }
 
     /*case 3 : L3 forwarding case*/
@@ -248,17 +251,17 @@ layer3_ip_route_pkt(node_t *node,
 
     /* If route is non direct, then ask LAyer 2 to send the pkt
      * out of all ecmp nexthops of the route*/
-    uint32_t next_hop_ip;
+    uint32_t next_hop_ip= 0;
     nexthop_t *nexthop = NULL;
 
     nexthop = l3_route_get_active_nexthop(l3_route);
 
     nf_result = nf_invoke_netfilter_hook(
-                    NF_IP_FORWARD,
-                    pkt_block,
-		            node, 
-                    nexthop->oif,
-                    IP_HDR);
+                        NF_IP_FORWARD,
+                        pkt_block,
+                        node, 
+                        nexthop->oif,
+                        IP_HDR);
 
     switch (nf_result) {
         case NF_ACCEPT:
@@ -469,10 +472,10 @@ rt_table_delete_route(
                                             &mask_bm,
                                             (void **)&l3_route) == MTRIE_DELETE_SUCCESS);
 
-    l3_route_dec_ref_count(l3_route);
     bitmap_free_internal(&prefix_bm);
     bitmap_free_internal(&mask_bm);
     rt_table_add_route_to_notify_list (rt_table, l3_route, RT_DEL_F);
+    l3_route_dec_ref_count(l3_route);
     rt_table_kick_start_notif_job(rt_table);
 }
 
@@ -680,7 +683,7 @@ _rt_table_entry_add(rt_table_t *rt_table, l3_route_t *l3_route){
        return false;
 
    mnode->data = (void *)l3_route;
-   l3_route_inc_ref_count(l3_route);
+   l3_route_inc_ref_count (l3_route);
    l3_route->install_time = time(NULL);
    rt_table_add_route_to_notify_list(rt_table, l3_route, RT_ADD_F);
    rt_table_kick_start_notif_job(rt_table);
@@ -1110,10 +1113,10 @@ l3_route_free (l3_route_t *l3_route){
     /* Assume the route has already been removed from main routing table */
     nxthop_proto_id_t nxthop_proto_id;
     assert (!l3_route->rt_ref_count);
-    assert(IS_GLTHREAD_LIST_EMPTY(&l3_route->notif_glue));
-    assert(IS_GLTHREAD_LIST_EMPTY(&l3_route->flash_glue));
+    assert (IS_GLTHREAD_LIST_EMPTY(&l3_route->notif_glue));
+    assert (IS_GLTHREAD_LIST_EMPTY(&l3_route->flash_glue));
     FOR_ALL_NXTHOP_PROTO(nxthop_proto_id) {
-        nh_flush_nexthops(l3_route->nexthops[nxthop_proto_id]);
+        nh_flush_nexthops (l3_route->nexthops[nxthop_proto_id]);
     }
     XFREE(l3_route);
 }

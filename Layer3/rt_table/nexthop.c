@@ -55,7 +55,6 @@ nh_create_new_nexthop(c_string node_name, uint32_t oif_index, c_string gw_ip, ui
     return nexthop;
 }
 
-
 bool 
 nh_insert_new_nexthop_nh_array(
                        nexthop_t **nexthop_arry, 
