@@ -46,7 +46,7 @@ netfilter_pkt_notif_data_dup_fn (void *arg) {
 	pkt_notif_data_t *pkt_notif_data2 = (pkt_notif_data_t *)XCALLOC(0, 1, pkt_notif_data_t);
 	pkt_notif_data2->recv_node = pkt_notif_data->recv_node;
 	pkt_notif_data2->recv_interface = pkt_notif_data->recv_interface;
-	pkt_notif_data2->pkt_block = pkt_block_dup(pkt_notif_data->pkt_block);
+	pkt_notif_data2->pkt_block = pkt_notif_data->pkt_block;
 	pkt_block_reference(pkt_notif_data2->pkt_block);
 	pkt_notif_data2->hdr_code = pkt_notif_data->hdr_code;
 	pkt_notif_data2->return_code = pkt_notif_data->return_code;
@@ -83,7 +83,6 @@ nf_invoke_netfilter_hook(
     pkt_notif_data.recv_node = node;
     pkt_notif_data.recv_interface = intf;
     pkt_notif_data.pkt_block = pkt_block;
-	pkt_block_reference(pkt_block);
 	pkt_notif_data.hdr_code = hdr_code;
     pkt_notif_data.return_code = NF_ACCEPT;
 
@@ -95,8 +94,7 @@ nf_invoke_netfilter_hook(
 			(void *)&pkt_notif_data,
             sizeof(pkt_notif_data_t),
             pkt, pkt_size, TASK_PRIORITY_PKT_PROCESSING);
-
-	pkt_block_dereference(pkt_block);
+	
     return NF_ACCEPT;
 }
 

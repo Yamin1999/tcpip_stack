@@ -21,11 +21,20 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "Layer3/gre-tunneling/gre.h"
 
 typedef struct ip_hdr_ ip_hdr_t;
 typedef struct arp_hdr_ arp_hdr_t;
-typedef struct pkt_block_ pkt_block_t;
 typedef struct ethernet_hdr_ ethernet_hdr_t;
+class Interface;
+
+struct pkt_block_ {
+
+    uint8_t *pkt;
+    pkt_size_t pkt_size;
+    hdr_type_t hdr_type; /* Starting hdr type */
+    uint8_t ref_count;
+} ;
 
 void
 pkt_block_mem_init ();
@@ -47,6 +56,9 @@ pkt_block_dereference(pkt_block_t *pkt_block);
 
 pkt_block_t *
 pkt_block_get_new(uint8_t *pkt, pkt_size_t pkt_size);
+
+pkt_block_t *
+pkt_block_get_new_pkt_buffer(pkt_size_t pkt_size);
 
 void
 pkt_block_set_starting_hdr_type(pkt_block_t *pkt_block, hdr_type_t hdr_type) ;

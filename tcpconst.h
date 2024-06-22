@@ -72,6 +72,8 @@ typedef uint16_t pkt_size_t;
 #define INTF_MAX_METRIC     16777215 /*Choosen as per the standard = 2^24 -1*/
 #define INTF_METRIC_DEFAULT 1
 #define TCP_LOG_BUFFER_LEN	512
+#define GRE_ENCAP_ETHERNET  0x6558
+
  /* Should be less than or equal to UT_PARSER_BUFF_MAX_SIZE */
 #define NODE_PRINT_BUFF_LEN (1024 * 1024)
 
@@ -109,6 +111,8 @@ proto_name_str (uint16_t proto) {
             return (unsigned char *)"any";
         case EIGRP_PROTO:
             return (unsigned char *)"eigrp";
+        case GRE_PROTO:
+            return (unsigned char *)"gre";
         default:
             return NULL;
     }
@@ -148,7 +152,7 @@ tcp_ip_convert_internal_proto_to_std_proto (hdr_type_t hdr_type) {
     switch (hdr_type)
     {
     case ETH_HDR:
-        return 0;
+        return GRE_ENCAP_ETHERNET;
     case IP_HDR:
         return ETH_IP;
     case ARP_HDR:

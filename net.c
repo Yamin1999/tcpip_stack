@@ -59,36 +59,31 @@ hash_code(void *ptr, uint32_t size){
     return value;
 }
 
-
-/*Heuristics, Assign a unique mac address to interface*/
 void
-interface_assign_mac_address(Interface *interface){
-
-    node_t *node = interface->att_node;
-    
-    if(!node)
-        return;
-
-    uint32_t hash_code_val = 0;
-    hash_code_val = hash_code(node->node_name, NODE_NAME_SIZE);
-    hash_code_val *= hash_code(interface->if_name.c_str(), IF_NAME_SIZE);
-    memset(IF_MAC(interface), 0, sizeof(IF_MAC(interface)));
-    memcpy(IF_MAC(interface), (char *)&hash_code_val, sizeof(uint32_t));
-}
-
-void
-interface_assign_mac_address2 (Interface *interface){
+interface_assign_mac_address (Interface *interface){
 
     mac_addr_t mac_addr;
     node_t *node = interface->att_node;
     
     if(!node) return;
 
-    uint32_t hash_code_val = 0;
+    uint64_t hash_code_val = 0;
     hash_code_val = hash_code(node->node_name, NODE_NAME_SIZE);
     hash_code_val *= hash_code(interface->if_name.c_str(), IF_NAME_SIZE);
-    memcpy((void *)mac_addr.mac, (void *)hash_code_val, MAC_ADDR_SIZE);
+    memset (&mac_addr, 0, sizeof(mac_addr_t));
+    hash_code_val = hash_code_val << 15;
+    memcpy((void *)mac_addr.mac, (void *)&hash_code_val, MAC_ADDR_SIZE);
     interface->SetMacAddr(&mac_addr);
+}
+
+void 
+node_assign_router_mac (node_t *node) {
+
+    uint32_t hash_code_val = 0;
+    hash_code_val = hash_code(node->node_name, NODE_NAME_SIZE );
+    hash_code_val *= hash_code_val;
+    hash_code_val = hash_code_val << 15;
+    memcpy((void *)node->node_nw_prop.rmac.mac, (void *)&hash_code_val, MAC_ADDR_SIZE );
 }
 
 typedef struct l3_route_ l3_route_t;
@@ -131,17 +126,20 @@ void dump_node_nw_props(node_t *node){
     cprintf("\n");
 }
 
-void dump_intf_props (Interface *interface){
+void 
+dump_intf_props (Interface *interface){
 
     uint8_t intf_mask;
     uint32_t intf_ip_addr;
     byte intf_ip_addr_str[16];
     mac_addr_t *mac_addr;
+
     dump_interface(interface);
 
     cprintf("\t If Status : %s\n", interface->is_up ? "UP" : "DOWN");
 
-    if(interface->IsIpConfigured()){
+    if (interface->IsIpConfigured()) {
+
         interface->InterfaceGetIpAddressMask(&intf_ip_addr, &intf_mask);
         tcp_ip_covert_ip_n_to_p(intf_ip_addr, intf_ip_addr_str);
         cprintf("\t IP Addr = %s/%u", intf_ip_addr_str, intf_mask);
@@ -172,18 +170,18 @@ void dump_intf_props (Interface *interface){
                 cprintf ("\t transport svc profile : %s", phyIntf->trans_svc->trans_svc.c_str());
             }
         }
-
         cprintf("\n");
     }
 }
 
-void dump_nw_graph(graph_t *graph, node_t *node1){
+void 
+dump_nw_graph(graph_t *graph, node_t *node1){
 
+    uint32_t i;
     node_t *node;
     glthread_t *curr;
     Interface *interface;
-    uint32_t i;
-    
+
     cprintf("Topology Name = %s\n", graph->topology_name);
     
     if(!node1){
@@ -279,44 +277,3 @@ dump_node_interface_stats(node_t *node){
     }
     cprintf ("Ingress Pkt Drops : %u\n", ptk_q_drop_count(&node->dp_recvr_pkt_q));
 }
-
-#if 0
-static void
-interface_bit_rate_sample_update(event_dispatcher_t*ev_dis,
-                                                        void *arg, uint32_t arg_size) {
-
-    (unused)ev_dis;
-    (unused)arg_size;
-
-    if (!arg) return;
-    
-    Interface *interface = (Interface *)arg;
-
-    interface->intf_nw_props.bit_rate.bit_rate = 
-         interface->intf_nw_props.bit_rate.new_bit_stats - 
-         interface->intf_nw_props.bit_rate.old_bit_stats;
-
-    interface->intf_nw_props.bit_rate.old_bit_stats = 
-         interface->intf_nw_props.bit_rate.new_bit_stats;
-}
-
-void
-intf_init_bit_rate_sampling_timer(Interface *interface) {
-
-    wheel_timer_elem_t *wt_elem =
-        interface->intf_nw_props.bit_rate.bit_rate_sampling_timer;
-
-    assert(!wt_elem);
-
-    wheel_timer_t *timer = DP_TIMER(interface->att_node);
-    assert(timer);
-
-    interface->intf_nw_props.bit_rate.bit_rate_sampling_timer =
-        timer_register_app_event(timer, 
-                                                 interface_bit_rate_sample_update,
-                                                (void *)interface,
-                                                sizeof(*interface),
-                                                1000,
-                                                1);
-}
-#endif

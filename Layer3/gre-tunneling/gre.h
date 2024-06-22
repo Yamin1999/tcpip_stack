@@ -27,6 +27,12 @@ typedef struct gre_header_ {
 #pragma pack(pop)
 
 void 
-gre_packet_attach_headers_to_payload (pkt_block_t *pkt_block);
+gre_encasulate (pkt_block_t *pkt_block);
+
+void 
+gre_decapsulate (node_t *node, pkt_block_t *pkt_block, Interface *gre_interface) ;
+
+Interface *
+gre_lookup_tunnel_intf(node_t *node, uint32_t src_ip, uint32_t dst_ip) ;
 
 #endif 

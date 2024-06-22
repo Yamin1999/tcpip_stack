@@ -95,6 +95,7 @@ dp_pkt_recvr_job_cbk (event_dispatcher_t *ev_dis, void *pkt, uint32_t pkt_size){
                     recv_intf, 
                     pkt_block);
 
+        pkt_block_dereference(pkt_block);
 		XFREE(ev_dis_pkt_data);
 		ev_dis_pkt_data = NULL;
 	}
@@ -150,11 +151,10 @@ dp_pkt_receive (node_t *node,
     tcp_dump_recv_logger(node, interface, pkt_block, ETH_HDR);
 
     /* Access List Evaluation at Layer 2 Entry point*/ 
-    if (access_list_evaluate_ethernet_packet(
+    if (access_list_evaluate_ethernet_packet (
                 node, interface, pkt_block, true) 
                 == ACL_DENY) {
 
-        assert(!pkt_block_dereference(pkt_block));
         return;
     }
 
@@ -166,10 +166,8 @@ dp_pkt_receive (node_t *node,
         
         cprintf("L2 Frame Rejected on node %s(%s)\n", 
             node->node_name, interface->if_name.c_str());
-        assert(!pkt_block_dereference(pkt_block));
         return;
     }
-
 
     if ((interface->GetL2Mode() != LAN_MODE_NONE)) {
 
@@ -177,11 +175,10 @@ dp_pkt_receive (node_t *node,
             tag_pkt_with_vlan_id (pkt_block, vlan_id_to_tag);
         }
         l2_switch_recv_frame(node, vlan_id_to_tag, interface, pkt_block);
-        assert(!pkt_block_dereference(pkt_block));
     }
 
     else if (interface->IsIpConfigured()){
-            promote_pkt_to_layer2(node, interface, pkt_block);
+        promote_pkt_to_layer2(node, interface, pkt_block);
     }
 }
 

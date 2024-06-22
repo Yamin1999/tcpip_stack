@@ -22,27 +22,31 @@ send_arp_broadcast_request(node_t *node,
                            Interface *oif,
                            c_string ip_addr){
 
-    pkt_block_t *pkt_block;
-
     /*Take memory which can accomodate Ethernet hdr + ARP hdr*/
-    uint32_t payload_size = sizeof(arp_hdr_t);
+    uint32_t payload_size = sizeof (arp_hdr_t);
 
-    ethernet_hdr_t *ethernet_hdr =  (ethernet_hdr_t *)tcp_ip_get_new_pkt_buffer (
-                ETH_HDR_SIZE_EXCL_PAYLOAD + payload_size);
+    pkt_block_t *pkt_block = pkt_block_get_new_pkt_buffer(
+                                                    ETH_HDR_SIZE_EXCL_PAYLOAD + payload_size);
 
-    if(!oif){
+    ethernet_hdr_t *ethernet_hdr =  (ethernet_hdr_t *) pkt_block_get_pkt(pkt_block, NULL);
+    
+    if(!oif) {
+
         oif = node_get_matching_subnet_interface(node, ip_addr);
-        if(!oif){
+
+        if(!oif) {
+
             cprintf("Error : %s : No eligible subnet for ARP resolution for Ip-address : %s\n",
-                    node->node_name, ip_addr);
-            tcp_ip_free_pkt_buffer ((byte *)ethernet_hdr, ETH_HDR_SIZE_EXCL_PAYLOAD + payload_size);
+                        node->node_name, ip_addr);
+            pkt_block_dereference(pkt_block);
             return;
         }
 
         if (IF_IP(oif) == tcp_ip_convert_ip_p_to_n( ip_addr)) {
+
             cprintf("Error : %s : Attempt to resolve ARP for local Ip-address : %s\n",
-                    node->node_name, ip_addr);
-             tcp_ip_free_pkt_buffer ((byte *)ethernet_hdr, ETH_HDR_SIZE_EXCL_PAYLOAD + payload_size);
+                        node->node_name, ip_addr);
+             pkt_block_dereference(pkt_block);
             return;
         }
     }
@@ -62,18 +66,12 @@ send_arp_broadcast_request(node_t *node,
     arp_hdr->op_code = ARP_BROAD_REQ;
 
     memcpy(arp_hdr->src_mac.mac, IF_MAC(oif), MAC_ADDR_SIZE);
-
     arp_hdr->src_ip = IF_IP(oif);
-
     memset(arp_hdr->dst_mac.mac, 0,  MAC_ADDR_SIZE);
-
     arp_hdr->dst_ip = tcp_ip_convert_ip_p_to_n(ip_addr);
-
     SET_COMMON_ETH_FCS(ethernet_hdr, sizeof(arp_hdr_t), 0); /*Not used*/
 
     /*STEP 3 : Now dispatch the ARP Broadcast Request Packet out of interface*/
-    pkt_block = pkt_block_get_new((uint8_t *)ethernet_hdr, 
-                            ETH_HDR_SIZE_EXCL_PAYLOAD + payload_size);
     pkt_block_set_starting_hdr_type(pkt_block, ETH_HDR);
     oif->SendPacketOut(pkt_block);
     pkt_block_dereference(pkt_block);
@@ -274,13 +272,13 @@ arp_table_entry_add(node_t *node,
 
     /*Case 4 : If existing ARP table entry is sane, but new one is full,
      * then copy contents of new ARP entry to old one, return false*/
-    if(arp_entry_old && 
+    if (arp_entry_old && 
         arp_entry_sane(arp_entry_old) && 
         !arp_entry_sane(arp_entry)){
 
-        string_copy( (char *)arp_entry_old->mac_addr.mac,
+        memcpy( (char *)arp_entry_old->mac_addr.mac,
 				(char *)arp_entry->mac_addr.mac, sizeof(mac_addr_t));
-        string_copy( (char *)arp_entry_old->oif_name, 
+        memcpy( (char *)arp_entry_old->oif_name, 
                  ( char *)arp_entry->oif_name, IF_NAME_SIZE);
         arp_entry_old->oif_name[IF_NAME_SIZE -1] = '\0';
 
@@ -332,7 +330,8 @@ delete_arp_pending_entry (arp_pending_entry_t *arp_pending_entry){
 
 void
 arp_table_update_from_arp_reply(arp_table_t *arp_table, 
-                                arp_hdr_t *arp_hdr, Interface *iif){
+                                                        arp_hdr_t *arp_hdr, 
+                                                        Interface *iif) {
 
     uint32_t src_ip = 0;
     glthread_t *arp_pending_list = NULL;
@@ -431,7 +430,7 @@ add_arp_pending_entry (arp_entry_t *arp_entry,
         pkt_block_t *pkt_block){
 
     arp_pending_entry_t *arp_pending_entry = 
-        (arp_pending_entry_t *)calloc(1, sizeof(arp_pending_entry_t) );
+        (arp_pending_entry_t *)XCALLOC(0, 1, arp_pending_entry_t);
 
     init_glthread(&arp_pending_entry->arp_pending_entry_glue);
     arp_pending_entry->cb = cb;

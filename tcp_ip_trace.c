@@ -6,6 +6,10 @@
 #include "tcp_public.h"
 
 extern graph_t *topo;
+static int
+tcp_dump_gre_hdr(char *buff, 
+                        gre_hdr_t *gre_hdr,
+                        pkt_size_t pkt_size);
 
 static c_string
 string_ethernet_hdr_type(unsigned short type, char *string_buffer){
@@ -52,7 +56,7 @@ string_arp_hdr_type(int type,  char *string_buffer){
 }
 
 static c_string
-string_ip_hdr_protocol_val(uint8_t type,   c_string string_buffer){
+string_ip_hdr_protocol_val(uint16_t type,   c_string string_buffer){
 
     switch(type){
 
@@ -64,7 +68,10 @@ string_ip_hdr_protocol_val(uint8_t type,   c_string string_buffer){
              break;
         case TCP_PROTO:
              string_copy((char *)string_buffer, "TCP_PROTO", strlen("TCP_PROTO"));
-             break;             
+             break;       
+        case GRE_PROTO:
+             string_copy((char *)string_buffer, "GRE_PROTO", strlen("GRE_PROTO"));
+             break;      
         case DDCP_MSG_TYPE_UCAST_REPLY:
             string_copy((char *)string_buffer, "DDCP_MSG_TYPE_UCAST_REPLY" , 
                 strlen("DDCP_MSG_TYPE_UCAST_REPLY"));
@@ -117,6 +124,11 @@ tcp_dump_ip_hdr(c_string buff, ip_hdr_t *ip_hdr, pkt_size_t pkt_size){
         break;
         case TCP_PROTO:
         break;
+        case GRE_PROTO:
+            rc += tcp_dump_gre_hdr(buff + rc, 
+                        (gre_hdr_t *)INCREMENT_IPHDR(ip_hdr), 
+                        IP_HDR_PAYLOAD_SIZE(ip_hdr));
+            break;
         default:
             pkt_block = pkt_block_get_new((uint8_t *)INCREMENT_IPHDR(ip_hdr), 
                                     (pkt_size_t )IP_HDR_PAYLOAD_SIZE(ip_hdr));
@@ -141,7 +153,7 @@ tcp_dump_arp_hdr(c_string buff, arp_hdr_t *arp_hdr,
     int rc = 0;
     byte ip1[16];
     byte ip2[16];
-    byte string_buffer[32];
+    byte string_buffer[48];
 
     rc +=  sprintf((char *)buff, "ARP Hdr : ");
     rc += sprintf((char *)buff + rc, "Arp Type: %s %02x:%02x:%02x:%02x:%02x:%02x -> "
@@ -238,6 +250,34 @@ tcp_dump_ethernet_hdr(char *buff,
     return rc;
 }
 
+int
+tcp_dump_gre_hdr(char *buff, 
+                        gre_hdr_t *gre_hdr,
+                        pkt_size_t pkt_size){
+
+    int rc = 0;
+     rc += sprintf(buff + rc, "GRE hdr : 0x%x\n", gre_hdr->protocol_type);
+
+    switch (gre_hdr->protocol_type) {
+
+        case ETH_IP:
+            rc += tcp_dump_ip_hdr(buff + rc, 
+                    (ip_hdr_t *)(gre_hdr + 1), 
+                    pkt_size - sizeof(gre_hdr_t));
+            break;
+
+        case GRE_ENCAP_ETHERNET:
+            rc += tcp_dump_ethernet_hdr(buff + rc, 
+                    (ethernet_hdr_t *)(gre_hdr + 1), 
+                    pkt_size - sizeof(gre_hdr_t));
+            break;
+
+        default:
+            assert(0);
+    }
+    return rc;
+}
+
 static void 
 tcp_write_data(int sock_fd, 
                FILE *log_file1, FILE *log_file2, 
@@ -280,6 +320,7 @@ tcp_write_data(int sock_fd,
     write(sock_fd, out_buff, buff_size);
 }
 
+
 static void
 tcp_dump(int sock_fd, 
          FILE *log_file1,
@@ -305,6 +346,10 @@ tcp_dump(int sock_fd,
         case IP_HDR:
             rc = tcp_dump_ip_hdr(out_buff + write_offset, 
                 (ip_hdr_t *)pkt, pkt_size);
+            break;
+        case GRE_HDR:
+            rc = tcp_dump_gre_hdr (out_buff + write_offset, 
+                (gre_hdr_t *)pkt, pkt_size);
             break;
         default:
 			rc = nfc_pkt_trace_invoke_notif_to_sbscribers(

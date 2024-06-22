@@ -254,7 +254,7 @@ demote_pkt_to_layer2 (node_t *node, /*Current node*/
 
      pkt_size_t pkt_size;
      
-    switch(hdr_type){
+    switch (hdr_type){
 
         case IP_HDR:
         case IP_IN_IP_HDR:
@@ -416,25 +416,23 @@ promote_pkt_to_layer2(
                 switch(arp_hdr->op_code){
                     case ARP_BROAD_REQ:
                         process_arp_broadcast_request(node, iif, ethernet_hdr);
-                        assert(!pkt_block_dereference(pkt_block));
                         return;
                     case ARP_REPLY:
                         process_arp_reply_msg(node, iif, ethernet_hdr);
-                        assert(!pkt_block_dereference(pkt_block));
                         return;
                     default:
                         assert(0);
                 }
             }
             break;
+
         case ETH_IP:
         case IP_IN_IP:
             promote_pkt_to_layer3(node, iif, 
                     pkt_block,
                     ethernet_hdr->type);
             break;
-        default:
-            assert(!pkt_block_dereference(pkt_block));
+        default: ;
     }
 }
 

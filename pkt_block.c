@@ -28,54 +28,6 @@
 #include "tcpconst.h"
 #include "pkt_block.h"
 
-typedef enum {
-
-    PKT_BLOCK_INFO_NONE,
-    PKT_BLOCK_GRE_ENCAP_INFO
-
-} pkt_block_meta_info_type_t;
-
-typedef struct pkt_block_meta_ {
-
-    pkt_block_meta_info_type_t info_type;
-    union {
-
-        struct {
-
-            uint16_t gre_protocol;
-
-            union {
-
-                struct {
-                    uint32_t src_ip;
-                    uint32_t dst_ip;
-                    uint16_t prot;
-                } ip_hdr_info; 
-
-                struct {
-                    uint8_t src_mac[6];
-                    uint8_t dst_mac[6];
-                    uint16_t vlan_id;
-                } eth_hdr_info;
-
-            } gre_u;
-
-        } gre_encap_info;
-
-    } u;
-
-} pkt_block_meta_t;
-
-
-struct pkt_block_ {
-
-    uint8_t *pkt;
-    pkt_size_t pkt_size;
-    hdr_type_t hdr_type; /* Starting hdr type */
-    uint8_t ref_count;
-    pkt_block_meta_t meta_info;
-} ;
-
 void
 pkt_block_mem_init () {
 
@@ -98,10 +50,20 @@ pkt_block_get_new(uint8_t *pkt, pkt_size_t pkt_size) {
     return pkt_block;
 }
 
+pkt_block_t *
+pkt_block_get_new_pkt_buffer(pkt_size_t pkt_size) {
+
+    pkt_block_t *pkt_block = (pkt_block_t *)XCALLOC(0, 1, pkt_block_t);
+    pkt_block->pkt = (uint8_t *)tcp_ip_get_new_pkt_buffer(pkt_size);
+    pkt_block->pkt_size = pkt_size;
+    pkt_block->ref_count = 0;
+    return pkt_block;
+}
+
 uint8_t *
 pkt_block_get_pkt(pkt_block_t *pkt_block, pkt_size_t *pkt_size) {
 
-    *pkt_size = pkt_block->pkt_size;
+    if (pkt_size) *pkt_size = pkt_block->pkt_size;
     return (uint8_t *)pkt_block->pkt;
 }
 
@@ -291,25 +253,15 @@ tcp_ip_expand_buffer_ethernet_hdr(pkt_block_t *pkt_block) {
 
     /* No use case of encapsulating ethernet hdr inside ethernet hdr */
     assert (pkt_block_get_starting_hdr (pkt_block) != ETH_HDR);
-    
     uint8_t *pkt = pkt_block_get_pkt(pkt_block, &pkt_size);
-
     char *temp = (char *)XCALLOC_BUFF(0, pkt_size);   
-
     memcpy(temp, pkt, pkt_size);    
-
     pkt_block_expand_buffer_left (pkt_block, ETH_HDR_SIZE_EXCL_PAYLOAD);
-
     ethernet_hdr_t *eth_hdr = (ethernet_hdr_t *)pkt_block_get_pkt(pkt_block, &new_pkt_size);
-
     memset((char *)eth_hdr, 0, ETH_HDR_SIZE_EXCL_PAYLOAD);
-
     memcpy(eth_hdr->payload, temp, pkt_size);
-
     SET_COMMON_ETH_FCS(eth_hdr, pkt_size, 0);
-
     XFREE(temp);
-
     pkt_block_set_starting_hdr_type(pkt_block , ETH_HDR);
 }
 

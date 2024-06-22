@@ -124,7 +124,7 @@ demote_pkt_to_layer2(node_t *node,
                      pkt_block_t *pkt_block,
                      hdr_type_t hdr_type);
 
-static void
+void
 layer3_ip_route_pkt(node_t *node,
 							   Interface *interface,
 					           pkt_block_t *pkt_block) {
@@ -133,7 +133,9 @@ layer3_ip_route_pkt(node_t *node,
     char *l4_hdr, *l5_hdr;
     char dest_ip_addr[16];
     ip_hdr_t *ip_hdr = NULL;
-    
+    uint32_t next_hop_ip= 0;
+    nexthop_t *nexthop = NULL;
+
     /* We are in L3 IP land, so starting hdr type must be IP_HDR */
     assert (pkt_block_get_starting_hdr(pkt_block) == IP_HDR ||
                 pkt_block_get_starting_hdr(pkt_block) == IP_IN_IP_HDR);
@@ -200,28 +202,41 @@ layer3_ip_route_pkt(node_t *node,
                     promote_pkt_to_layer4(node, interface, 
 								pkt_block, ip_hdr->protocol);
                     return;
+
                 case ICMP_PROTO:
                     cprintf("IP Address : %s, ping success\n", dest_ip_addr);
                     return;
+
                 case UDP_PROTO:
                         promote_pkt_to_layer4 (
                                               node, interface,
 											  pkt_block,
                                               UDP_HDR);
                     return;
+
                 case IP_IN_IP:
                     /*Packet has reached ERO, now set the packet onto its new 
                       Journey from ERO to final destination*/
                     pkt_block_set_new_pkt(pkt_block, 
                                                             (uint8_t *)INCREMENT_IPHDR(ip_hdr),
                                                             IP_HDR_PAYLOAD_SIZE(ip_hdr));
+                    pkt_block_set_starting_hdr_type (pkt_block, IP_IN_IP);
                     layer3_ip_route_pkt(node,
                                                       interface, 
                                                       pkt_block);
                     return;
+
                 case GRE_PROTO:
                     cprintf ("GRE pkt recvd\n");
-                    break;
+                    pkt_block_set_new_pkt(pkt_block, 
+                                                            (uint8_t *)INCREMENT_IPHDR(ip_hdr),
+                                                            IP_HDR_PAYLOAD_SIZE(ip_hdr));
+                    pkt_block_set_starting_hdr_type (pkt_block, GRE_HDR);
+
+                    gre_decapsulate (node, pkt_block, 
+                        gre_lookup_tunnel_intf(node, ip_hdr->dst_ip, ip_hdr->src_ip));
+                    return;
+
                 default: ;
 
             }
@@ -234,14 +249,16 @@ layer3_ip_route_pkt(node_t *node,
          
         /* case 2 : It means, the dst ip address lies in direct connected
          * subnet of this router, time for l2 routing*/
+        nexthop = l3_route_get_active_nexthop(l3_route);
 
         demote_pkt_to_layer2 (
                 node,           /*Current processing node*/
                 ip_hdr->dst_ip,     /*next hop IP is dest itself as dest is present in local subnet*/
-                NULL,           /*No oif as dest is present in local subnet*/
+                nexthop->oif->if_name.c_str(),           /*No oif as dest is present in local subnet*/
                 pkt_block,  /*Network Layer payload and size*/
                 IP_HDR);        /*Network Layer need to tell Data link layer, what type of payload it is passing down*/
 
+        nexthop->hit_count++;
         return;
     }
 
@@ -251,9 +268,6 @@ layer3_ip_route_pkt(node_t *node,
 
     /* If route is non direct, then ask LAyer 2 to send the pkt
      * out of all ecmp nexthops of the route*/
-    uint32_t next_hop_ip= 0;
-    nexthop_t *nexthop = NULL;
-
     nexthop = l3_route_get_active_nexthop(l3_route);
 
     nf_result = nf_invoke_netfilter_hook(
@@ -944,12 +958,12 @@ demote_packet_to_layer3 (node_t *node,
 
         switch (nf_result)
         {
-        case NF_ACCEPT:
-            break;
-        case NF_DROP:
-        case NF_STOLEN:
-        case NF_STOP:
-            return;
+            case NF_ACCEPT:
+                break;
+            case NF_DROP:
+            case NF_STOLEN:
+            case NF_STOP:
+                return;
         }
 
         demote_pkt_to_layer2(node,
@@ -996,12 +1010,12 @@ demote_packet_to_layer3 (node_t *node,
             IP_HDR);
 
     switch (nf_result) {
-    case NF_ACCEPT:
-        break;
-    case NF_DROP:
-    case NF_STOLEN:
-    case NF_STOP:
-        return;
+        case NF_ACCEPT:
+            break;
+        case NF_DROP:
+        case NF_STOLEN:
+        case NF_STOP:
+            return;
     }
 
     demote_pkt_to_layer2(node,
@@ -1078,23 +1092,14 @@ layer3_ero_ping_fn(node_t *node,
 /*Wrapper fn to be used by Applications*/
 void
 tcp_ip_send_ip_data(node_t *node, 
-                                  c_string app_data, uint32_t data_size,
+                                  pkt_block_t *pkt_block,
                                   hdr_type_t L5_protocol_id, 
                                   uint32_t dest_ip_address) {
-
-    pkt_block_t *pkt_block = pkt_block_get_new(
-        (uint8_t *)app_data, (pkt_size_t)data_size);
-
-    pkt_block_set_starting_hdr_type(pkt_block, MISC_APP_HDR);
-
-    pkt_block_reference(pkt_block);
 
     demote_packet_to_layer3(node, 
                                               pkt_block,
                                               L5_protocol_id,
                                               dest_ip_address);
-
-    pkt_block_dereference(pkt_block);
 }
 
 

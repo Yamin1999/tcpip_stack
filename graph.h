@@ -68,7 +68,7 @@ struct node_ {
 
     char node_name[NODE_NAME_SIZE];
     Interface *intf[MAX_INTF_PER_NODE];
-    
+
     /* For Network Sockets */
     unsigned int udp_port_number;
     int udp_sock_fd;

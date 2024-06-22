@@ -41,6 +41,7 @@
 #include "../EventDispatcher/event_dispatcher.h"
 #include "../mtrie/mtrie.h"
 #include "../LinuxMemoryManager/uapi_mm.h"
+#include "../pkt_block.h"
 
 #pragma pack (push,1)
 
@@ -260,10 +261,13 @@ rt_table_perform_app_operation_on_routes (
 
 void
 tcp_ip_send_ip_data(node_t *node, 
-                                  c_string app_data, uint32_t data_size,
+                                  pkt_block_t *pkt_block,
                                   hdr_type_t L5_protocol_id, 
                                   uint32_t dest_ip_address);
-
+void
+layer3_ip_route_pkt(node_t *node,
+							   Interface *interface,
+					           pkt_block_t *pkt_block) ;
 
 void
 rt_ipv4_route_add (node_t *node, 

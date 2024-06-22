@@ -1065,8 +1065,14 @@ GRETunnelInterface::InterfaceSetIpAddressMask(uint32_t ip_addr, uint8_t mask) {
 void 
 GRETunnelInterface::InterfaceGetIpAddressMask(uint32_t *ip_addr, uint8_t *mask) {
 
+    if (this->config_flags & GRE_TUNNEL_OVLAY_IP_SET) {
+
         *ip_addr = this->lcl_ip;
         *mask = this->mask;
+        return;
+    }
+    *ip_addr = 0;
+    *mask = 0;
 }
 
 bool 
@@ -1093,8 +1099,7 @@ GRETunnelInterface::IsSameSubnet(uint32_t ip_addr)
 mac_addr_t *
 GRETunnelInterface::GetMacAddr() {
 
-    if (!this->tunnel_src_intf) return NULL;
-    return this->tunnel_src_intf->GetMacAddr();
+    return &this->att_node->node_nw_prop.rmac;
 }
 
 void GRETunnelInterface::PrintInterfaceDetails()
@@ -1127,18 +1132,19 @@ void GRETunnelInterface::PrintInterfaceDetails()
 int 
 GRETunnelInterface::SendPacketOut(pkt_block_t *pkt_block)
 {
-    uint8_t *pkt;
     pkt_size_t pkt_size;
-    byte ip_addr_str[16];
     node_t *node = this->att_node;
 
     if (!this->IsGRETunnelActive()) {
-        return -1;
+        return 0;
     }
     
-    gre_packet_attach_headers_to_payload (pkt_block);
+    gre_encasulate (pkt_block);
+    pkt_block_get_pkt(pkt_block, &pkt_size);
 
-    return 0;
+    /* Now attach outer IP Hdr and send the pkt*/
+    tcp_ip_send_ip_data (node, pkt_block, GRE_HDR,  this->tunnel_dst_ip);
+    return pkt_size;
 }
 
 bool 
