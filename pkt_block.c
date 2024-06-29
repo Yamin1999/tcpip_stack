@@ -83,6 +83,8 @@ void
 pkt_block_free(pkt_block_t *pkt_block) {
 
     tcp_ip_free_pkt_buffer(pkt_block->pkt, pkt_block->pkt_size);
+    assert (!pkt_block->recommended_oif);
+    assert (!pkt_block->exclude_oif);
     XFREE(pkt_block);
 }
 
@@ -92,6 +94,8 @@ pkt_block_dereference(pkt_block_t *pkt_block) {
     uint8_t ref_count = pkt_block->ref_count;
 
     if (pkt_block->ref_count == 0) {
+        pkt_block_set_recommended_oif (pkt_block, NULL);
+        pkt_block_set_exclude_oif (pkt_block, NULL);
         pkt_block_free(pkt_block);
         return 0;
     }
@@ -99,6 +103,8 @@ pkt_block_dereference(pkt_block_t *pkt_block) {
     pkt_block->ref_count--;
 
     if (pkt_block->ref_count == 0) {
+        pkt_block_set_recommended_oif (pkt_block, NULL);
+        pkt_block_set_exclude_oif (pkt_block, NULL);
         pkt_block_free(pkt_block);
         return 0;
     }
@@ -283,4 +289,56 @@ print_pkt_block(pkt_block_t *pkt_block) {
 void 
 pkt_block_debug(pkt_block_t *pkt_block) {
     
+}
+
+void 
+pkt_block_set_recommended_oif (pkt_block_t *pkt_block, Interface *oif) {
+
+    if (!oif && !pkt_block->recommended_oif) {
+        return;
+    }
+
+    if (!oif) {
+
+        if (pkt_block->recommended_oif ) {
+            pkt_block->recommended_oif->InterfaceUnLockDynamic();
+        }
+        pkt_block->recommended_oif = NULL;
+        return;
+    }
+
+    if (pkt_block->recommended_oif &&
+         pkt_block->recommended_oif != oif ) {
+
+        pkt_block->recommended_oif->InterfaceUnLockDynamic();
+    }
+
+    pkt_block->recommended_oif = oif;
+    oif->InterfaceLockDynamic();
+}
+
+void
+pkt_block_set_exclude_oif (pkt_block_t *pkt_block, Interface *oif) {
+
+    if (!oif && !pkt_block->exclude_oif) {
+        return;
+    }
+    
+    if (!oif) {
+
+        if (pkt_block->exclude_oif) {
+            pkt_block->exclude_oif->InterfaceUnLockDynamic();
+        }
+        pkt_block->exclude_oif = NULL;
+        return;
+    }
+
+    if (pkt_block->exclude_oif &&
+                pkt_block->exclude_oif != oif) {
+
+        pkt_block->exclude_oif->InterfaceUnLockDynamic();
+    }
+
+    pkt_block->exclude_oif = oif;
+    pkt_block->exclude_oif->InterfaceLockDynamic();
 }

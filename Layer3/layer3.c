@@ -246,7 +246,7 @@ layer3_ip_route_pkt(node_t *node,
          
         /* case 2 : It means, the dst ip address lies in direct connected
          * subnet of this router, time for l2 routing*/
-        nexthop = l3_route_get_active_nexthop(l3_route);
+        nexthop = l3_route_get_active_nexthop(l3_route, pkt_block->exclude_oif);
 
         demote_pkt_to_layer2 (
                 node,           /*Current processing node*/
@@ -265,7 +265,7 @@ layer3_ip_route_pkt(node_t *node,
 
     /* If route is non direct, then ask LAyer 2 to send the pkt
      * out of all ecmp nexthops of the route*/
-    nexthop = l3_route_get_active_nexthop(l3_route);
+    nexthop = l3_route_get_active_nexthop(l3_route, pkt_block->exclude_oif);
 
     nf_result = nf_invoke_netfilter_hook(
                         NF_IP_FORWARD,
@@ -414,30 +414,65 @@ clear_rt_table (rt_table_t *rt_table, uint16_t proto_id){
 }
 
 nexthop_t *
-l3_route_get_active_nexthop(l3_route_t *l3_route){
+l3_route_get_active_nexthop (l3_route_t *l3_route, Interface *exclude_oif) {
 
+    int nh_index_old;
     nexthop_t *nexthop;
     nxthop_proto_id_t nh_proto;
 
-    if(l3_is_direct_route(l3_route))
-        return NULL;
-    
+    if ( l3_is_direct_route (l3_route)) return NULL;
+
+    nh_index_old = l3_route->nxthop_idx;
+
     FOR_ALL_NXTHOP_PROTO(nh_proto) {
-        nexthop = l3_route->nexthops[nh_proto][l3_route->nxthop_idx];
-        if (nexthop) {
+
+        do {
+
+            nexthop = l3_route->nexthops[nh_proto][l3_route->nxthop_idx];
+
+            if (!nexthop) { 
+
+                l3_route->nxthop_idx++;
+
+                if (l3_route->nxthop_idx == MAX_NXT_HOPS) {
+                    l3_route->nxthop_idx = 0;
+                }
+
+                if (l3_route->nxthop_idx == nh_index_old) {
+                    break;
+                }
+
+                continue;
+            }
+
+            if (nexthop->oif == exclude_oif && exclude_oif) {
+
+                l3_route->nxthop_idx++;
+
+                if (l3_route->nxthop_idx == MAX_NXT_HOPS) {
+                    l3_route->nxthop_idx = 0;
+                }
+
+                if (l3_route->nxthop_idx == nh_index_old) {
+                    break;
+                }
+            }
+
             l3_route->nxthop_idx++;
-            if (l3_route->nxthop_idx == MAX_NXT_HOPS || 
-                 !l3_route->nexthops[nh_proto][l3_route->nxthop_idx]){
+
+            if (l3_route->nxthop_idx == MAX_NXT_HOPS) {
                 l3_route->nxthop_idx = 0;
             }
-            break;
-        }
-        else {
-            l3_route->nxthop_idx = 0;
-        }
+
+            return nexthop;
+
+        } while (1);
+
     }
-    return nexthop;
+
+    return NULL;
 }
+
 
 void
 rt_table_delete_route(
@@ -976,7 +1011,7 @@ demote_packet_to_layer3 (node_t *node,
     uint32_t next_hop_ip;
     nexthop_t *nexthop = NULL;
 
-    nexthop = l3_route_get_active_nexthop(l3_route);
+    nexthop = l3_route_get_active_nexthop(l3_route, pkt_block->exclude_oif);
     
     if(!nexthop){
         return;

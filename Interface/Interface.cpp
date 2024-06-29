@@ -1146,7 +1146,8 @@ GRETunnelInterface::SendPacketOut(pkt_block_t *pkt_block)
     }
 
     gre_encasulate (pkt_block);
-    pkt_block_get_pkt(pkt_block, &pkt_size);
+    pkt_block_get_pkt (pkt_block, &pkt_size);
+    pkt_block_set_exclude_oif (pkt_block, this);
 
     /* Now attach outer IP Hdr and send the pkt*/
     tcp_ip_send_ip_data (node, pkt_block, GRE_HDR,  this->tunnel_dst_ip);

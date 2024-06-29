@@ -35,6 +35,8 @@ struct pkt_block_ {
     hdr_type_t hdr_type; /* Starting hdr type */
     uint8_t ref_count;
     bool no_modify;
+    Interface *recommended_oif;
+    Interface *exclude_oif;
 } ;
 
 void
@@ -99,5 +101,11 @@ pkt_block_set_no_modify (pkt_block_t *pkt_block, bool modify) ;
 
 void 
 pkt_block_debug(pkt_block_t *pkt_block);
+
+void 
+pkt_block_set_recommended_oif (pkt_block_t *pkt_block, Interface *oif) ;
+
+void
+pkt_block_set_exclude_oif (pkt_block_t *pkt_block, Interface *oif) ;
 
 #endif

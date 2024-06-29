@@ -213,7 +213,7 @@ bool
 l3_is_direct_route(l3_route_t *l3_route);
 
 nexthop_t *
-l3_route_get_active_nexthop(l3_route_t *l3_route);
+l3_route_get_active_nexthop(l3_route_t *l3_route, Interface *exclude_oif);
 
 /* Routing Table APIs */
 void
