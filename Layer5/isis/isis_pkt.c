@@ -175,15 +175,6 @@ isis_lsp_pkt_recieve_cbk (event_dispatcher_t *ev_dis, void *arg, size_t arg_size
     pkt_block = pkt_notif_data->pkt_block;
     eth_hdr     = (ethernet_hdr_t *) pkt_block_get_pkt(pkt_block, &pkt_size);
 	hdr_code    = pkt_notif_data->hdr_code;	
-
-    /* Take Reference count because protocol would work
-        with this pkt block  now */
-    pkt_block_reference(pkt_block);
-
-    /* Free the pkt resources */
-    pkt_block_dereference(pkt_notif_data->pkt_block);
-    pkt_notif_data->pkt_block = NULL;
-    XFREE(pkt_notif_data);
     
     if (hdr_code != ETH_HDR) goto done;
     
@@ -208,8 +199,10 @@ isis_lsp_pkt_recieve_cbk (event_dispatcher_t *ev_dis, void *arg, size_t arg_size
         default:; 
     }
     done:
-    pkt_block_dereference(pkt_block); // release own lock
-    assert(!pkt_block_dereference(pkt_block)); // done with the pkt
+    /* Free the pkt resources */
+    pkt_block_dereference(pkt_notif_data->pkt_block);
+    pkt_notif_data->pkt_block = NULL;
+    XFREE(pkt_notif_data);    
 }
 
 void
@@ -233,16 +226,7 @@ isis_hello_pkt_recieve_cbk (event_dispatcher_t *ev_dis, void *arg, size_t arg_si
     pkt_block = pkt_notif_data->pkt_block;
     eth_hdr     = (ethernet_hdr_t *) pkt_block_get_pkt(pkt_block, &pkt_size);
 	hdr_code    = pkt_notif_data->hdr_code;	
-
-    /* Take Reference count because protocol would work
-        with this pkt block  now */
-    pkt_block_reference(pkt_block);
-
-    /* Free the pkt resources */
-    pkt_block_dereference(pkt_notif_data->pkt_block);
-    pkt_notif_data->pkt_block = NULL;
-    XFREE(pkt_notif_data);
-    
+   
     if (hdr_code != ETH_HDR) goto done;
     
     if (!isis_is_protocol_enable_on_node(node)) {
@@ -267,12 +251,14 @@ isis_hello_pkt_recieve_cbk (event_dispatcher_t *ev_dis, void *arg, size_t arg_si
         default:; 
     }
     done:
-    pkt_block_dereference(pkt_block); // release own lock
-    assert(!pkt_block_dereference(pkt_block)); // done with the pkt
+    /* Free the pkt resources */
+    pkt_block_dereference(pkt_notif_data->pkt_block);
+    pkt_notif_data->pkt_block = NULL;
+    XFREE(pkt_notif_data);    
 }
 
 byte *
-isis_prepare_hello_pkt(Interface *intf, size_t *hello_pkt_size) {
+isis_prepare_hello_pkt(Interface *intf, pkt_size_t *hello_pkt_size) {
 
     byte *temp;
     node_t *node;

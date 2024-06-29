@@ -1132,6 +1132,7 @@ void GRETunnelInterface::PrintInterfaceDetails()
 int 
 GRETunnelInterface::SendPacketOut(pkt_block_t *pkt_block)
 {
+    bool no_modify;
     pkt_size_t pkt_size;
     node_t *node = this->att_node;
     pkt_block_t *pkt_block_copy;
@@ -1141,7 +1142,8 @@ GRETunnelInterface::SendPacketOut(pkt_block_t *pkt_block)
     }
     
     if (pkt_block->no_modify) {
-        pkt_block_copy = pkt_block_dup(pkt_block);
+        no_modify = pkt_block->no_modify;
+        pkt_block_copy = pkt_block_dup (pkt_block);
         pkt_block = pkt_block_copy;
     }
 
@@ -1152,7 +1154,7 @@ GRETunnelInterface::SendPacketOut(pkt_block_t *pkt_block)
     /* Now attach outer IP Hdr and send the pkt*/
     tcp_ip_send_ip_data (node, pkt_block, GRE_HDR,  this->tunnel_dst_ip);
 
-    if (pkt_block->no_modify) {
+    if (no_modify) {
         pkt_block_dereference(pkt_block);
     }
 

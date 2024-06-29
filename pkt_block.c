@@ -41,22 +41,26 @@ pkt_block_get_starting_hdr(pkt_block_t *pkt_block) {
 }
 
 pkt_block_t *
-pkt_block_get_new(uint8_t *pkt, pkt_size_t pkt_size) {
+pkt_block_get_new2(uint8_t *pkt, pkt_size_t pkt_size, char *fn_name, uint16_t lineno) {
 
     pkt_block_t *pkt_block = (pkt_block_t *)XCALLOC(0, 1, pkt_block_t);
     pkt_block->pkt = pkt;
     pkt_block->pkt_size = pkt_size;
     pkt_block->ref_count = 1;
+    pkt_block->lineno = lineno;
+    pkt_block->fn_name = fn_name;
     return pkt_block;
 }
 
 pkt_block_t *
-pkt_block_get_new_pkt_buffer(pkt_size_t pkt_size) {
+pkt_block_get_new_pkt_buffer2(pkt_size_t pkt_size, char *fn_name, uint16_t lineno) {
 
     pkt_block_t *pkt_block = (pkt_block_t *)XCALLOC(0, 1, pkt_block_t);
     pkt_block->pkt = (uint8_t *)tcp_ip_get_new_pkt_buffer(pkt_size);
     pkt_block->pkt_size = pkt_size;
     pkt_block->ref_count = 1;
+    pkt_block->lineno = lineno;
+    pkt_block->fn_name = fn_name;
     return pkt_block;
 }
 
@@ -209,7 +213,7 @@ pkt_block_set_new_pkt(pkt_block_t *pkt_block, uint8_t *pkt, pkt_size_t pkt_size)
 }
 
 pkt_block_t *
-pkt_block_dup(pkt_block_t *pkt_block) {
+pkt_block_dup2(pkt_block_t *pkt_block, char *fn_name, uint16_t lineno) {
 
     pkt_block_t *pkt_block2 = (pkt_block_t *)XCALLOC(0, 1, pkt_block_t );
     pkt_block2->pkt = (uint8_t *) tcp_ip_get_new_pkt_buffer(pkt_block->pkt_size);
@@ -217,6 +221,8 @@ pkt_block_dup(pkt_block_t *pkt_block) {
     pkt_block2->pkt_size = pkt_block->pkt_size;
     pkt_block2->hdr_type = pkt_block->hdr_type;
     pkt_block2->ref_count = 1;
+    pkt_block2->lineno = lineno;
+    pkt_block2->fn_name = fn_name;    
     return pkt_block2;
 }
 
@@ -284,6 +290,7 @@ print_pkt_block(pkt_block_t *pkt_block) {
     cprintf ("pkt_block->pkt_size = %d\n", pkt_block->pkt_size);
     cprintf ("pkt_block->hdr_type = %d\n", pkt_block->hdr_type);
     cprintf ("pkt_block->ref_count = %d\n", pkt_block->ref_count);
+    cprintf ("pkt_block alloc :  %s(%d)\n", pkt_block->fn_name, pkt_block->lineno);
 }
 
 void 

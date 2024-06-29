@@ -234,7 +234,6 @@ gre_interface_updates (event_dispatcher_t *ev_dis, void *arg, unsigned int arg_s
     switch(flags) {
         case IF_UP_DOWN_CHANGE_F:
             //isis_handle_interface_up_down (intf, old_intf_prop_changed->up_status);
-            cprintf ("Gre recved Up down notif\n");
             break;
         case IF_IP_ADDR_CHANGE_F:
             /*isis_handle_interface_ip_addr_changed (intf, 
@@ -245,7 +244,7 @@ gre_interface_updates (event_dispatcher_t *ev_dis, void *arg, unsigned int arg_s
         case IF_VLAN_MEMBERSHIP_CHANGE_F:
         case IF_METRIC_CHANGE_F :
         break;
-    default: ;
+        default: ;
     }
 }
 
@@ -313,9 +312,7 @@ gre_decapsulate (node_t *node, pkt_block_t *pkt_block, Interface *gre_interface)
         case GRE_ENCAP_ETHERNET:
         {
              pkt_block_set_starting_hdr_type (pkt_block, ETH_HDR);
-             pkt_block_reference(pkt_block);
              dp_pkt_receive(node, gre_interface, pkt_block);
-             pkt_block_dereference(pkt_block);
         }
         break;
     }

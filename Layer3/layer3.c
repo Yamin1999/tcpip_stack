@@ -1079,8 +1079,6 @@ layer3_ping_fn(node_t *node, c_string dst_ip_addr, uint32_t count){
         /* We dont have any application or transport layer paylod, so, directly prepare
          * L3 hdr*/
         pkt_block = pkt_block_get_new(NULL, 0);
-        pkt_block_reference(pkt_block);
-
         demote_packet_to_layer3(node, pkt_block, ICMP_HDR, addr_int);
         pkt_block_dereference(pkt_block);
     }
@@ -1093,7 +1091,6 @@ layer3_ero_ping_fn(node_t *node,
 
     byte *pkt = tcp_ip_get_new_pkt_buffer (sizeof (ip_hdr_t) );
     pkt_block_t *pkt_block = pkt_block_get_new (pkt, sizeof (ip_hdr_t));
-    pkt_block_reference (pkt_block);
     pkt_block_set_starting_hdr_type (pkt_block, IP_HDR);
 
     /*Prepare the payload and push it down to the network layer.

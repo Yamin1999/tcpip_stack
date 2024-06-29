@@ -37,6 +37,8 @@ struct pkt_block_ {
     bool no_modify;
     Interface *recommended_oif;
     Interface *exclude_oif;
+    uint16_t lineno;
+    char *fn_name;
 } ;
 
 void
@@ -58,10 +60,10 @@ uint8_t
 pkt_block_dereference(pkt_block_t *pkt_block);
 
 pkt_block_t *
-pkt_block_get_new(uint8_t *pkt, pkt_size_t pkt_size);
+pkt_block_get_new2(uint8_t *pkt, pkt_size_t pkt_size, char *fn_name, uint16_t lineno);
 
 pkt_block_t *
-pkt_block_get_new_pkt_buffer(pkt_size_t pkt_size);
+pkt_block_get_new_pkt_buffer2(pkt_size_t pkt_size, char *fn_name, uint16_t lineno);
 
 void
 pkt_block_set_starting_hdr_type(pkt_block_t *pkt_block, hdr_type_t hdr_type) ;
@@ -82,7 +84,7 @@ void
 pkt_block_set_new_pkt(pkt_block_t *pkt_block, uint8_t *pkt, pkt_size_t pkt_size);
 
 pkt_block_t *
-pkt_block_dup(pkt_block_t *pkt_block);
+pkt_block_dup2(pkt_block_t *pkt_block, char *fn_name, uint16_t lineno);
 
 bool
 pkt_block_expand_buffer_left (pkt_block_t *pkt_block, pkt_size_t expand_bytes);
@@ -107,5 +109,14 @@ pkt_block_set_recommended_oif (pkt_block_t *pkt_block, Interface *oif) ;
 
 void
 pkt_block_set_exclude_oif (pkt_block_t *pkt_block, Interface *oif) ;
+
+#define pkt_block_get_new(pkt_ptr, pkt_size)  \
+    pkt_block_get_new2 (pkt_ptr, pkt_size, __FUNCTION__, __LINE__)
+
+#define pkt_block_get_new_pkt_buffer(pkt_size)  \
+    pkt_block_get_new_pkt_buffer2(pkt_size, __FUNCTION__, __LINE__)
+
+#define pkt_block_dup(pkt_block_ptr)    \
+    pkt_block_dup2(pkt_block_ptr, __FUNCTION__, __LINE__)
 
 #endif
