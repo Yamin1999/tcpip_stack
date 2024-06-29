@@ -34,6 +34,7 @@ struct pkt_block_ {
     pkt_size_t pkt_size;
     hdr_type_t hdr_type; /* Starting hdr type */
     uint8_t ref_count;
+    bool no_modify;
 } ;
 
 void
@@ -92,5 +93,11 @@ tcp_ip_expand_buffer_ethernet_hdr(pkt_block_t *pkt_block) ;
 
 void
 print_pkt_block(pkt_block_t *pkt_block);
+
+void 
+pkt_block_set_no_modify (pkt_block_t *pkt_block, bool modify) ;
+
+void 
+pkt_block_debug(pkt_block_t *pkt_block);
 
 #endif

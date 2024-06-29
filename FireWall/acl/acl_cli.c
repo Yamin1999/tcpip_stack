@@ -741,7 +741,6 @@ acl_build_config_cli_object_network_destination (param_t *root) {
         }
     }
 
-
     param_t *host = (param_t *)calloc(1, sizeof(param_t));
     init_param(host, CMD, "host", 0, 0, STRING, 0, "specify host IP Address");
     libcli_register_param(root, host);

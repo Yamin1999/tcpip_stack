@@ -95,7 +95,7 @@ send_arp_reply_msg(ethernet_hdr_t *ethernet_hdr_in, Interface *oif){
     ethernet_hdr_reply->type = PROTO_ARP;
     
     arp_hdr_t *arp_hdr_reply = (arp_hdr_t *)(GET_ETHERNET_HDR_PAYLOAD(ethernet_hdr_reply));
-    
+
     arp_hdr_reply->hw_type = 1;
     arp_hdr_reply->proto_type = 0x0800;
     arp_hdr_reply->hw_addr_len = sizeof(mac_addr_t);

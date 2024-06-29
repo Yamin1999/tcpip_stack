@@ -42,15 +42,7 @@ gre_tunnel_create (node_t *node, uint16_t tunnel_id) {
         return false;
     }
 
-#if 0
-    linkage_t *link = (linkage_t *)calloc(1, sizeof(linkage_t));
-    link->Intf1 = tunnel;
-    link->Intf1->link = link;
-    link->cost = 1;
-#endif
-
     node->intf[empty_intf_slot] = tunnel;
-
     tunnel->att_node = node;
     tunnel->InterfaceLockStatic();
     return true;
@@ -147,7 +139,6 @@ gre_tunnel_set_dst_addr (node_t *node, uint16_t tunnel_id, c_string dst_addr) {
         gre_tunnel->SetTunnelDestination(0);
     }
 }
-
 
 bool
  gre_tunnel_set_src_interface (node_t *node, uint16_t tunnel_id, c_string if_name) {
@@ -331,7 +322,7 @@ gre_decapsulate (node_t *node, pkt_block_t *pkt_block, Interface *gre_interface)
 }
 
 Interface *
-gre_lookup_tunnel_intf(node_t *node, uint32_t src_ip, uint32_t dst_ip) {
+gre_lookup_tunnel_intf (node_t *node, uint32_t src_ip, uint32_t dst_ip) {
 
     Interface *intf;
     GRETunnelInterface *gre_intf ;
@@ -348,7 +339,7 @@ gre_lookup_tunnel_intf(node_t *node, uint32_t src_ip, uint32_t dst_ip) {
                 return intf;
             }
         }
-    } 
+    }
     ITERATE_NODE_INTERFACES_END(node, intf);
 
     return NULL;

@@ -208,7 +208,8 @@ isis_lsp_pkt_recieve_cbk (event_dispatcher_t *ev_dis, void *arg, size_t arg_size
         default:; 
     }
     done:
-    assert(!pkt_block_dereference(pkt_block));
+    pkt_block_dereference(pkt_block); // release own lock
+    assert(!pkt_block_dereference(pkt_block)); // done with the pkt
 }
 
 void
@@ -266,7 +267,8 @@ isis_hello_pkt_recieve_cbk (event_dispatcher_t *ev_dis, void *arg, size_t arg_si
         default:; 
     }
     done:
-    assert(!pkt_block_dereference(pkt_block));
+    pkt_block_dereference(pkt_block); // release own lock
+    assert(!pkt_block_dereference(pkt_block)); // done with the pkt
 }
 
 byte *

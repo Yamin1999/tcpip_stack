@@ -35,8 +35,7 @@ isis_transmit_hello(event_dispatcher_t *ev_dis,  void *arg, uint32_t arg_size) {
 
     if (!arg) return;
 
-    isis_timer_data_t *isis_timer_data =
-        (isis_timer_data_t *)arg;
+    isis_timer_data_t *isis_timer_data = (isis_timer_data_t *)arg;
 
     node_t *node = isis_timer_data->node;
     Interface *egress_intf = isis_timer_data->intf;
@@ -47,9 +46,10 @@ isis_transmit_hello(event_dispatcher_t *ev_dis,  void *arg, uint32_t arg_size) {
 
     ISIS_INTF_INCREMENT_STATS(egress_intf, hello_pkt_sent);
     pkt_block = pkt_block_get_new((uint8_t *)hello_pkt, hello_pkt_size);
-    assert(pkt_block_get_starting_hdr(pkt_block) == ETH_HDR);
+    assert ( pkt_block_get_starting_hdr(pkt_block) == ETH_HDR );
     ethernet_hdr_t *eth_hdr = (ethernet_hdr_t *)pkt_block_get_pkt(pkt_block, &pkt_size);
     memcpy(eth_hdr->src_mac.mac, IF_MAC(egress_intf), sizeof(eth_hdr->src_mac.mac));
+    pkt_block_set_no_modify (pkt_block, true);
     egress_intf->SendPacketOut(pkt_block);
     XFREE(pkt_block);
 }
@@ -87,6 +87,7 @@ isis_send_hello_immediately (Interface *intf) {
             assert(pkt_block_get_starting_hdr(pkt_block) == ETH_HDR);
             ethernet_hdr_t *eth_hdr = (ethernet_hdr_t *)pkt_block_get_pkt(pkt_block, &pkt_size);
             memcpy(eth_hdr->src_mac.mac, IF_MAC(intf), sizeof(eth_hdr->src_mac.mac));
+            pkt_block_set_no_modify (pkt_block, true);
             intf->SendPacketOut(pkt_block);
             new_hello ? pkt_block_free (pkt_block) : XFREE(pkt_block);
     }

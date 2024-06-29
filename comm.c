@@ -88,7 +88,6 @@ dp_pkt_recvr_job_cbk (event_dispatcher_t *ev_dis, void *pkt, uint32_t pkt_size){
         pkt_block = pkt_block_get_new((uint8_t *)pkt, ev_dis_pkt_data->pkt_size);
         pkt_block_set_starting_hdr_type(pkt_block, ETH_HDR);
 
-        /* Bump the ref counter since pkt is now being injected into data path*/
         pkt_block_reference(pkt_block);
 
 		dp_pkt_receive(receving_node,

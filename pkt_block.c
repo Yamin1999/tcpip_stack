@@ -46,7 +46,7 @@ pkt_block_get_new(uint8_t *pkt, pkt_size_t pkt_size) {
     pkt_block_t *pkt_block = (pkt_block_t *)XCALLOC(0, 1, pkt_block_t);
     pkt_block->pkt = pkt;
     pkt_block->pkt_size = pkt_size;
-    pkt_block->ref_count = 0;
+    pkt_block->ref_count = 1;
     return pkt_block;
 }
 
@@ -56,7 +56,7 @@ pkt_block_get_new_pkt_buffer(pkt_size_t pkt_size) {
     pkt_block_t *pkt_block = (pkt_block_t *)XCALLOC(0, 1, pkt_block_t);
     pkt_block->pkt = (uint8_t *)tcp_ip_get_new_pkt_buffer(pkt_size);
     pkt_block->pkt_size = pkt_size;
-    pkt_block->ref_count = 0;
+    pkt_block->ref_count = 1;
     return pkt_block;
 }
 
@@ -210,7 +210,7 @@ pkt_block_dup(pkt_block_t *pkt_block) {
     memcpy(pkt_block2->pkt , pkt_block->pkt, pkt_block->pkt_size);
     pkt_block2->pkt_size = pkt_block->pkt_size;
     pkt_block2->hdr_type = pkt_block->hdr_type;
-    pkt_block2->ref_count = 0;
+    pkt_block2->ref_count = 1;
     return pkt_block2;
 }
 
@@ -265,6 +265,12 @@ tcp_ip_expand_buffer_ethernet_hdr(pkt_block_t *pkt_block) {
     pkt_block_set_starting_hdr_type(pkt_block , ETH_HDR);
 }
 
+void 
+pkt_block_set_no_modify (pkt_block_t *pkt_block, bool modify) {
+
+    pkt_block->no_modify = modify;
+}
+
 void
 print_pkt_block(pkt_block_t *pkt_block) {
 
@@ -272,4 +278,9 @@ print_pkt_block(pkt_block_t *pkt_block) {
     cprintf ("pkt_block->pkt_size = %d\n", pkt_block->pkt_size);
     cprintf ("pkt_block->hdr_type = %d\n", pkt_block->hdr_type);
     cprintf ("pkt_block->ref_count = %d\n", pkt_block->ref_count);
+}
+
+void 
+pkt_block_debug(pkt_block_t *pkt_block) {
+    
 }

@@ -49,7 +49,7 @@ access_group_unconfig (node_t *node,
 
 /* A fn to send the pkt as it is (unchanged) out on the interface */
 static int
-send_xmit_out(Interface *interface, pkt_block_t *pkt_block)
+send_xmit_out (Interface *interface, pkt_block_t *pkt_block)
 {
 
     pkt_size_t pkt_size;
@@ -1134,16 +1134,27 @@ GRETunnelInterface::SendPacketOut(pkt_block_t *pkt_block)
 {
     pkt_size_t pkt_size;
     node_t *node = this->att_node;
+    pkt_block_t *pkt_block_copy;
 
     if (!this->IsGRETunnelActive()) {
         return 0;
     }
     
+    if (pkt_block->no_modify) {
+        pkt_block_copy = pkt_block_dup(pkt_block);
+        pkt_block = pkt_block_copy;
+    }
+
     gre_encasulate (pkt_block);
     pkt_block_get_pkt(pkt_block, &pkt_size);
 
     /* Now attach outer IP Hdr and send the pkt*/
     tcp_ip_send_ip_data (node, pkt_block, GRE_HDR,  this->tunnel_dst_ip);
+
+    if (pkt_block->no_modify) {
+        pkt_block_dereference(pkt_block);
+    }
+
     return pkt_size;
 }
 

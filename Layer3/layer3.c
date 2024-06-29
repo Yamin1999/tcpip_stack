@@ -219,7 +219,7 @@ layer3_ip_route_pkt(node_t *node,
                       Journey from ERO to final destination*/
                     pkt_block_set_new_pkt(pkt_block, 
                                                             (uint8_t *)INCREMENT_IPHDR(ip_hdr),
-                                                            IP_HDR_PAYLOAD_SIZE(ip_hdr));
+                                                            pkt_block->pkt_size - IP_HDR_LEN_IN_BYTES(ip_hdr));
                     pkt_block_set_starting_hdr_type (pkt_block, IP_IN_IP);
                     layer3_ip_route_pkt(node,
                                                       interface, 
@@ -227,18 +227,15 @@ layer3_ip_route_pkt(node_t *node,
                     return;
 
                 case GRE_PROTO:
-                    cprintf ("GRE pkt recvd\n");
-                    pkt_block_set_new_pkt(pkt_block, 
+                    pkt_block_set_new_pkt (pkt_block, 
                                                             (uint8_t *)INCREMENT_IPHDR(ip_hdr),
-                                                            IP_HDR_PAYLOAD_SIZE(ip_hdr));
+                                                            pkt_block->pkt_size - IP_HDR_LEN_IN_BYTES(ip_hdr));
                     pkt_block_set_starting_hdr_type (pkt_block, GRE_HDR);
-
                     gre_decapsulate (node, pkt_block, 
-                        gre_lookup_tunnel_intf(node, ip_hdr->dst_ip, ip_hdr->src_ip));
+                        gre_lookup_tunnel_intf (node, ip_hdr->dst_ip, ip_hdr->src_ip));
                     return;
 
                 default: ;
-
             }
 
             promote_pkt_from_layer3_to_layer5(
@@ -1102,7 +1099,6 @@ tcp_ip_send_ip_data(node_t *node,
                                               dest_ip_address);
 }
 
-
 l3_route_t *
 l3_route_get_new_route () {
 
@@ -1131,7 +1127,7 @@ l3_route_dec_ref_count (l3_route_t *l3_route) {
 
     assert (l3_route->rt_ref_count);
     l3_route->rt_ref_count--;
-    if (l3_route->rt_ref_count) return l3_route->rt_ref_count;
+    if ( l3_route->rt_ref_count ) return l3_route->rt_ref_count;
     l3_route_free (l3_route);
     return 0;
 }

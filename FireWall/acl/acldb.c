@@ -995,7 +995,6 @@ access_group_config(node_t *node,
         access_list_reference(acc_lst);
     }
 
-    
     if (!access_list_is_compiled (acc_lst) &&
          access_list_should_compile (acc_lst)) {
 
