@@ -130,19 +130,22 @@ typedef struct rt_table_{
 #define RT_FLASH_REQ_F (1 << 3)
 
 typedef enum {
+
+    proto_nxthop_first,
+    proto_nxthop_static = proto_nxthop_first,
     proto_nxthop_isis,
-    proto_nxthop_static,
     proto_nxthop_max
+
 } nxthop_proto_id_t;
 
 static inline  nxthop_proto_id_t
-next_next_hop_proto ( nxthop_proto_id_t proto_id) {
+next_next_hop_proto ( nxthop_proto_id_t proto_id ) {
 
     switch (proto_id) {
         case proto_nxthop_isis:
-            return proto_nxthop_static;
-        case proto_nxthop_static:
             return proto_nxthop_max;
+        case proto_nxthop_static:
+            return proto_nxthop_isis;
         case proto_nxthop_max:
             assert(0);
             return proto_nxthop_max;
@@ -157,7 +160,7 @@ next_next_hop_first ( void ) {
 }
 
 #define FOR_ALL_NXTHOP_PROTO(nh_proto)  \
-    for (nh_proto = next_next_hop_first(); nh_proto < proto_nxthop_max; \
+    for (nh_proto =proto_nxthop_first; nh_proto < proto_nxthop_max; \
          nh_proto = next_next_hop_proto(nh_proto))
 
 static inline nxthop_proto_id_t

@@ -229,9 +229,11 @@ l2_forward_ip_packet(node_t *node,
         memcpy(ethernet_hdr->dst_mac.mac, arp_entry->mac_addr.mac, MAC_ADDR_SIZE);
         memcpy(ethernet_hdr->src_mac.mac, IF_MAC(oif), MAC_ADDR_SIZE);
         SET_COMMON_ETH_FCS(ethernet_hdr, ethernet_payload_size, 0);
+        pkt_block_debug (pkt_block);
         oif->SendPacketOut(pkt_block);
 		arp_entry_refresh_expiration_timer(arp_entry);
         arp_entry->hit_count++;
+        pkt_block_debug (pkt_block);
 }
 
 

@@ -163,6 +163,9 @@ is_same_subnet(c_string ip_addr,
                char mask,
                c_string other_ip_addr);
 
+extern int 
+cprintf(const char *format, ...);
+
 static inline byte *
 tcp_ip_get_new_pkt_buffer(uint32_t pkt_size){
 

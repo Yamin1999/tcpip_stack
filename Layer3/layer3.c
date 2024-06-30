@@ -456,6 +456,8 @@ l3_route_get_active_nexthop (l3_route_t *l3_route, Interface *exclude_oif) {
                 if (l3_route->nxthop_idx == nh_index_old) {
                     break;
                 }
+
+                continue;
             }
 
             l3_route->nxthop_idx++;
@@ -1016,6 +1018,9 @@ demote_packet_to_layer3 (node_t *node,
     if(!nexthop){
         return;
     }
+
+    if (pkt_block->exclude_oif &&
+            pkt_block->exclude_oif == nexthop->oif) assert(0);
 
 #if 0
     if (access_list_evaluate_ip_packet(node, 
