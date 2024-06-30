@@ -1132,8 +1132,8 @@ void GRETunnelInterface::PrintInterfaceDetails()
 int 
 GRETunnelInterface::SendPacketOut(pkt_block_t *pkt_block)
 {
-    bool no_modify;
     pkt_size_t pkt_size;
+    bool no_modify = false;
     node_t *node = this->att_node;
     pkt_block_t *pkt_block_copy;
 

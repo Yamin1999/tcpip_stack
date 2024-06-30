@@ -27,10 +27,6 @@ send_arp_broadcast_request(node_t *node,
 
     pkt_block_t *pkt_block = pkt_block_get_new_pkt_buffer(
                                                     ETH_HDR_SIZE_EXCL_PAYLOAD + payload_size);
-    pkt_block_debug(pkt_block);
-    //printf ("alloc = %p \n", 
-    //pkt_block->pkt - (MAX_PACKET_BUFFER_SIZE - pkt_block->pkt_size - PKT_BUFFER_RIGHT_ROOM));
-
     ethernet_hdr_t *ethernet_hdr =  (ethernet_hdr_t *) pkt_block_get_pkt(pkt_block, NULL);
     
     if(!oif) {
@@ -77,9 +73,6 @@ send_arp_broadcast_request(node_t *node,
     /*STEP 3 : Now dispatch the ARP Broadcast Request Packet out of interface*/
     pkt_block_set_starting_hdr_type(pkt_block, ETH_HDR);
     oif->SendPacketOut(pkt_block);
-    //printf ("free = %p \n", 
-    //pkt_block->pkt - (MAX_PACKET_BUFFER_SIZE - pkt_block->pkt_size - PKT_BUFFER_RIGHT_ROOM));
-    pkt_block_debug(pkt_block);
     pkt_block_dereference(pkt_block);
 }
 
