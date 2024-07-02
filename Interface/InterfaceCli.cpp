@@ -19,6 +19,9 @@ config_interface_build_transport_svc_cli_tree (
 
 extern int validate_mask_value(Stack_t *tlv_stack, c_string mask_str);
 
+void
+Interface_config_cli_common_subtree (param_t *if_name, uint64_t unsupported_configs);
+
 static int
 validate_vlan_id(Stack_t *tlv_stack, c_string vlan_value){
 
@@ -363,6 +366,111 @@ intf_config_handler(int cmdcode, Stack_t *tlv_stack,
         return 0;
 }
 
+void
+Interface_config_cli_common_subtree (param_t *if_name, uint64_t unsupported_configs)
+{
+
+    {
+        /*CLI for traceoptions at interface level are hooked up here in tree */
+        if (!(unsupported_configs & INTF_CONFIG_NOT_SUPPORTED_TRACEOPTIONS))
+        {
+            tcp_ip_traceoptions_cli(0, if_name);
+        }
+
+        if (!(unsupported_configs & INTF_CONFIG_NOT_SUPPORTED_TSP))
+        {
+            config_interface_build_transport_svc_cli_tree(0, if_name);
+        }
+
+        if (!(unsupported_configs & INTF_CONFIG_NOT_SUPPORTED_SWITCHPORT))
+        {
+            /*config node <node-name> interface <if-name> switchport */
+            static param_t switchport;
+            init_param(&switchport, CMD, "switchport", intf_config_handler, 0, INVALID, 0, "\"switchport\" keyword");
+            libcli_register_param(if_name, &switchport);
+            libcli_set_param_cmd_code(&switchport, CMDCODE_INTF_CONFIG_SWITCHPORT);
+            {
+                /*config node <node-name> interface <if-name> switchport access ...*/
+                static param_t access;
+                init_param(&access, CMD, "access", intf_config_handler, 0, INVALID, 0, "\"switchport\" keyword");
+                libcli_register_param(&switchport, &access);
+                {
+                    /*config node <node-name> interface <if-name> switchport access vlan <vlan-id>*/
+                    static param_t vlan;
+                    init_param(&vlan, CMD, "vlan", 0, 0, INVALID, 0, "\"vlan\" keyword");
+                    libcli_register_param(&access, &vlan);
+                    {
+                        /*config node <node-name> interface <if-name> switchport access vlan <vlan-id>*/
+                        static param_t vlan_id;
+                        init_param(&vlan_id, LEAF, 0, intf_config_handler, validate_vlan_id, INT, "vlan-id", "vlan id(1-4095)");
+                        libcli_register_param(&vlan, &vlan_id);
+                        libcli_set_param_cmd_code(&vlan_id, CMDCODE_INTF_CONFIG_VLAN);
+                        libcli_set_tail_config_batch_processing(&vlan_id);
+                    }
+                }
+            }
+        }
+
+         if (!(unsupported_configs & INTF_CONFIG_NOT_SUPPORTED_UP_DOWN))
+        {
+            /*config node <node-name> interface <if-name> <up|down>*/
+            static param_t if_up_down_status;
+            init_param(&if_up_down_status, LEAF, 0, intf_config_handler, validate_if_up_down_status, STRING, "if-up-down", "<up | down>");
+            libcli_register_param(if_name, &if_up_down_status);
+            libcli_set_param_cmd_code(&if_up_down_status, CMDCODE_CONF_INTF_UP_DOWN);
+        }
+
+        if (!(unsupported_configs & INTF_CONFIG_NOT_SUPPORTED_METRIC))
+        {
+            /*config node <node-name> interface <if-name> metric <metric-val> */
+            static param_t metric;
+            init_param(&metric, CMD, "metric", 0, 0, INVALID, 0, "Interface Metric");
+            libcli_register_param(if_name, &metric);
+            {
+                static param_t metric_val;
+                init_param(&metric_val, LEAF, 0, intf_config_handler, validate_interface_metric_val, INT, "metric-val", "Metric Value(1-16777215)");
+                libcli_register_param(&metric, &metric_val);
+                libcli_set_param_cmd_code(&metric_val, CMDCODE_INTF_CONFIG_METRIC);
+            }
+        }
+
+        if (!(unsupported_configs & INTF_CONFIG_NOT_SUPPORTED_IP_ADDRESS))
+        {
+            /* config node <node-name> interface <if-name> ip-address <ip-addr> <mask>*/
+            static param_t ip_addr;
+            init_param(&ip_addr, CMD, "ip-address", 0, 0, INVALID, 0, "Interface IP Address");
+            libcli_register_param(if_name, &ip_addr);
+            {
+                static param_t ip_addr_val;
+                init_param(&ip_addr_val, LEAF, 0, 0, 0, IPV4, "intf-ip-address", "IPV4 address");
+                libcli_register_param(&ip_addr, &ip_addr_val);
+                {
+                    static param_t mask;
+                    init_param(&mask, LEAF, 0, intf_config_handler, validate_mask_value, INT, "mask", "mask [0-32]");
+                    libcli_register_param(&ip_addr_val, &mask);
+                    libcli_set_param_cmd_code(&mask, CMDCODE_INTF_CONFIG_IP_ADDR);
+                }
+            }
+        }
+
+        if (!(unsupported_configs & INTF_CONFIG_NOT_SUPPORTED_VLAN))
+        {
+            /*config node <node-name> interface <if-name> vlan*/
+            static param_t vlan;
+            init_param(&vlan, CMD, "vlan", 0, 0, INVALID, 0, "\"vlan\" keyword");
+            libcli_register_param(if_name, &vlan);
+            {
+                /*config node <node-name> interface <if-name> vlan <vlan-id>*/
+                static param_t vlan_id;
+                init_param(&vlan_id, LEAF, 0, intf_config_handler, validate_vlan_id, INT, "vlan-id", "vlan id(1-4096)");
+                libcli_register_param(&vlan, &vlan_id);
+                libcli_set_param_cmd_code(&vlan_id, CMDCODE_INTF_CONFIG_VLAN);
+            }
+        }
+
+    }
+}
+
 static void
 vlan_cli_config_tree(param_t *root)
 {
@@ -376,30 +484,12 @@ vlan_cli_config_tree(param_t *root)
             init_param(&vlan_id, LEAF, 0, intf_config_handler, validate_vlan_id, INT, "vlan-id", "vlan id(1-4096)");
             libcli_register_param(&vlan, &vlan_id);
             libcli_set_param_cmd_code(&vlan_id, CMDCODE_CONFIG_INTF_VLAN_CREATE);
-            {
-                /*config node <node-name> interface vlan <vlan-id> ip address <ip-addr> <mask>*/
-                static param_t ip_addr;
-                init_param(&ip_addr, CMD, "ip", 0, 0, INVALID, 0, "Interface IP Address");
-                libcli_register_param(&vlan_id, &ip_addr);
-                {
-                    static param_t ip_addr_val;
-                    init_param(&ip_addr_val, LEAF, 0, intf_config_handler, 0, IPV4, "intf-ip-address", "IPV4 address");
-                    libcli_register_param(&ip_addr, &ip_addr_val);
-                    {
-                        static param_t mask;
-                        init_param(&mask, LEAF, 0, intf_config_handler, validate_mask_value, INT, "mask", "mask [0-32]");
-                        libcli_register_param(&ip_addr_val, &mask);
-                        libcli_set_param_cmd_code(&mask, CMDCODE_INTF_CONFIG_IP_ADDR);
-                    }
-                }
-            }
-            {
-                /*config node <node-name> interface vlan <vlan-id> <up|down>*/
-                static param_t if_up_down_status;
-                init_param(&if_up_down_status, LEAF, 0, intf_config_handler, validate_if_up_down_status, STRING, "if-up-down", "<up | down>");
-                libcli_register_param(&vlan_id, &if_up_down_status);
-                libcli_set_param_cmd_code(&if_up_down_status, CMDCODE_CONF_INTF_UP_DOWN);
-            }
+
+             uint64_t unsupported_configs = ~0;
+             unsupported_configs &= ~INTF_CONFIG_NOT_SUPPORTED_IP_ADDRESS;
+             unsupported_configs &= ~INTF_CONFIG_NOT_SUPPORTED_UP_DOWN;
+             unsupported_configs &= ~INTF_CONFIG_NOT_SUPPORTED_TRACEOPTIONS;
+             Interface_config_cli_common_subtree(&vlan_id, unsupported_configs);
         }
 }
 
@@ -419,102 +509,46 @@ Interface_config_cli_tree (param_t *root) {
             }
 
             {
-                /*config node <node-name> interface <if-name>*/
-                static param_t if_name;
-                init_param(&if_name, LEAF, 0, 0, 0, STRING, "if-name", "Interface Name");
-                libcli_register_param(&interface, &if_name);
-	
+                static param_t loopback;
+                init_param(&loopback, CMD, "loopback", 0, 0, INVALID, 0, "loopback");
+                libcli_register_param(&interface, &loopback);
                 {
-                    /*CLI for traceoptions at interface level are hooked up here in tree */
-                    tcp_ip_traceoptions_cli (0, &if_name);
-                    config_interface_build_transport_svc_cli_tree (0, &if_name);
-                    {
-                        /*config node <node-name> interface <if-name> switchport */
-                        static param_t switchport;
-                        init_param(&switchport, CMD, "switchport", intf_config_handler, 0, INVALID, 0, "\"switchport\" keyword");
-                        libcli_register_param(&if_name, &switchport);
-                        libcli_set_param_cmd_code(&switchport, CMDCODE_INTF_CONFIG_SWITCHPORT);
-                        {
-                            /*config node <node-name> interface <if-name> switchport access ...*/
-                            static param_t access;
-                             init_param(&access, CMD, "access", intf_config_handler, 0, INVALID, 0, "\"switchport\" keyword");
-                             libcli_register_param(&switchport, &access);
-                            {
-                                /*config node <node-name> interface <if-name> switchport access vlan <vlan-id>*/
-                                static param_t vlan;
-                                init_param(&vlan, CMD, "vlan", 0, 0, INVALID, 0, "\"vlan\" keyword");
-                                libcli_register_param(&access, &vlan);
-                                {
-                                    /*config node <node-name> interface <if-name> switchport access vlan <vlan-id>*/
-                                    static param_t vlan_id;
-                                    init_param(&vlan_id, LEAF, 0, intf_config_handler, validate_vlan_id, INT, "vlan-id", "vlan id(1-4095)");
-                                    libcli_register_param(&vlan, &vlan_id);
-                                    libcli_set_param_cmd_code(&vlan_id, CMDCODE_INTF_CONFIG_VLAN);
-                                    libcli_set_tail_config_batch_processing(&vlan_id);
-                                }
-                            }
-                        }
-                    }
-                    {
-                        /*config node <node-name> interface <if-name> <up|down>*/
-                        static param_t if_up_down_status;
-                        init_param(&if_up_down_status, LEAF, 0, intf_config_handler, validate_if_up_down_status, STRING, "if-up-down", "<up | down>");
-                        libcli_register_param(&if_name, &if_up_down_status);
-                        libcli_set_param_cmd_code(&if_up_down_status, CMDCODE_CONF_INTF_UP_DOWN);
-                    }
+                    static param_t lono;
+                    init_param(&lono, LEAF, 0, intf_config_handler, NULL, INT, "lono", "Loopback ID");
+                    libcli_register_param(&loopback, &lono);
+                    libcli_set_param_cmd_code(&lono, CMDCODE_INTF_CONFIG_LOOPBACK);
                 }
+            }
+
+            {
+                 /*config node <node-name> interface virtual-port <vp-name> */
+                static param_t vp;
+                init_param(&vp, CMD, "virtual-port", 0, 0, INVALID, 0, "\"virtual-port\" keyword");
+                libcli_register_param(&interface, &vp);
                 {
-                    static param_t loopback;
-                    init_param(&loopback, CMD, "loopback", 0, 0, INVALID, 0, "loopback");
-                    libcli_register_param(&interface, &loopback);
-                    {
-                        static param_t lono;
-                        init_param(&lono, LEAF, 0, intf_config_handler, NULL, INT, "lono", "Loopback ID");
-                        libcli_register_param(&loopback, &lono);
-                        libcli_set_param_cmd_code(&lono, CMDCODE_INTF_CONFIG_LOOPBACK);
-                    }
+                    /*config node <node-name> interface virtual-port <vp-name> */
+                    static param_t vp_name;
+                    init_param(&vp_name, LEAF, 0, intf_config_handler, 0, STRING, "vp-name", "Virtual Port Name");
+                    libcli_register_param(&vp, &vp_name);
+                    libcli_set_param_cmd_code(&vp_name, CMDCODE_INTF_CONFIG_VP_CREATE);
+                    uint64_t unsupported_configs = 0;
+                    unsupported_configs |= INTF_CONFIG_NOT_SUPPORTED_METRIC;
+                    unsupported_configs |= INTF_CONFIG_NOT_SUPPORTED_IP_ADDRESS;
+                    Interface_config_cli_common_subtree (&vp_name, unsupported_configs);
                 }
+            }
+            {
+                /*config node <node-name> interface ethernet ... */
+                static param_t ethernet;
+                init_param(&ethernet, CMD, "ethernet", 0, 0, INVALID, 0, "\"ethernet\" keyword");
+                 libcli_register_param(&interface, &ethernet);
                 {
-                    static param_t metric;
-                    init_param(&metric, CMD, "metric", 0, 0, INVALID, 0, "Interface Metric");
-                    libcli_register_param(&if_name, &metric);
-                    {
-                        static param_t metric_val;
-                        init_param(&metric_val, LEAF, 0, intf_config_handler, validate_interface_metric_val, INT, "metric-val", "Metric Value(1-16777215)");
-                        libcli_register_param(&metric, &metric_val);
-                        libcli_set_param_cmd_code(&metric_val, CMDCODE_INTF_CONFIG_METRIC);
-                    }
+                    /*config node <node-name> interface ethernet <if-name>*/
+                    static param_t if_name;
+                    init_param(&if_name, LEAF, 0, 0, 0, STRING, "if-name", "Interface Name");
+                    libcli_register_param(&ethernet, &if_name);
+                    Interface_config_cli_common_subtree (&if_name, INTF_CONFIG_SUPPORT_ALL);
                 }
-                {
-                    /* config node <node-name> ineterface <if-name> ip-address <ip-addr> <mask>*/
-                    static param_t ip_addr;
-                    init_param(&ip_addr, CMD, "ip-address", 0, 0, INVALID, 0, "Interface IP Address");
-                    libcli_register_param(&if_name, &ip_addr);
-                    {
-                        static param_t ip_addr_val;
-                        init_param(&ip_addr_val, LEAF, 0, 0, 0, IPV4, "intf-ip-address", "IPV4 address");
-                        libcli_register_param(&ip_addr, &ip_addr_val);
-                        {
-                            static param_t mask;
-                            init_param(&mask, LEAF, 0, intf_config_handler, validate_mask_value, INT, "mask", "mask [0-32]");
-                            libcli_register_param(&ip_addr_val, &mask);
-                            libcli_set_param_cmd_code(&mask, CMDCODE_INTF_CONFIG_IP_ADDR);
-                        }
-                    }
-                }
-                {
-                    /*config node <node-name> interface <if-name> vlan*/
-                    static param_t vlan;
-                    init_param(&vlan, CMD, "vlan", 0, 0, INVALID, 0, "\"vlan\" keyword");
-                    libcli_register_param(&if_name, &vlan);
-                    {
-                        /*config node <node-name> interface <if-name> vlan <vlan-id>*/
-                         static param_t vlan_id;
-                         init_param(&vlan_id, LEAF, 0, intf_config_handler, validate_vlan_id, INT, "vlan-id", "vlan id(1-4096)");
-                         libcli_register_param(&vlan, &vlan_id);
-                         libcli_set_param_cmd_code(&vlan_id, CMDCODE_INTF_CONFIG_VLAN);
-                    }
-                }    
             }
             libcli_support_cmd_negation(&interface); 
 }

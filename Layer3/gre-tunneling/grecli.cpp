@@ -119,6 +119,9 @@ gre_tunnel_config_handler (int cmdcode,
     return 0;
 }
 
+extern  void
+Interface_config_cli_common_subtree (param_t *if_name, uint64_t unsupported_configs);
+
 /* conf node <node-name> interface ...*/
 void
 gre_cli_config_tree (param_t *interface) {
@@ -190,6 +193,13 @@ gre_cli_config_tree (param_t *interface) {
                      }
                  }
              }
+             /* Following configs are not supported on GRE interfaces*/
+             uint64_t unsupported_configs = 0;
+             unsupported_configs |= INTF_CONFIG_NOT_SUPPORTED_TSP;
+             unsupported_configs |= INTF_CONFIG_NOT_SUPPORTED_SWITCHPORT;
+             unsupported_configs |= INTF_CONFIG_NOT_SUPPORTED_VLAN;
+             Interface_config_cli_common_subtree(&tunnel_id, unsupported_configs);
         }
     }
+
 }

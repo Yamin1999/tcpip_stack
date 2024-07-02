@@ -1,0 +1,21 @@
+Software Function Specification for Extending VLANs ( Broadcast domain) over GRE tunnels
+====================================================================== 
+
+Introduce a new type of Interface called as 'virtual-port' . CLI to create new type of interfaces : 
+config node <node-name> interface virtual-port <vp-name>
+
+Allow all CLIs to functional on this virtual port which are supported on L2 port. These Virtual ports are always L2 ports.
+    Allow user to configure this virtual port in a access-mode or trunk mode.
+    Allow user to configure the vlan-id on this virtual port.
+
+    config node <node-name> interface virtual-port <vp-name> access-mode vlan-id <vlan-id>
+    config node <node-name> interface virtual-port <vp-name> transport-service-profile tsp1
+
+
+Bind this Virtual port with the Tunnel Interace (GRE) 
+    config node <node-name> interface virtual-port <vp-name> bind tunnel <tunnel-name>
+
+Encapsulation 
+==============
+
+

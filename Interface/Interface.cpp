@@ -1153,6 +1153,7 @@ GRETunnelInterface::SendPacketOut(pkt_block_t *pkt_block)
 
     /* Now attach outer IP Hdr and send the pkt*/
     tcp_ip_send_ip_data (node, pkt_block, GRE_HDR,  this->tunnel_dst_ip);
+    this->pkt_sent++;
 
     if (no_modify) {
         pkt_block_dereference(pkt_block);

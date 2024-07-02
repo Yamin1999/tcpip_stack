@@ -123,4 +123,7 @@
 /* show node <node-name> vlan members */
 #define CMDCODE_SHOW_VLAN_MEMBERS   51
 
+  /*config node <node-name> interface virtual-port <vp-name> */
+#define CMDCODE_INTF_CONFIG_VP_CREATE 52
+
 #endif /* __CMDCODES__ */
