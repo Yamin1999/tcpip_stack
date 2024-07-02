@@ -23,6 +23,8 @@ Project 8 : Implement support for Network Object Groups
 
 Project 9 : Implement a prototype of a routing protocol ( IGP )
 
+Project 10 : GRE Tunnel Support
+
 After Doing These Projects, you shall be able to :
 
 Tell why you need Data link layer and Network Layer
@@ -34,5 +36,5 @@ Conquer Interviews for the role of Network Developer Engineer
 Decorate your GitHub, and add a strong project to your HAT, Expected LOCs of this course shall exceed 70k !
 This project will fill up the gap between theoretical knowledge and the Implementation version of it. How does it sound that you have written code by your own hands to resolve ARP, packet forwarding, etc. Decorate your resume and GitHub with this project.
 
-Last updated : 2 June 2024
+Last updated : 1 July 2024
 ( Miss you Maa !! )
