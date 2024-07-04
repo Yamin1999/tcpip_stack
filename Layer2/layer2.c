@@ -535,6 +535,16 @@ l2_frame_recv_qualify_on_interface(
         }
     }
     
+    /* Tagged Ethernet pkt is allowed on GRE interface due to Vlan
+    Extension*/
+    if (interface->iftype == INTF_TYPE_GRE_TUNNEL &&
+            vlan_8021q_hdr) {
+                
+        *output_vlan_id = GET_802_1Q_VLAN_ID(vlan_8021q_hdr);
+        return true;
+    }
+
+
     /*If the interface is operating in L3 mode, and recv vlan tagged frame, drop it*/
     if(interface->IsIpConfigured() && vlan_8021q_hdr){
         /*case 2*/

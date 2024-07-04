@@ -57,8 +57,8 @@ mac_table_lookup(mac_table_t *mac_table, vlan_id_t vlan, c_string mac){
     ITERATE_GLTHREAD_BEGIN(&mac_table->mac_entries, curr){
 
         mac_table_entry = mac_entry_glue_to_mac_entry(curr);
-        if(string_compare(mac_table_entry->mac.mac, mac, sizeof(mac_addr_t)) == 0 &&
-                mac_table_entry->vlan_id == vlan){
+        if (mac_address_compare(mac_table_entry->mac.mac, mac) &&
+                mac_table_entry->vlan_id == vlan) {
 
             return mac_table_entry;
         }
@@ -94,10 +94,11 @@ delete_mac_table_entry(mac_table_t *mac_table, vlan_id_t vlan_id, c_string mac){
 }
 
 #define IS_MAC_TABLE_ENTRY_EQUAL(mac_entry_1, mac_entry_2)   \
+    (mac_address_compare  (mac_entry_1->mac.mac, mac_entry_2->mac.mac) && \
     (string_compare(mac_entry_1->mac.mac, mac_entry_2->mac.mac, sizeof(mac_addr_t)) == 0 && \
             string_compare(mac_entry_1->oif_name, mac_entry_2->oif_name, IF_NAME_SIZE) == 0 && \
             mac_entry_1->oif == mac_entry_2->oif && \
-            mac_entry_1->vlan_id == mac_entry_2->vlan_id)
+            mac_entry_1->vlan_id == mac_entry_2->vlan_id))
 
 
 bool
@@ -151,6 +152,7 @@ dump_mac_table(mac_table_t *mac_table){
             mac_table_entry->mac.mac[4],
             mac_table_entry->mac.mac[5],
             mac_table_entry->oif_name);
+
     } ITERATE_GLTHREAD_END(&mac_table->mac_entries, curr);
     if(count){
         cprintf("\t|==========|=======================|==============|\n");

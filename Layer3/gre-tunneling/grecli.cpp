@@ -198,6 +198,8 @@ gre_cli_config_tree (param_t *interface) {
              unsupported_configs |= INTF_CONFIG_NOT_SUPPORTED_TSP;
              unsupported_configs |= INTF_CONFIG_NOT_SUPPORTED_SWITCHPORT;
              unsupported_configs |= INTF_CONFIG_NOT_SUPPORTED_VLAN;
+             unsupported_configs |= INTF_CONFIG_NOT_SUPPORTED_IP_ADDRESS;
+             unsupported_configs |= INTF_CONFIG_NOT_SUPPORTED_OVERLAY_TUNNEL;
              Interface_config_cli_common_subtree(&tunnel_id, unsupported_configs);
         }
     }

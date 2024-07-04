@@ -35,6 +35,7 @@
 #include <memory.h>
 #include <stdio.h>
 #include <assert.h>
+#include <stdbool.h>
 #include "utils.h"
 
 /*Apply mask on prefix, and store result in 'str_prefix'
@@ -383,7 +384,15 @@ hrs_min_sec_format(unsigned int seconds, c_string time_f, size_t size){
     return time_f;
 }
 
-
+bool 
+mac_address_compare ( char *mac1, char *mac2) {
+    
+        int i;
+        for (i = 0; i < 6; i++) {
+            if (mac1[i] != mac2[i]) return false;
+        }
+        return true;
+}
 
 
 #if 0

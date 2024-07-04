@@ -50,8 +50,13 @@ TransportService::RemoveVlan(int vlan_id) {
     return true;
 }
 
+
+/* Revisit below two APIs and make them type-cast neutral */
 bool 
 TransportService::AttachInterface(Interface *intf) {
+
+    PhysicalInterface *phy_intf = dynamic_cast<PhysicalInterface *> (intf);
+    VirtualPort *vport = dynamic_cast<VirtualPort *> (intf);
 
     if  (!intf->GetSwitchport() ) {
         cprintf ("\nError : Interface %s is not L2 interface", intf->if_name.c_str());
@@ -63,9 +68,6 @@ TransportService::AttachInterface(Interface *intf) {
         return false;
     }
 
-    PhysicalInterface *phy_intf = dynamic_cast<PhysicalInterface *> (intf);
-    assert (phy_intf);
-
     uint32_t ifindex = intf->ifindex;
     auto it = this->ifSet.find ( ifindex );
 
@@ -74,8 +76,15 @@ TransportService::AttachInterface(Interface *intf) {
     }
 
     this->ifSet.insert (ifindex);
-    intf->SetL2Mode (LAN_TRUNK_MODE);
-    phy_intf->trans_svc = this;
+    if (phy_intf) intf->SetL2Mode (LAN_TRUNK_MODE);
+
+    if (phy_intf) {
+        phy_intf->trans_svc = this;
+    }
+    else {
+        VirtualPort *vport = dynamic_cast<VirtualPort *> (intf);
+        vport->trans_svc = this;
+    }
     this->ref_count++;
     return true;
 }
@@ -84,15 +93,28 @@ bool
 TransportService::DeAttachInterface (Interface *intf) {
 
     PhysicalInterface *phy_intf = dynamic_cast<PhysicalInterface *> (intf);
-    assert (phy_intf);
-    TransportService *trans_svc = phy_intf->trans_svc;
-    if (!trans_svc) return true;
-    if (this != trans_svc) return true;
-    trans_svc->ifSet.erase (intf->ifindex);
-    phy_intf->trans_svc = NULL;
-    trans_svc->ref_count--;
-    intf->SetL2Mode (LAN_MODE_NONE);
-    return true;
+    VirtualPort *vport = dynamic_cast<VirtualPort *> (intf);
+
+    if (phy_intf) {
+        TransportService *trans_svc = phy_intf->trans_svc;
+        if (!trans_svc) return true;
+        if (this != trans_svc) return true;
+        trans_svc->ifSet.erase (intf->ifindex);
+        phy_intf->trans_svc = NULL;
+        trans_svc->ref_count--;
+        intf->SetL2Mode (LAN_MODE_NONE);
+        return true;
+    }
+    else if (vport){
+        TransportService *trans_svc = vport->trans_svc;
+        if (!trans_svc) return true;
+        if (this != trans_svc) return true;
+        trans_svc->ifSet.erase (intf->ifindex);
+        vport->trans_svc = NULL;
+        trans_svc->ref_count--;
+        return true;
+    }
+    return false;
 }
 
 

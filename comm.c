@@ -83,7 +83,6 @@ dp_pkt_recvr_job_cbk (event_dispatcher_t *ev_dis, void *pkt, uint32_t pkt_size){
 		receving_node = ev_dis_pkt_data->recv_node;
 		recv_intf = ev_dis_pkt_data->recv_intf;
 		pkt = ev_dis_pkt_data->pkt;		
-        recv_intf->pkt_recv++;
 
         pkt_block = pkt_block_get_new((uint8_t *)pkt, ev_dis_pkt_data->pkt_size);
         pkt_block_set_starting_hdr_type(pkt_block, ETH_HDR);
@@ -145,6 +144,11 @@ dp_pkt_receive (node_t *node,
 
     vlan_id_t vlan_id_to_tag = 0;
   
+      if (!interface->is_up){
+        return;
+    }
+    
+    interface->pkt_recv++;
     tcp_dump_recv_logger(node, interface, pkt_block, ETH_HDR);
 
     /* Access List Evaluation at Layer 2 Entry point*/ 
@@ -171,12 +175,35 @@ dp_pkt_receive (node_t *node,
         if (vlan_id_to_tag) {
             tag_pkt_with_vlan_id (pkt_block, vlan_id_to_tag);
         }
-        l2_switch_recv_frame(node, vlan_id_to_tag, interface, pkt_block);
+        
+        vlan_8021q_hdr_t *vlan_8021q_hdr = 
+            is_pkt_vlan_tagged (pkt_block_get_ethernet_hdr(pkt_block));
+
+        l2_switch_recv_frame(node, 
+                    GET_802_1Q_VLAN_ID(vlan_8021q_hdr),
+                    interface, pkt_block);
+    }
+
+    /* If packet is Recvd on GRE interface and pkt is vlan tagged, 
+        it means GRE is being used for VLAN extension */
+    else if (interface->iftype == INTF_TYPE_GRE_TUNNEL &&
+                pkt_block_verify_pkt (pkt_block, ETH_HDR) &&
+                is_pkt_vlan_tagged (pkt_block_get_ethernet_hdr(pkt_block))) {
+
+        GRETunnelInterface *gre_intf = 
+            dynamic_cast <GRETunnelInterface *> (interface);
+        dp_pkt_receive (node, gre_intf->virtual_port_intf, pkt_block);
     }
 
     else if (interface->IsIpConfigured()){
         promote_pkt_to_layer2(node, interface, pkt_block);
     }
+
+    else {
+        /* We dont know what to do with the pkt*/
+        interface->recvd_pkt_dropped++;
+    }
+
 }
 
 int

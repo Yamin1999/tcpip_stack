@@ -87,9 +87,9 @@
 #define CMDCODE_SHOW_PREFIX_LST_ONE 36
 
 /* conf node <node-name> [no] rib <rib-name> import-policy <prefix-lst-name> */
-#define CMDCODE_CONF_RIB_IMPORT_POLICY 37  
+#define CMDCODE_CONF_RIB_IMPORT_POLICY 37
 
-#define CMDCODE_INTF_CONFIG_LOOPBACK 38
+#define CMDCODE_INTF_CONFIG_LOOPBACK_CREATE 38
 
 #define CMDCODE_CLEAR_RT_TABLE 39
 
@@ -126,4 +126,6 @@
   /*config node <node-name> interface virtual-port <vp-name> */
 #define CMDCODE_INTF_CONFIG_VP_CREATE 52
 
+/*config node <node-name> interface virtual-port <if-name> overlay-tunnel <tunnel-name>*/
+#define CMDCODE_INTF_CONFIG_BIND_OVERLAY_TUNNEL 53
 #endif /* __CMDCODES__ */

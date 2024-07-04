@@ -774,7 +774,7 @@ rt_table_add_route (rt_table_t *rt_table,
 
            if (l3_route->nexthops[nxthop_proto][i]){
 
-                if (string_compare(l3_route->nexthops[nxthop_proto][i]->gw_ip, gw, 16) == 0 && 
+                if (gw && string_compare(l3_route->nexthops[nxthop_proto][i]->gw_ip, gw, 16) == 0 && 
                     l3_route->nexthops[nxthop_proto][i]->oif == oif) { 
 
                     cprintf("%s Error : Attempt to Add Duplicate Route %s/%d\n",

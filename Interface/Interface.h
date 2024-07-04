@@ -35,18 +35,7 @@ typedef struct _wheel_timer_elem_t wheel_timer_elem_t;
 typedef struct pkt_block_ pkt_block_t;
 class TransportService;
 
-#define INTF_MAX_VLAN_MEMBERSHIP 10
 
-/* Interface Change Flags, used for Notification to 
- * Applications*/
-#define IF_UP_DOWN_CHANGE_F (1 << 0)
-#define IF_IP_ADDR_CHANGE_F (1 << 1)
-#define IF_OPER_MODE_CHANGE_F (1 << 2)
-#define IF_VLAN_MEMBERSHIP_CHANGE_F (1 << 3)
-#define IF_TSP_CHANGE_F ( 1<<4 )
-#define IF_METRIC_CHANGE_F (1 << 5)
-#define IF_DELETE_F (1 << 6)
-#define IF_CREATE_F (1 << 7)
 class Interface {
 
     private:
@@ -68,6 +57,7 @@ class Interface {
         uint32_t pkt_recv;
         uint32_t pkt_sent;
         uint32_t xmit_pkt_dropped;
+        uint32_t recvd_pkt_dropped;
         uint32_t cost;
 
         /* L2 Properties : Ingress & egress L2 Access_list */
@@ -113,9 +103,21 @@ class Interface {
         void InterfaceReleaseAllResources();
         uint16_t GetConfigRefCount();
         uint16_t GetDynamicRefCount();
+        virtual bool IsSVI ();
 };
 
 
+class VlanMemberInterface {
+
+    private:
+    protected:
+    public:
+        TransportService *trans_svc;
+        VlanMemberInterface();
+        virtual ~VlanMemberInterface();
+        virtual void PrintInterfaceDetails ();
+        virtual void InterfaceReleaseAllResources() ;
+};
 
 
 /* ************ */
@@ -189,7 +191,6 @@ class VirtualInterface : public Interface {
 
 
 
-
 /* ************ */
 
 class VlanInterface : public VirtualInterface {
@@ -201,7 +202,7 @@ class VlanInterface : public VirtualInterface {
         uint32_t ip_addr;
         uint8_t mask;
         /* Number of access mode interfaces using this LAN*/
-        std::vector<PhysicalInterface *> access_member_intf_lst;
+        std::vector<Interface *> access_member_intf_lst;
         VlanInterface(vlan_id_t vlan_id);
          virtual ~VlanInterface();
         virtual void PrintInterfaceDetails ();
@@ -214,9 +215,11 @@ class VlanInterface : public VirtualInterface {
         virtual int SendPacketOut(pkt_block_t *pkt_block) final;
         virtual bool IsInterfaceUp(vlan_id_t vlan_id) final;
         virtual void InterfaceReleaseAllResources() ;
+        virtual bool IsSVI ();
+        virtual mac_addr_t *GetMacAddr( );
 };
 
-
+class VirtualPort;
 class GRETunnelInterface : public VirtualInterface {
 
 private:
@@ -229,6 +232,7 @@ public:
     uint32_t tunnel_dst_ip;
     uint32_t lcl_ip;
     uint8_t mask;
+    VirtualPort *virtual_port_intf;
 
     enum GreTunnelConfigEnum
     {
@@ -259,6 +263,32 @@ public:
     virtual mac_addr_t * GetMacAddr() final;
     virtual bool IsInterfaceUp(vlan_id_t vlan_id) final;
     virtual void InterfaceReleaseAllResources() ;
+};
+
+
+class VirtualPort : public VirtualInterface {
+
+    private:
+    protected:
+    public:
+
+        Interface *olay_tunnel_intf;
+        /* Below two are mutually exclusive */
+        TransportService *trans_svc;
+
+        VirtualPort(std::string ifname);
+        virtual ~VirtualPort();
+        bool BindOverlayTunnel(Interface *tunnel);
+        bool UnBindOverlayTunnel(Interface *tunnel);
+        virtual void PrintInterfaceDetails ();
+        virtual int SendPacketOut(pkt_block_t *pkt_block) final;
+        virtual bool IsInterfaceUp(vlan_id_t vlan_id) final;
+        virtual void InterfaceReleaseAllResources() ;
+        virtual bool IsVlanTrunked (vlan_id_t vlan_id) final;
+        virtual bool IntfConfigTransportSvc(std::string& trans_svc) final;
+        virtual bool IntfUnConfigTransportSvc(std::string& trans_svc) final;
+        virtual bool GetSwitchport() final;
+        virtual IntfL2Mode GetL2Mode () final;
 };
 
 

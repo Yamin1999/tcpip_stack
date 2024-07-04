@@ -47,6 +47,7 @@ graph_t *build_dualswitch_topo(void);
 graph_t *parallel_links_topology(void);
 graph_t *cross_link_topology(void);
 graph_t *standalone_node_topology(void);
+graph_t *vlan_extension_topo(void);
 
 graph_t *standalone_node_topology(void) {
 
@@ -492,6 +493,94 @@ cross_link_topology(void){
     node_set_intf_ip_address(R5, "eth5", "30.1.1.2", 24);
     node_set_intf_ip_address(R5, "eth12","70.1.1.1", 24);
     node_set_intf_ip_address(R5, "eth15","80.1.1.2", 24);
+
+    return topo;
+}
+
+
+#ifdef vlan_extension_topo
+
+vlan_extension_topo Demo : 
+
+config node R1 interface tunnel 2
+config node R1 interface tunnel 2 tunnel-source 100.1.1.1
+config node R1 interface tunnel 2 tunnel-destination 100.1.1.2
+config node R1 interface tunnel 2 ip-address 192.168.0.1 24
+
+config node R1 interface vlan 10
+config node R1 transport-service-profile tsp10
+config node R1 transport-service-profile tsp10 vlan 10
+
+config node R1 interface virtual-port vp1 
+config node R1 interface virtual-port vp1 transport-service-profile tsp10
+config node R1 interface virtual-port vp1 overlay-tunnel tunnel2
+
+config node R1 route 100.1.1.2 32 20.1.1.2 eth1
+
+
+config node R2 interface tunnel 2
+config node R2 interface tunnel 2 tunnel-source 100.1.1.2
+config node R2 interface tunnel 2 tunnel-destination 100.1.1.1
+config node R2 interface tunnel 2 ip-address 192.168.0.2 24
+
+config node R2 interface vlan 10
+config node R2 transport-service-profile tsp10
+config node R2 transport-service-profile tsp10 vlan 10
+
+config node R2 interface virtual-port vp1 
+config node R2 interface virtual-port vp1 transport-service-profile tsp10
+config node R2 interface virtual-port vp1 overlay-tunnel tunnel2
+
+config node R2 route 100.1.1.1 32 20.1.1.1 eth1
+
+run node H1 ping 10.1.1.2
+
+                             +-------------GRE-Tunnel----------+
+                             |                                 |
+                             |                                 |
+                             v                                 v
+                                                               
+                         +---+-----+                     +----------+
+                  v10,acc|         |20.1.1.1         eth1|          |v10,acc
+       +-----------+-----|   R1    +---------------------+   R2     +--------------+
+       |             eth0|100.1.1.1|eth1         20.1.1.2|100.1.1.2 |eth0          |eth0
+       |                 +---------+                     +----------+              |10.1.1.2/24
+   eth0|10.1.1.1/24                                                           +---+-----+
+   +---+----+                                                                 |  H2     |
+   +   H1   |                                                                 |122.1.1.2+       
+   |122.1.1.1                                                                 +---------+
+   +--------+
+
+#endif                                                                 
+
+graph_t *
+vlan_extension_topo(void) {
+
+    graph_t *topo = create_new_graph("Vlan Extension Over GRE Topo"); 
+
+    node_t *R1 = create_graph_node(topo, (const c_string)"R1");
+    node_t *R2 = create_graph_node(topo, (const c_string)"R2");
+    node_t *H1 = create_graph_node(topo, (const c_string)"H1");
+    node_t *H2 = create_graph_node(topo, (const c_string)"H2");
+
+    insert_link_between_two_nodes(R1, R2, "eth1",  "eth1",  INTF_METRIC_DEFAULT);
+    insert_link_between_two_nodes(R1, H1, "eth0",  "eth0",  INTF_METRIC_DEFAULT);
+    insert_link_between_two_nodes(R2, H2, "eth0",  "eth0",  INTF_METRIC_DEFAULT);
+
+    node_set_loopback_address(H1, "122.1.1.1");
+    node_set_loopback_address(H2, "122.1.1.2");
+    node_set_loopback_address(R1, "100.1.1.1");
+    node_set_loopback_address(R2, "100.1.1.2");
+
+    node_set_intf_ip_address(H1, "eth0", "10.1.1.1", 24);
+    node_set_intf_ip_address(H2, "eth0", "10.1.1.2", 24);
+    node_set_intf_ip_address(R1, "eth1", "20.1.1.1" , 24);
+    node_set_intf_ip_address(R2, "eth1", "20.1.1.2" , 24);
+
+    node_set_intf_switchport(R1, "eth0");
+    node_set_intf_vlan_membership(R1, "eth0", 10, false);
+    node_set_intf_switchport(R2, "eth0");
+    node_set_intf_vlan_membership(R2, "eth0", 10, false);
 
     return topo;
 }

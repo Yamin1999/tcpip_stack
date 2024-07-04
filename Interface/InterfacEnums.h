@@ -14,8 +14,23 @@ enum InterfaceType_t {
     INTF_TYPE_VLAN,
     INTF_TYPE_GRE_TUNNEL,
     INTF_TYPE_LOOPBACK,
+    INTF_TYPE_VIRTUAL_PORT,
     INTF_TYPE_UNKNOWN
 };
+
+
+#define INTF_MAX_VLAN_MEMBERSHIP 10
+
+/* Interface Change Flags, used for Notification to 
+ * Applications*/
+#define IF_UP_DOWN_CHANGE_F (1 << 0)
+#define IF_IP_ADDR_CHANGE_F (1 << 1)
+#define IF_OPER_MODE_CHANGE_F (1 << 2)
+#define IF_VLAN_MEMBERSHIP_CHANGE_F (1 << 3)
+#define IF_TSP_CHANGE_F ( 1<<4 )
+#define IF_METRIC_CHANGE_F (1 << 5)
+#define IF_DELETE_F (1 << 6)
+#define IF_CREATE_F (1 << 7)
 
 
 /* Interface common Configuration Bits */
@@ -28,6 +43,7 @@ enum InterfaceType_t {
 #define INTF_CONFIG_NOT_SUPPORTED_UP_DOWN   32
 #define INTF_CONFIG_NOT_SUPPORTED_VLAN 64
 #define INTF_CONFIG_NOT_SUPPORTED_TRACEOPTIONS 128
+#define INTF_CONFIG_NOT_SUPPORTED_OVERLAY_TUNNEL 256
 
 
 #endif 

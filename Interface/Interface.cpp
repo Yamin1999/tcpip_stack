@@ -126,7 +126,7 @@ SendPacketOutLAN(PhysicalInterface *Intf, pkt_block_t *pkt_block)
 
     if (intf_l2_mode == LAN_MODE_NONE)
     {
-        return false;
+        return 0;
     }
 
     ethernet_hdr_t *ethernet_hdr =
@@ -168,7 +168,15 @@ SendPacketOutLAN(PhysicalInterface *Intf, pkt_block_t *pkt_block)
             return send_xmit_out(Intf, pkt_block);
         }
 
-        /*case 4 : if oif is vlan unaware but pkt is vlan tagged,
+        /* case 4 : if vlan id in pkt do not matches with the vlan id of
+            the interface*/
+        if (vlan_8021q_hdr &&
+            (intf_vlan_id != GET_802_1Q_VLAN_ID(vlan_8021q_hdr)))
+        {
+            return 0;
+        }
+
+        /*case 5 : if oif is vlan unaware but pkt is vlan tagged,
          simply drop the packet.*/
         if (!intf_vlan_id && vlan_8021q_hdr)
         {
@@ -370,8 +378,8 @@ void Interface::SetL2Mode(IntfL2Mode l2_mode)
 
 bool Interface::IntfConfigVlan(vlan_id_t vlan_id, bool add)
 {
-
     cprintf ("Error : Operation %s not supported\n", __func__);
+    return false;
 }
 
 bool Interface::IsSameSubnet(uint32_t ip_addr)
@@ -380,12 +388,14 @@ bool Interface::IsSameSubnet(uint32_t ip_addr)
     if (!this->IsIpConfigured())
         return false;
      cprintf ("Error : Operation %s not supported\n", __func__);
+     return false;
 }
 
 bool 
 Interface:: IsInterfaceUp(vlan_id_t vlan_id) {
 
         cprintf ("Error : Operation %s not supported\n", __func__);
+        return false;
 }
 
 bool 
@@ -487,6 +497,11 @@ Interface::GetDynamicRefCount() {
     return this->dynamic_ref_count;
 }
 
+bool 
+Interface::IsSVI () {
+
+    return false;
+}
 
 /* ************ PhysicalInterface ************ */
 PhysicalInterface::PhysicalInterface(std::string ifname, InterfaceType_t iftype, mac_addr_t *mac_add)
@@ -891,6 +906,7 @@ VirtualInterface::VirtualInterface(std::string ifname, InterfaceType_t iftype)
     this->pkt_recv = 0;
     this->pkt_sent = 0;
     this->xmit_pkt_dropped = 0;
+    this->recvd_pkt_dropped = 0;
 }
 
 VirtualInterface::~VirtualInterface()
@@ -900,8 +916,10 @@ VirtualInterface::~VirtualInterface()
 void VirtualInterface::PrintInterfaceDetails()
 {
 
-    cprintf("pkt recvd : %u   pkt sent : %u   xmit pkt dropped : %u\n",
-           this->pkt_recv, this->pkt_sent, this->xmit_pkt_dropped);
+    cprintf("pkt recvd : %u   pkt sent : %u   xmit pkt dropped : %u    recvd pkt dropped : %u\n",
+           this->pkt_recv, this->pkt_sent, 
+           this->xmit_pkt_dropped,
+           this->recvd_pkt_dropped);
 
     this->Interface::PrintInterfaceDetails();
 }
@@ -1179,6 +1197,204 @@ GRETunnelInterface::InterfaceReleaseAllResources() {
 }
 
 
+/* ******** VirtualPort **************** */
+
+VirtualPort::VirtualPort(std::string ifname) 
+    : VirtualInterface(ifname, INTF_TYPE_VIRTUAL_PORT)
+{
+
+}
+
+VirtualPort::~VirtualPort()
+{
+    assert (!this->olay_tunnel_intf);
+    assert (!this->trans_svc);
+}
+
+void
+VirtualPort::PrintInterfaceDetails()
+{
+    cprintf("Overlay Tunnel : %s\n",
+           this->olay_tunnel_intf ? this->olay_tunnel_intf->if_name.c_str() : "Not Set");
+
+    if (this->trans_svc) {
+        cprintf("Transport Service Profile : %s\n", this->trans_svc->trans_svc.c_str());
+    }
+
+    this->VirtualInterface::PrintInterfaceDetails();
+}
+
+int
+VirtualPort::SendPacketOut(pkt_block_t *pkt_block) {
+
+    pkt_size_t pkt_size;
+
+    if (!this->olay_tunnel_intf) {
+        return 0;
+    }
+
+    assert (pkt_block_get_starting_hdr(pkt_block) == ETH_HDR);
+
+    ethernet_hdr_t *ethernet_hdr = 
+        ( ethernet_hdr_t *)pkt_block_get_pkt(pkt_block, &pkt_size);
+
+    vlan_8021q_hdr_t *vlan_8021q_hdr = 
+        is_pkt_vlan_tagged(ethernet_hdr);
+    
+    assert (vlan_8021q_hdr );
+
+    /* If vport is in trunk mode, then check if vlan id is part of trunk*/
+    if (!this->IsVlanTrunked (GET_802_1Q_VLAN_ID(vlan_8021q_hdr))) return 0;
+
+    this->pkt_sent++;
+    
+    return this->olay_tunnel_intf->SendPacketOut(pkt_block);
+}
+
+
+bool 
+VirtualPort::IsInterfaceUp(vlan_id_t vlan_id) 
+{
+    if (!this->is_up) return false;
+   
+    if (vlan_id) {
+
+        VlanInterface *vlan_intf = VlanInterface::VlanInterfaceLookUp(this->att_node, vlan_id);
+        if (vlan_intf)
+        {
+            return vlan_intf->IsInterfaceUp(vlan_id);
+        }
+    }
+    return true;
+}
+
+void 
+VirtualPort::InterfaceReleaseAllResources()
+{
+    /* Handling attached TSP*/
+    if (this->trans_svc) {
+        this->IntfUnConfigTransportSvc (this->trans_svc->trans_svc);
+    }
+    
+    /* Handling access Vlan Interface*/
+    this->VirtualInterface::InterfaceReleaseAllResources();
+}
+
+bool 
+VirtualPort::IsVlanTrunked (vlan_id_t vlan_id) {
+
+    TransportService *tsp = this->trans_svc;
+    if (!tsp) return false;
+    for (auto it = tsp->vlanSet.begin(); it != tsp->vlanSet.end(); ++it) {
+        if (*it == vlan_id) return true;
+    }
+    return false;
+}
+
+bool 
+VirtualPort::GetSwitchport( ) {
+
+    return true;
+}
+
+IntfL2Mode 
+VirtualPort::GetL2Mode ( ) {
+
+        return LAN_TRUNK_MODE;
+}
+
+
+bool 
+VirtualPort::IntfConfigTransportSvc(std::string& trans_svc_name) 
+{
+    TransportService *trans_svc_obj = TransportServiceLookUp (this->att_node->TransPortSvcDB, trans_svc_name);
+    
+    if (!trans_svc_obj) {
+        printf ("Error : Transport Svc do not exist\n");
+        return false;
+    }
+
+    if (this->trans_svc == trans_svc_obj) return true;
+
+    /* Remove old Transport svc if any*/
+    if (this->trans_svc) {
+        this->trans_svc->DeAttachInterface(this);
+    }
+
+    trans_svc_obj->AttachInterface(this);
+    return true;
+}
+
+bool 
+VirtualPort::IntfUnConfigTransportSvc(std::string& trans_svc_name) 
+{
+    if (!this->trans_svc) return true;
+    TransportService *trans_svc_obj = TransportServiceLookUp (this->att_node->TransPortSvcDB, trans_svc_name);
+    if (!trans_svc_obj) return true;
+    if (this->trans_svc != trans_svc_obj) return true;
+    this->trans_svc->DeAttachInterface (this);
+    this->trans_svc = NULL;
+    return true;
+}
+
+bool 
+VirtualPort::BindOverlayTunnel(Interface *tunnel) {
+
+    if (this->olay_tunnel_intf == tunnel) return true;
+
+    if (this->olay_tunnel_intf) {
+        cprintf ("Error : Overlay Tunnel already set\n");
+        return false;
+    }
+
+    this->olay_tunnel_intf = tunnel;
+    tunnel->InterfaceLockStatic();
+
+    /* If tunnel is GRE Interface*/
+    switch (tunnel->iftype) {
+        case INTF_TYPE_GRE_TUNNEL:
+            {
+                GRETunnelInterface *gre_tunnel_intf = dynamic_cast<GRETunnelInterface *>(tunnel);
+                gre_tunnel_intf->virtual_port_intf = this;
+                this->InterfaceLockStatic();
+            }
+            break;
+    }
+    return true;
+}
+
+
+bool 
+VirtualPort::UnBindOverlayTunnel(Interface *tunnel) {
+
+    Interface *overlay_tunnel;
+    
+    if (!this->olay_tunnel_intf) return true;
+
+    if (this->olay_tunnel_intf != tunnel) {
+        cprintf ("Error : Could not unbind Tunnel\n");
+        return false;
+    }
+
+    overlay_tunnel = this->olay_tunnel_intf;
+    switch (overlay_tunnel->iftype) {
+        case INTF_TYPE_GRE_TUNNEL:
+            {
+                GRETunnelInterface *gre_tunnel_intf = dynamic_cast<GRETunnelInterface *>(overlay_tunnel);
+                assert (gre_tunnel_intf->virtual_port_intf == this);
+                gre_tunnel_intf->virtual_port_intf = NULL;
+                this->InterfaceUnLockStatic();
+            }
+            break;
+    }
+    this->olay_tunnel_intf->InterfaceUnLockStatic();
+    this->olay_tunnel_intf = NULL;
+    return true;
+}
+
+
+
+
 
 /* ************ VlanInterface ************ */
 
@@ -1251,8 +1467,13 @@ VlanInterface::InterfaceGetIpAddressMask(uint32_t *ip_addr, uint8_t *mask) {
 bool
 VlanInterface::IsIpConfigured() {
 
-    if (this->ip_addr && this->mask) return true;
-    return false;
+    return (this->ip_addr && this->mask);
+}
+
+mac_addr_t *
+VlanInterface::GetMacAddr( ) {
+
+    return &this->att_node->node_nw_prop.rmac;
 }
 
 bool
@@ -1345,4 +1566,10 @@ VlanInterface::InterfaceReleaseAllResources() {
 
     assert (this->access_member_intf_lst.empty());
     VirtualInterface::InterfaceReleaseAllResources();
+}
+
+bool 
+VlanInterface::IsSVI () {
+
+    return ( this->ip_addr && this->mask ) ;
 }
