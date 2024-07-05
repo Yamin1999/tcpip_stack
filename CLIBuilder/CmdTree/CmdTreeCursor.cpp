@@ -1524,7 +1524,7 @@ cmdtc_set_filter_context (cmd_tree_cursor_t *cmdtc) {
 
 
 #define SCHED_SUBMISSION
-#undef SCHED_SUBMISSION
+//#undef SCHED_SUBMISSION
 
 #ifdef SCHED_SUBMISSION
 extern void
@@ -1568,7 +1568,7 @@ cmd_tree_trigger_cli (cmd_tree_cursor_t *cli_cmdtc) {
     int i, index;
     param_t *param;
     cmd_tree_cursor_t *cmdtc;
-    op_mode enable_or_diable;
+    op_mode enable_or_disable;
     cmd_tree_cursor_t *temp_cmdtc = NULL;
 
     /* Handle Refresh*/
@@ -1654,16 +1654,16 @@ cmd_tree_trigger_cli (cmd_tree_cursor_t *cli_cmdtc) {
 
     if (cmdtc_get_branch_hook (cmdtc) == libcli_get_config_hook()) {
        
-        enable_or_diable = CONFIG_ENABLE;
+        enable_or_disable = CONFIG_ENABLE;
         if (cmdtc->is_negate) {
-            enable_or_diable = CONFIG_DISABLE;
+            enable_or_disable = CONFIG_DISABLE;
         }
     }
     else {
-        enable_or_diable = OPERATIONAL;
+        enable_or_disable = OPERATIONAL;
     }
 
-    switch (enable_or_diable) {
+    switch (enable_or_disable) {
 
         case CONFIG_ENABLE:
                 /* Handle Trigger of Config Command. Config Commands are triggered in
@@ -1690,12 +1690,12 @@ cmd_tree_trigger_cli (cmd_tree_cursor_t *cli_cmdtc) {
                         cmdtc->tlv_stack->top = i;
 
                         #ifndef SCHED_SUBMISSION
-                        if (param->callback(param->CMDCODE, cmdtc->tlv_stack, enable_or_diable)) {
+                        if (param->callback(param->CMDCODE, cmdtc->tlv_stack, enable_or_disable)) {
                             cli_cmdtc->success = false;
                             break;
                         }
                         #else
-                        task_invoke_appln_cbk_handler(param, cmdtc->tlv_stack, enable_or_diable);
+                        task_invoke_appln_cbk_handler(param, cmdtc->tlv_stack, enable_or_disable);
                         #endif
                     }
                     cmdtc->tlv_stack->top = cmdtc->params_stack->top;
@@ -1705,11 +1705,11 @@ cmd_tree_trigger_cli (cmd_tree_cursor_t *cli_cmdtc) {
                 else {
                     
                     #ifndef SCHED_SUBMISSION
-                    if (param->callback (param->CMDCODE, cmdtc->tlv_stack, enable_or_diable)) {
+                    if (param->callback (param->CMDCODE, cmdtc->tlv_stack, enable_or_disable)) {
                         cli_cmdtc->success = false;
                     }
                     #else 
-                        task_invoke_appln_cbk_handler (param, cmdtc->tlv_stack, enable_or_diable);
+                        task_invoke_appln_cbk_handler (param, cmdtc->tlv_stack, enable_or_disable);
                     #endif
                     if (temp_cmdtc) { cmd_tree_cursor_destroy_internals(cmdtc, false); free(cmdtc); }
                 }
@@ -1719,11 +1719,11 @@ cmd_tree_trigger_cli (cmd_tree_cursor_t *cli_cmdtc) {
             case CONFIG_DISABLE:
 
                     #ifndef SCHED_SUBMISSION
-                    if (param->callback (param->CMDCODE, cmdtc->tlv_stack, enable_or_diable)) {
+                    if (param->callback (param->CMDCODE, cmdtc->tlv_stack, enable_or_disable)) {
                         cli_cmdtc->success = false;
                     }
                     #else 
-                    task_invoke_appln_cbk_handler (param, cmdtc->tlv_stack, enable_or_diable);
+                    task_invoke_appln_cbk_handler (param, cmdtc->tlv_stack, enable_or_disable);
                     #endif
                     if (temp_cmdtc) {cmd_tree_cursor_destroy_internals (cmdtc, false); free(cmdtc); }
                     break;
@@ -1734,11 +1734,11 @@ cmd_tree_trigger_cli (cmd_tree_cursor_t *cli_cmdtc) {
                     cmdtc_set_filter_context (cmdtc); 
 
                     #ifndef SCHED_SUBMISSION
-                    if (param->callback (param->CMDCODE, cmdtc->tlv_stack, enable_or_diable)) {
+                    if (param->callback (param->CMDCODE, cmdtc->tlv_stack, enable_or_disable)) {
                         cli_cmdtc->success = false;
                     }
                     #else 
-                    task_invoke_appln_cbk_handler (param, cmdtc->tlv_stack, enable_or_diable);
+                    task_invoke_appln_cbk_handler (param, cmdtc->tlv_stack, enable_or_disable);
                     #endif
                     UnsetFilterContext ();
                     if (temp_cmdtc) {cmd_tree_cursor_destroy_internals (cmdtc, false); free(cmdtc); }

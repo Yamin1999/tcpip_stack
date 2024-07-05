@@ -67,6 +67,7 @@ GLTHREAD_TO_STRUCT (glue_to_param, param_t, glue);
 #define PARAM_F_CONFIG_BATCH_CMD   8
 #define PARAM_F_RECURSIVE   16
 #define PARAM_F_REG_EX_MATCH    32
+#define PARAM_F_INVOKE_DIRECT   64
 
 void 
 cmd_tree_init ();
@@ -131,5 +132,8 @@ cmd_tree_is_param_pipe (param_t *param);
 
 bool 
 cmd_tree_is_filter_param (param_t *param);
+
+void 
+cmd_tree_param_invoke_direct (param_t *param);
 
 #endif 

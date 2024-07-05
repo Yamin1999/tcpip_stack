@@ -982,6 +982,7 @@ nw_init_cli(){
                     init_param(&ip_addr, LEAF, 0, ping_handler, 0, IPV4, "ip-address", "Ipv4 Address");
                     libcli_register_param(&ping, &ip_addr);
                     libcli_set_param_cmd_code(&ip_addr, CMDCODE_PING);
+                    cmd_tree_param_invoke_direct (&ip_addr);
                     {
                         /*run node <node-name> ping <ip-address> -c */
                             static param_t _c;

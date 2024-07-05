@@ -84,7 +84,7 @@ void
 pkt_block_set_new_pkt(pkt_block_t *pkt_block, uint8_t *pkt, pkt_size_t pkt_size);
 
 pkt_block_t *
-pkt_block_dup2(pkt_block_t *pkt_block, char *fn_name, uint16_t lineno);
+pkt_block_dup2(pkt_block_t *pkt_block, const char *fn_name, uint16_t lineno);
 
 bool
 pkt_block_expand_buffer_left (pkt_block_t *pkt_block, pkt_size_t expand_bytes);

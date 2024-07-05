@@ -32,6 +32,7 @@
 #define __TCP_IP_STACK__
 
 #include <ncurses.h>
+#include <pthread.h>
 #include "gluethread/glthread.h"
 #include "libtimer/WheelTimer.h"
 #include "Tree/libtree.h"
@@ -72,9 +73,6 @@
 #include "ted/ted.h"
 #include "pkt_block.h"
 #include "cp2dp.h"
-
-#define printf cprintf
-extern int cprintf(const char *fmt, ...);
 
 extern void
 display_node_interfaces(param_t *param, ser_buff_t *tlv_buf);
