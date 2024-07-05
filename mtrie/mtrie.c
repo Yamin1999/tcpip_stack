@@ -10,6 +10,9 @@
 
 static uint16_t node_id = 1;
 
+#define printf cprintf
+extern int cprintf(const char *fmt, ...);
+
 /* To generate unique Node IDs. No functional, only for debugging
 purpose. This fn is thread unsafe and may cause some surprises! Fix it. */
 static inline uint16_t 

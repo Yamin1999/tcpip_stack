@@ -73,6 +73,9 @@
 #include "pkt_block.h"
 #include "cp2dp.h"
 
+#define printf cprintf
+extern int cprintf(const char *fmt, ...);
+
 extern void
 display_node_interfaces(param_t *param, ser_buff_t *tlv_buf);
 

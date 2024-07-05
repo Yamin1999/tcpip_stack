@@ -1230,9 +1230,15 @@ VirtualPort::SendPacketOut(pkt_block_t *pkt_block) {
     pkt_size_t pkt_size;
 
     if (!this->olay_tunnel_intf) {
+        this->xmit_pkt_dropped++;
         return 0;
     }
 
+    if (this->IsInterfaceUp(0) == false) {
+        this->xmit_pkt_dropped++;
+        return 0;
+    }
+    
     assert (pkt_block_get_starting_hdr(pkt_block) == ETH_HDR);
 
     ethernet_hdr_t *ethernet_hdr = 
