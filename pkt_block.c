@@ -41,7 +41,7 @@ pkt_block_get_starting_hdr(pkt_block_t *pkt_block) {
 }
 
 pkt_block_t *
-pkt_block_get_new2(uint8_t *pkt, pkt_size_t pkt_size, char *fn_name, uint16_t lineno) {
+pkt_block_get_new2(uint8_t *pkt, pkt_size_t pkt_size, const char *fn_name, uint16_t lineno) {
 
     pkt_block_t *pkt_block = (pkt_block_t *)XCALLOC(0, 1, pkt_block_t);
     pkt_block->pkt = pkt;
@@ -53,7 +53,7 @@ pkt_block_get_new2(uint8_t *pkt, pkt_size_t pkt_size, char *fn_name, uint16_t li
 }
 
 pkt_block_t *
-pkt_block_get_new_pkt_buffer2(pkt_size_t pkt_size, char *fn_name, uint16_t lineno) {
+pkt_block_get_new_pkt_buffer2(pkt_size_t pkt_size, const char *fn_name, uint16_t lineno) {
 
     pkt_block_t *pkt_block = (pkt_block_t *)XCALLOC(0, 1, pkt_block_t);
     pkt_block->pkt = (uint8_t *)tcp_ip_get_new_pkt_buffer(pkt_size);

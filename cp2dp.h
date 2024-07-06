@@ -7,7 +7,8 @@ typedef struct node_ node_t;
 
 typedef enum DP_COMPONENT_TYPE_ {
 
-    RT_TABLE_IPV4
+    RT_TABLE_IPV4,
+    PKT_BLOCK
 
 } DP_COMPONENT_TYPE_T;
 
@@ -16,7 +17,8 @@ typedef enum DP_OPR_TYPE_ {
     DP_CREATE,
     DP_DEL,
     DP_UPDATE,
-    DP_READ
+    DP_READ,
+    DP_L3_NORTHBOUND_IN
     
 } DP_OPR_TYPE_T;
 
@@ -41,5 +43,11 @@ cp2dp_msg_free (node_t *node, dp_msg_t *dp_msg);
 
 void
 cp2dp_xmit_pkt (node_t *node, pkt_block_t *pkt_block, Interface *xmit_interface) ;
+
+void 
+cp2dp_send_ip_data ( node_t *node, 
+                                    pkt_block_t *pkt_block,
+                                    uint32_t dest_ip_addr,
+                                    uint16_t std_ip_protocol) ;
 
 #endif 

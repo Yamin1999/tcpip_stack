@@ -248,6 +248,11 @@ layer3_ip_route_pkt(node_t *node,
          * subnet of this router, time for l2 routing*/
         nexthop = l3_route_get_active_nexthop(l3_route, pkt_block->exclude_oif);
 
+        /* If src ip address is not feeded by application, then take the OIF IP address*/
+        if (ip_hdr->src_ip == 0) {
+            ip_hdr->src_ip = IF_IP(nexthop->oif);
+        }
+
         demote_pkt_to_layer2 (
                 node,           /*Current processing node*/
                 ip_hdr->dst_ip,     /*next hop IP is dest itself as dest is present in local subnet*/
@@ -419,8 +424,6 @@ l3_route_get_active_nexthop (l3_route_t *l3_route, Interface *exclude_oif) {
     int nh_index_old;
     nexthop_t *nexthop;
     nxthop_proto_id_t nh_proto;
-
-    if ( l3_is_direct_route (l3_route)) return NULL;
 
     nh_index_old = l3_route->nxthop_idx;
 
@@ -1073,19 +1076,12 @@ layer3_ping_fn(node_t *node, c_string dst_ip_addr, uint32_t count){
 
     uint32_t i;
     uint32_t addr_int;
-    pkt_block_t *pkt_block;
 
     addr_int = tcp_ip_convert_ip_p_to_n(dst_ip_addr);
-    
     cprintf("\nSrc node : %s, Ping ip : %s", node->node_name, dst_ip_addr);
-
+    
     for (i = 0; i < count ; i ++) {
-
-        /* We dont have any application or transport layer paylod, so, directly prepare
-         * L3 hdr*/
-        pkt_block = pkt_block_get_new(NULL, 0);
-        demote_packet_to_layer3(node, pkt_block, ICMP_HDR, addr_int);
-        pkt_block_dereference(pkt_block);
+        cp2dp_send_ip_data (node, NULL, addr_int, ICMP_PROTO);
     }
 }
 
@@ -1094,46 +1090,19 @@ layer3_ero_ping_fn(node_t *node,
                     c_string dst_ip_addr, 
                     c_string ero_ip_address){
 
-    byte *pkt = tcp_ip_get_new_pkt_buffer (sizeof (ip_hdr_t) );
-    pkt_block_t *pkt_block = pkt_block_get_new (pkt, sizeof (ip_hdr_t));
+    pkt_block_t *pkt_block = pkt_block_get_new_pkt_buffer (sizeof (ip_hdr_t));
     pkt_block_set_starting_hdr_type (pkt_block, IP_HDR);
-
-    /*Prepare the payload and push it down to the network layer.
-     The payload shall be inner ip hdr*/
-    ip_hdr_t *inner_ip_hdr = (ip_hdr_t *)pkt;
-
+    ip_hdr_t *inner_ip_hdr = (ip_hdr_t *)pkt_block_get_ip_hdr (pkt_block);
     initialize_ip_hdr(inner_ip_hdr);
     inner_ip_hdr->total_length = sizeof(ip_hdr_t)/4;
     inner_ip_hdr->protocol = ICMP_PROTO;
-    
     uint32_t addr_int = tcp_ip_convert_ip_p_to_n(NODE_LO_ADDR(node));
-    
     inner_ip_hdr->src_ip = addr_int;
-    
     addr_int =  tcp_ip_convert_ip_p_to_n(dst_ip_addr);
     inner_ip_hdr->dst_ip = addr_int;
-
     addr_int = tcp_ip_convert_ip_p_to_n(ero_ip_address);
-
-    demote_packet_to_layer3(node, 
-                            pkt_block,
-                            IP_IN_IP_HDR, 
-                            addr_int);
-
+    cp2dp_send_ip_data (node, pkt_block, addr_int, IP_IN_IP);
     pkt_block_dereference(pkt_block);
-}
-
-/*Wrapper fn to be used by Applications*/
-void
-tcp_ip_send_ip_data(node_t *node, 
-                                  pkt_block_t *pkt_block,
-                                  hdr_type_t L5_protocol_id, 
-                                  uint32_t dest_ip_address) {
-
-    demote_packet_to_layer3(node, 
-                                              pkt_block,
-                                              L5_protocol_id,
-                                              dest_ip_address);
 }
 
 l3_route_t *
@@ -1173,6 +1142,25 @@ void
 l3_route_inc_ref_count (l3_route_t *l3_route) {
 
     l3_route->rt_ref_count++;
+}
+
+void
+np_tcp_ip_send_ip_data (node_t *node, pkt_block_t *pkt_block) {
+
+    assert (pkt_block_verify_pkt (pkt_block, IP_HDR));
+
+    ip_hdr_t *ip_hdr = (ip_hdr_t *)pkt_block_get_ip_hdr(pkt_block);
+
+    /* This API expects that IP-HDR must have following fields set */
+    assert (ip_hdr->protocol);
+
+    // Src IP may or may not be set already. If not set, we will determine it
+    //assert (ip_hdr->src_ip);
+
+    assert (ip_hdr->dst_ip);
+    assert (ip_hdr->total_length);
+
+    layer3_ip_route_pkt (node, NULL, pkt_block); 
 }
 
 void

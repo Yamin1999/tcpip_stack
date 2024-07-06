@@ -60,10 +60,10 @@ uint8_t
 pkt_block_dereference(pkt_block_t *pkt_block);
 
 pkt_block_t *
-pkt_block_get_new2(uint8_t *pkt, pkt_size_t pkt_size, char *fn_name, uint16_t lineno);
+pkt_block_get_new2(uint8_t *pkt, pkt_size_t pkt_size, const char *fn_name, uint16_t lineno);
 
 pkt_block_t *
-pkt_block_get_new_pkt_buffer2(pkt_size_t pkt_size, char *fn_name, uint16_t lineno);
+pkt_block_get_new_pkt_buffer2(pkt_size_t pkt_size, const char *fn_name, uint16_t lineno);
 
 void
 pkt_block_set_starting_hdr_type(pkt_block_t *pkt_block, hdr_type_t hdr_type) ;

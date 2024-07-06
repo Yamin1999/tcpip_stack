@@ -156,7 +156,7 @@ next_next_hop_proto ( nxthop_proto_id_t proto_id ) {
 static inline  nxthop_proto_id_t
 next_next_hop_first ( void ) {
 
-    return proto_nxthop_isis;
+    return proto_nxthop_first;
 }
 
 #define FOR_ALL_NXTHOP_PROTO(nh_proto)  \
@@ -263,11 +263,6 @@ rt_table_perform_app_operation_on_routes (
                             void (*app_cbk) (mtrie_t *, mtrie_node_t *, void *));
 
 void
-tcp_ip_send_ip_data(node_t *node, 
-                                  pkt_block_t *pkt_block,
-                                  hdr_type_t L5_protocol_id, 
-                                  uint32_t dest_ip_address);
-void
 layer3_ip_route_pkt(node_t *node,
 							   Interface *interface,
 					           pkt_block_t *pkt_block) ;
@@ -288,5 +283,8 @@ rt_ipv4_route_del (node_t *node,
                                uint8_t mask, 
                                uint16_t proto_id,
                                bool async) ;
+
+void
+np_tcp_ip_send_ip_data (node_t *node, pkt_block_t *pkt_block);
 
 #endif /* __LAYER3__ */

@@ -1166,12 +1166,21 @@ GRETunnelInterface::SendPacketOut(pkt_block_t *pkt_block)
     }
 
     gre_encasulate (pkt_block);
-    pkt_block_get_pkt (pkt_block, &pkt_size);
     pkt_block_set_exclude_oif (pkt_block, this);
+    pkt_block_get_pkt (pkt_block, &pkt_size);
 
     /* Now attach outer IP Hdr and send the pkt*/
-    tcp_ip_send_ip_data (node, pkt_block, GRE_HDR,  this->tunnel_dst_ip);
+    assert (pkt_block_expand_buffer_left (pkt_block, sizeof (ip_hdr_t)));
+    pkt_block_set_starting_hdr_type (pkt_block, IP_HDR);
+    ip_hdr_t *ip_hdr = pkt_block_get_ip_hdr (pkt_block);
+    initialize_ip_hdr (ip_hdr);
+    ip_hdr->src_ip = tcp_ip_convert_ip_p_to_n (NODE_LO_ADDR(node));
+    ip_hdr->dst_ip = this->tunnel_dst_ip;
+    ip_hdr->protocol = GRE_PROTO;
+    ip_hdr->total_length = IP_HDR_COMPUTE_DEFAULT_TOTAL_LEN(pkt_size);
+    np_tcp_ip_send_ip_data (node, pkt_block);
     this->pkt_sent++;
+    pkt_block_get_pkt (pkt_block, &pkt_size);
 
     if (no_modify) {
         pkt_block_dereference(pkt_block);
