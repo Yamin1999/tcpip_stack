@@ -79,7 +79,7 @@ isis_lsp_xmit_job(event_dispatcher_t *ev_dis, void *arg, uint32_t arg_size) {
             pkt_block_set_new_pkt(pkt_block, (uint8_t *)lsp_pkt->pkt, lsp_pkt->pkt_size);
             pkt_block_set_starting_hdr_type(pkt_block, ETH_HDR);
             pkt_block_set_no_modify (pkt_block, true);
-            intf->SendPacketOut(pkt_block);
+            cp2dp_xmit_pkt(intf->att_node, pkt_block, intf);
             ISIS_INTF_INCREMENT_STATS(intf, lsp_pkt_sent);
             trace (ISIS_TR(intf->att_node), TR_ISIS_LSDB, "%s : LSP %s pushed out of interface %s\n",
                 ISIS_LSPDB_MGMT, isis_print_lsp_id(lsp_pkt, lsp_id_str), intf->if_name.c_str());

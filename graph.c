@@ -94,12 +94,10 @@ create_new_graph (const char *topology_name){
     return graph;
 }
 
-extern void
-tcp_ip_register_default_l3_pkt_trap_rules(node_t *node);
-extern void 
-node_init_udp_socket(node_t *node);
-extern void
-dp_pkt_recvr_job_cbk(event_dispatcher_t *ev_dis, void *pkt, uint32_t pkt_size);
+extern void tcp_ip_register_default_l3_pkt_trap_rules(node_t *node);
+extern void node_init_udp_socket(node_t *node);
+extern void dp_pkt_recvr_job_cbk(event_dispatcher_t *ev_dis, void *pkt, uint32_t pkt_size);
+extern void  dp_pkt_xmit_intf_job_cbk (event_dispatcher_t *ev_dis, void *pkt, uint32_t pkt_size);
 extern struct hashtable *object_network_create_new_ht() ;
 extern struct hashtable *object_group_create_new_ht() ;
 extern void init_nfc_layer2_proto_reg_db2(node_t *node);
@@ -149,6 +147,7 @@ create_graph_node(graph_t *graph, const c_string node_name){
     event_dispatcher_run(&node->dp_ev_dis);
     node->dp_ev_dis.app_data = (void *)node;
     init_pkt_q(&node->dp_ev_dis, &node->dp_recvr_pkt_q, dp_pkt_recvr_job_cbk);
+    init_pkt_q(&node->dp_ev_dis, &node->cp_to_dp_xmit_intf_pkt_q, dp_pkt_xmit_intf_job_cbk);
 
     /* Start Object purger Thread/Scheduler */
     snprintf (ev_dis_name, EV_DIS_NAME_LEN, "Purger-%s", node_name);

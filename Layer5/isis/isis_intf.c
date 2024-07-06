@@ -45,7 +45,7 @@ isis_transmit_hello(event_dispatcher_t *ev_dis,  void *arg, uint32_t arg_size) {
     ethernet_hdr_t *eth_hdr = (ethernet_hdr_t *)pkt_block_get_pkt(pkt_block, &pkt_size);
     memcpy(eth_hdr->src_mac.mac, IF_MAC(egress_intf), sizeof(eth_hdr->src_mac.mac));
     pkt_block_set_no_modify (pkt_block, true);
-    egress_intf->SendPacketOut(pkt_block);
+    cp2dp_xmit_pkt (node, pkt_block, egress_intf);
 }
 
 void
@@ -83,7 +83,7 @@ isis_send_hello_immediately (Interface *intf) {
             ethernet_hdr_t *eth_hdr = (ethernet_hdr_t *)pkt_block_get_pkt(pkt_block, &pkt_size);
             memcpy(eth_hdr->src_mac.mac, IF_MAC(intf), sizeof(eth_hdr->src_mac.mac));
             pkt_block_set_no_modify (pkt_block, true);
-            intf->SendPacketOut(pkt_block);
+            cp2dp_xmit_pkt (intf->att_node, pkt_block, intf);
             if (new_hello) pkt_block_dereference (pkt_block);
     }
  

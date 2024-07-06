@@ -95,6 +95,8 @@ struct node_ {
     event_dispatcher_t purger_ev_dis;
     /* Data Path ingress Pkt Queue */
     pkt_q_t dp_recvr_pkt_q;
+    /* CptoDp Interface Xmit Global Queue*/
+    pkt_q_t cp_to_dp_xmit_intf_pkt_q;
      /*CP Timer*/
     wheel_timer_t *cp_wt;
     /* Data Path Timer */

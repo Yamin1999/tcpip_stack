@@ -39,4 +39,7 @@ cp2dp_msg_alloc (node_t *node, uint32_t data_size);
 void
 cp2dp_msg_free (node_t *node, dp_msg_t *dp_msg);
 
+void
+cp2dp_xmit_pkt (node_t *node, pkt_block_t *pkt_block, Interface *xmit_interface) ;
+
 #endif 
