@@ -95,4 +95,31 @@ tcp_ip_toggle_global_console_logging(void);
 void
 variadic_sprintf (node_t *node, Interface *intf, const char *format, ...);
 
+
+/* Debug Logging */
+#define DARP (1 << 0)
+#define DARP_DET (1 << 1)
+#define DL3FWD (1 << 2)
+#define DL3FWD_DET (1 << 3)
+#define DL2FWD (1 << 4)
+#define DL2FWD_DET (1 << 5)
+#define DRTM (1 << 6)
+#define DRTM_DET (1 << 7)
+#define DACL (1 << 8)
+#define DACL_DET (1 << 9)
+#define DIPC (1 << 10)
+#define DIPC_DET (1 << 11)
+#define DINTF (1 << 12)
+#define DINTF_DET (1 << 13)
+#define DFLOW (1 << 14)
+#define DFLOW_DET (1 << 15)
+#define DTUNNEL (1 << 16)
+#define DTUNNEL_DET (1 << 17)
+#define DL2SW (1 << 18)
+#define DL2SW_DET (1 << 19)
+#define DTIMER (1 << 20)
+#define DTIMER_DET (1 << 21)
+#define  DALWAYS_FLUSH (1 << 22)
+#define DERR (1 << 23)
+
 #endif /* __TCP_IP_TRACE__ */

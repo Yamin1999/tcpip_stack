@@ -1021,3 +1021,175 @@ variadic_sprintf (node_t *node, Interface *intf, const char *format, ...)
    // vsprintf(node->logging_buffer, format, args);
     va_end(args);
 }
+
+static int 
+tcp_ip_debug_handler (  int cmdcode, 
+                                        Stack_t *tlv_stack, 
+                                        op_mode enable_or_disable) {
+
+    
+   node_t *node;
+   c_string node_name;
+   tlv_struct_t *tlv = NULL;
+
+    TLV_LOOP_STACK_BEGIN(tlv_stack, tlv){
+        
+        if     (parser_match_leaf_id(tlv->leaf_id, "node-name"))
+            node_name = tlv->value;
+
+    }TLV_LOOP_END;
+
+    node = node_get_node_by_name(topo, node_name);
+
+    switch (cmdcode) {
+
+        case DALWAYS_FLUSH:
+            enable_or_disable == CONFIG_ENABLE ? \
+                tracer_enable_always_flush (node->tr, true) : tracer_enable_always_flush (node->tr, false);
+            return 0;
+    }
+
+    /* Handle rest of the cmd codes */
+    enable_or_disable == CONFIG_ENABLE ? \
+        tracer_log_bit_set(node->tr, cmdcode) : tracer_log_bit_unset(node->tr, cmdcode);
+
+    return 0;
+}
+
+/* Building debug cli tree */
+static void 
+libcli_register_param_detail (param_t *root, cmd_callback callback, int cmdcode) {
+
+    param_t *detail = (param_t *)calloc (1, sizeof (param_t));
+    init_param(detail, CMD, "detail", callback, 0, INVALID, 0, "detail");
+    libcli_register_param(root, detail);
+    libcli_set_param_cmd_code(detail, cmdcode);
+}
+
+void 
+tcp_ip_build_debug_cli_tree (param_t *root) {
+
+    {
+        /* config node <node-name> [no] debug . . .*/
+        static param_t debug;
+        init_param(&debug, CMD, "debug", 0, 0, INVALID, 0, "debug");
+        libcli_register_param(root, &debug);
+
+        {
+            /* config node <node-name> [no] debug arp [detail]*/
+            static param_t arp;
+            init_param(&arp, CMD, "arp", tcp_ip_debug_handler, 0, INVALID, 0, "arp");
+            libcli_register_param(&debug, &arp);
+            libcli_set_param_cmd_code(&arp, DARP);
+            libcli_register_param_detail (&arp, tcp_ip_debug_handler, DARP_DET);
+        }
+
+        {
+            /* config node <node-name> [no] debug l3fwd [detail]*/
+            static param_t l3fwd;
+            init_param(&l3fwd, CMD, "l3fwd", tcp_ip_debug_handler, 0, INVALID, 0, "Layer 3 Forwarding");
+            libcli_register_param(&debug, &l3fwd);
+            libcli_set_param_cmd_code(&l3fwd, DL3FWD);
+            libcli_register_param_detail (&l3fwd, tcp_ip_debug_handler, DL3FWD_DET);
+        }
+
+        {
+            /* config node <node-name> [no] debug l2fwd [detail]*/
+            static param_t l2fwd;
+            init_param(&l2fwd, CMD, "l2fwd", tcp_ip_debug_handler, 0, INVALID, 0, "Layer 2 Forwarding");
+            libcli_register_param(&debug, &l2fwd);
+            libcli_set_param_cmd_code(&l2fwd, DL3FWD);
+            libcli_register_param_detail (&l2fwd, tcp_ip_debug_handler, DL2FWD_DET);
+        }
+
+        {
+            /* config node <node-name> [no] debug rtm [detail]*/
+            static param_t rtm;
+            init_param(&rtm, CMD, "rtm", tcp_ip_debug_handler, 0, INVALID, 0, "Routing Table Manager");
+            libcli_register_param(&debug, &rtm);
+            libcli_set_param_cmd_code(&rtm, DRTM);
+            libcli_register_param_detail (&rtm, tcp_ip_debug_handler, DRTM_DET);
+        }
+
+        {
+            /* config node <node-name> [no] debug acl [detail]*/
+            static param_t acl;
+            init_param(&acl, CMD, "acl", tcp_ip_debug_handler, 0, INVALID, 0, "Access-List");
+            libcli_register_param(&debug, &acl);
+            libcli_set_param_cmd_code(&acl, DACL);
+            libcli_register_param_detail (&acl, tcp_ip_debug_handler, DACL_DET);
+        }
+
+        {
+            /* config node <node-name> [no] debug ipc [detail]*/
+            static param_t ipc;
+            init_param(&ipc, CMD, "ipc", tcp_ip_debug_handler, 0, INVALID, 0, "IPC");
+            libcli_register_param(&debug, &ipc);
+            libcli_set_param_cmd_code(&ipc, DIPC);
+            libcli_register_param_detail (&ipc, tcp_ip_debug_handler, DIPC_DET);
+        }
+
+        {
+            /* config node <node-name> [no] debug interface [detail]*/
+            static param_t intf;
+            init_param(&intf, CMD, "interface", tcp_ip_debug_handler, 0, INVALID, 0, "Interface");
+            libcli_register_param(&debug, &intf);
+            libcli_set_param_cmd_code(&intf, DINTF);
+            libcli_register_param_detail (&intf, tcp_ip_debug_handler, DINTF_DET);
+        }
+
+        {
+            /* config node <node-name> [no] debug flow [detail]*/
+            static param_t flow;
+            init_param(&flow, CMD, "flow", tcp_ip_debug_handler, 0, INVALID, 0, "Packet Flow");
+            libcli_register_param(&debug, &flow);
+            libcli_set_param_cmd_code(&flow, DFLOW);
+            libcli_register_param_detail (&flow, tcp_ip_debug_handler, DFLOW_DET);
+        }
+
+        {
+            /* config node <node-name> [no] debug tunnel [detail]*/
+            static param_t tunnel;
+            init_param(&tunnel, CMD, "tunnel", tcp_ip_debug_handler, 0, INVALID, 0, "Tunnel");
+            libcli_register_param(&debug, &tunnel);
+            libcli_set_param_cmd_code(&tunnel, DTUNNEL);
+            libcli_register_param_detail (&tunnel, tcp_ip_debug_handler, DTUNNEL_DET);
+        }
+
+        {
+            /* config node <node-name> [no] debug switch [detail]*/
+            static param_t switching;
+            init_param(&switching, CMD, "switching", tcp_ip_debug_handler, 0, INVALID, 0, "Switching");
+            libcli_register_param(&debug, &switching);
+            libcli_set_param_cmd_code(&switching, DL2SW);
+            libcli_register_param_detail (&switching, tcp_ip_debug_handler, DL2SW_DET);
+        }
+
+        {
+            /* config node <node-name> [no] debug timer [detail]*/
+            static param_t timer;
+            init_param(&timer, CMD, "timer", tcp_ip_debug_handler, 0, INVALID, 0, "timer");
+            libcli_register_param(&debug, &timer);
+            libcli_set_param_cmd_code(&timer, DTIMER);
+            libcli_register_param_detail (&timer, tcp_ip_debug_handler, DTIMER_DET);
+        }
+
+        {
+            /* config node <node-name> [no] debug always-flush*/
+            static param_t flush;
+            init_param(&flush, CMD, "always-flush", tcp_ip_debug_handler, 0, INVALID, 0, "Set log file always-flush");
+            libcli_register_param(&debug, &flush);
+            libcli_set_param_cmd_code(&flush, DALWAYS_FLUSH);
+        }
+
+        {
+            /* config node <node-name> [no] debug error*/
+            static param_t error;
+            init_param(&error, CMD, "error", tcp_ip_debug_handler, 0, INVALID, 0, "Errors");
+            libcli_register_param(&debug, &error);
+            libcli_set_param_cmd_code(&error, DERR);
+        }
+
+    }
+
+}

@@ -63,6 +63,7 @@ class VlanInterface;
 typedef struct spf_data_ spf_data_t;
 typedef struct pkt_tracer_ pkt_tracer_t;
 typedef struct hashtable hashtable_t;
+typedef struct tracer_ tracer_t;
 
 struct node_ {
 
@@ -106,7 +107,8 @@ struct node_ {
 
     glthread_t access_lists_db;
     glthread_t prefix_lst_db;
-
+    /*Node Tracer*/
+    tracer_t *tr;
     /* Network Object Hashtable */
     hashtable_t *object_network_ght;
      /* Object Group Hashtable */

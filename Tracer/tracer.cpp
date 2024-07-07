@@ -17,9 +17,6 @@
 extern int cprintf (const char* format, ...) ;
 #endif 
 
-static uint64_t flush_count = 0;
-#define FLUSH_MAX   10
-
 typedef enum log_flags_ {
 
     ENABLE_FILE_LOG = 1,
@@ -36,22 +33,12 @@ typedef struct tracer_ {
     FILE *log_file;
     int out_fd;
     uint64_t bits;
+    bool always_flush;
     struct tracer_ *left;
     struct tracer_ *right;
     uint8_t op_flags;
     pthread_spinlock_t spin_lock;
 } tracer_t;
-
-static tracer_t *list_head = NULL;
-
-static void 
-tracer_save (tracer_t *tracer) {
-
-    if (!list_head) list_head = tracer;
-    tracer->right = list_head;
-    list_head->left = tracer;
-    list_head = tracer;
-}
 
 tracer_t *
 tracer_init (const char *tr_str_id, const char *file_name, const char *hdr, int out_fd, uint64_t logging_bits) {
@@ -71,32 +58,9 @@ tracer_init (const char *tr_str_id, const char *file_name, const char *hdr, int 
     tr->log_msg_len = tr->hdr_size;
     tr->out_fd = out_fd;
     tr->bits = logging_bits;
+    tr->always_flush = false;
     pthread_spin_init (&tr->spin_lock, PTHREAD_PROCESS_PRIVATE);
-    tracer_save (tr);
     return tr;
-}
-
-static void
-tracer_remove(tracer_t *tracer){
-    
-    if(!tracer->left){
-        if(tracer->right){
-            tracer->right->left = NULL;
-            tracer->right = 0;
-            return;
-        }   
-        return;
-    }   
-    if(!tracer->right){
-        tracer->left->right = NULL;
-        tracer->left = NULL;
-        return;
-    }   
-
-    tracer->left->right = tracer->right;
-    tracer->right->left = tracer->left;
-    tracer->left = 0;
-    tracer->right = 0;
 }
 
 void
@@ -108,15 +72,6 @@ tracer_deinit (tracer_t *tracer) {
     }
 
     pthread_spin_destroy (&tracer->spin_lock);
-
-    if (list_head == tracer) {
-        list_head = tracer->right;
-        if (list_head) list_head->left = NULL;
-        free(tracer);
-        return;
-    }
-
-    tracer_remove (tracer);
     free (tracer);
 }
 
@@ -158,8 +113,7 @@ trace_internal (tracer_t *tracer,
              fwrite (tracer->Logbuffer, 1 , tracer->log_msg_len, tracer->log_file);
         }
 
-        flush_count++;
-        if (flush_count % FLUSH_MAX == 0) {
+        if (tracer->always_flush) {
             fflush (tracer->log_file);
         }
     }
@@ -267,4 +221,23 @@ bool
 tracer_is_file_logging_enable (tracer_t *tracer) {
 
     return tracer->op_flags & ENABLE_FILE_LOG;
+}
+
+void 
+tracer_enable_always_flush (tracer_t *tracer, bool always_flush) {
+
+    pthread_spin_lock (&tracer->spin_lock);
+    tracer->always_flush = always_flush;
+    pthread_spin_unlock (&tracer->spin_lock);
+}
+
+
+void 
+tracer_flush (tracer_t *tracer) {
+
+    pthread_spin_lock (&tracer->spin_lock);
+    if (tracer->log_file) {
+        fflush (tracer->log_file);
+    }
+    pthread_spin_unlock (&tracer->spin_lock);
 }

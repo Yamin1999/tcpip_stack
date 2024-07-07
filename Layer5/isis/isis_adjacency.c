@@ -47,7 +47,7 @@ isis_timer_expire_down_adjacency_cb(event_dispatcher_t *ev_dis,
     timer_de_register_app_event(adjacency->expiry_timer);
     adjacency->expiry_timer = NULL;
 
-   trace (ISIS_TR(adjacency->intf->att_node), TR_ISIS_ADJ,
+   tracer (ISIS_TR(adjacency->intf->att_node), TR_ISIS_ADJ,
         "Adjacency %s Up timer Expired\n",
         isis_adjacency_name(adj_name, adjacency));
 
@@ -73,13 +73,13 @@ isis_adjacency_start_expiry_timer(
 
     if(!adjacency->expiry_timer){
         
-        trace (ISIS_TR(adjacency->intf->att_node), TR_ISIS_ERRORS,
+        tracer (ISIS_TR(adjacency->intf->att_node), TR_ISIS_ERRORS,
             "Adjacency %s Expiry timer failed to start\n",
             isis_adjacency_name(adj_name, adjacency));
         return;
     }
 
-    trace (ISIS_TR(adjacency->intf->att_node), TR_ISIS_ADJ,
+    tracer (ISIS_TR(adjacency->intf->att_node), TR_ISIS_ADJ,
         "Adjacency %s Expiry timer started\n",
         isis_adjacency_name(adj_name, adjacency));
 }
@@ -104,7 +104,7 @@ isis_adjacency_stop_expiry_timer(
 
     timer_de_register_app_event(adjacency->expiry_timer);
     adjacency->expiry_timer = NULL;
-    trace (ISIS_TR(adjacency->intf->att_node), TR_ISIS_ADJ,
+    tracer (ISIS_TR(adjacency->intf->att_node), TR_ISIS_ADJ,
         "Adjacency %s Expiry timer stopped\n",
         isis_adjacency_name(adj_name, adjacency));
 }
@@ -134,13 +134,13 @@ isis_adjacency_start_delete_timer(
                                     0);
     
     if (!adjacency->delete_timer){
-        trace (ISIS_TR(adjacency->intf->att_node), TR_ISIS_ERRORS,
+        tracer (ISIS_TR(adjacency->intf->att_node), TR_ISIS_ERRORS,
             "Adjacency %s Delete timer could not be started\n",
             isis_adjacency_name(adj_name, adjacency));
         return;
     }
 
-   trace (ISIS_TR(adjacency->intf->att_node), TR_ISIS_ADJ, 
+   tracer (ISIS_TR(adjacency->intf->att_node), TR_ISIS_ADJ, 
             "Adjacency %s Delete timer started\n",
              isis_adjacency_name(adj_name, adjacency));
 }
@@ -157,7 +157,7 @@ isis_adjacency_stop_delete_timer(
     timer_de_register_app_event(adjacency->delete_timer);
     adjacency->delete_timer = NULL;
 
-     trace (ISIS_TR(adjacency->intf->att_node), TR_ISIS_ADJ | TR_ISIS_EVENTS, 
+     tracer (ISIS_TR(adjacency->intf->att_node), TR_ISIS_ADJ | TR_ISIS_EVENTS, 
             "Adjacency %s Delete timer stopped\n",
             isis_adjacency_name(adj_name, adjacency));
 }
@@ -172,7 +172,7 @@ isis_delete_adjacency(isis_adjacency_t *adjacency) {
     remove_glthread(&adjacency->glue);
     isis_adjacency_stop_expiry_timer(adjacency);
     isis_adjacency_stop_delete_timer(adjacency);
-    trace (ISIS_TR(adjacency->intf->att_node), TR_ISIS_ADJ | TR_ISIS_EVENTS, 
+    tracer (ISIS_TR(adjacency->intf->att_node), TR_ISIS_ADJ | TR_ISIS_EVENTS, 
         "Adjacency %s Deleted\n", isis_adjacency_name(adj_name, adjacency));
     if (adjacency->adj_state == ISIS_ADJ_STATE_UP) {
         ISIS_DECREMENT_NODE_STATS(adjacency->intf->att_node, adjacency_up_count);
@@ -281,7 +281,7 @@ isis_update_interface_adjacency_from_hello(
                                                 isis_adjacency_comp_fn,
                                                 (int)&((isis_adjacency_t *)0)->glue);
         new_adj = true;
-        trace (ISIS_TR(node), TR_ISIS_ADJ,  "%s : New Adjacency for nbr %s on intf %s Created\n",
+        tracer (ISIS_TR(node), TR_ISIS_ADJ,  "%s : New Adjacency for nbr %s on intf %s Created\n",
             ISIS_ADJ_MGMT, sys_id_str, iif->if_name.c_str());
     }
     else {
@@ -292,7 +292,7 @@ isis_update_interface_adjacency_from_hello(
     if (!new_adj && lan_hdr && 
             (isis_lan_id_compare (&adjacency->lan_id, &lan_hdr->lan_id) != CMP_PREF_EQUAL)) {
         
-        trace (ISIS_TR(node), TR_ISIS_ADJ, "%s : Nbr %s reported new lan-id %s on intf %s\n",
+        tracer (ISIS_TR(node), TR_ISIS_ADJ, "%s : Nbr %s reported new lan-id %s on intf %s\n",
              ISIS_ADJ_MGMT, sys_id_str, isis_lan_id_tostring(&lan_hdr->lan_id, lan_id_str), 
              iif->if_name.c_str());
 
@@ -303,7 +303,7 @@ isis_update_interface_adjacency_from_hello(
             adjacency->lan_id = lan_hdr->lan_id;
         }
         else {
-           trace (ISIS_TR(node), TR_ISIS_ADJ, "%s : Dis Election will happen on intf %s, reason new lan-id  reported was also elected DIS\n",
+           tracer (ISIS_TR(node), TR_ISIS_ADJ, "%s : Dis Election will happen on intf %s, reason new lan-id  reported was also elected DIS\n",
             ISIS_ADJ_MGMT, iif->if_name.c_str());
             adjacency->lan_id = lan_hdr->lan_id;
             reelect_dis = true;
@@ -386,7 +386,7 @@ isis_update_interface_adjacency_from_hello(
     }
 
    if (regen_lsp && !force_bring_down_adjacency) {
-        trace(ISIS_TR(node), TR_ISIS_ADJ | TR_ISIS_EVENTS, 
+        tracer(ISIS_TR(node), TR_ISIS_ADJ | TR_ISIS_EVENTS, 
             "%s : ISIS Adjacency attributes changed, regen LSP \n", ISIS_ADJ_MGMT);
         isis_adjacency_withdraw_is_reach(adjacency);
         isis_adjacency_advertise_is_reach(adjacency);
@@ -515,7 +515,7 @@ isis_change_adjacency_state(
     intf_info = ISIS_INTF_INFO(adjacency->intf);
     
     if (old_adj_state != new_adj_state) {
-        trace (ISIS_TR(adjacency->intf->att_node), TR_ISIS_ADJ,
+        tracer (ISIS_TR(adjacency->intf->att_node), TR_ISIS_ADJ,
             "%s : Adj %s state moving from %s to %s\n",
             ISIS_ADJ_MGMT,
             isis_adjacency_name(adj_name, adjacency),

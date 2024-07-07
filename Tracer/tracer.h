@@ -14,7 +14,7 @@ tracer_init (const char *tr_str_id, const char *file_name, const char *hdr, int 
 void
 tracer_deinit (tracer_t *tracer) ;
 
-#define trace(tr_ptr, bitn, ...) \
+#define tracer(tr_ptr, bitn, ...) \
     trace_internal(tr_ptr, bitn, __FUNCTION__, __LINE__, __VA_ARGS__);
     
 void 
@@ -46,5 +46,11 @@ tracer_clear_log_file (tracer_t *tracer);
 
 void 
 tracer_disable_hdr_print (tracer_t *tracer);
+
+void 
+tracer_enable_always_flush (tracer_t *tracer, bool always_flush);
+
+void 
+tracer_flush (tracer_t *tracer);
 
 #endif 

@@ -42,7 +42,7 @@
 #include "packet-tracer/packet_tracer.h"
 #include "c-hashtable/hashtable.h"
 #include "Interface/InterfaceUApi.h"
-
+#include "Tracer/tracer.h"
 
 void
 insert_link_between_two_nodes(node_t *node1,
@@ -105,6 +105,7 @@ extern void init_nfc_layer2_proto_reg_db2(node_t *node);
 node_t *
 create_graph_node(graph_t *graph, const c_string node_name){
 
+    char file_name[32];
     char ev_dis_name[EV_DIS_NAME_LEN];
 
     node_t *node = (node_t *)calloc(1, sizeof(node_t));
@@ -118,6 +119,11 @@ create_graph_node(graph_t *graph, const c_string node_name){
     node->spf_data = NULL;
 
     tcp_ip_init_node_log_info(node);
+
+    memset(file_name, 0, sizeof(file_name));
+    sprintf(file_name, "logs/%s-ftrs.txt", node->node_name);
+    node->tr = tracer_init (node_name, file_name, node->node_name, STDOUT_FILENO, 0);
+    tracer_enable_file_logging (node->tr, true);
 
     /* L3 pkt trapping to application is implemented using Netfilter
     hooks built over NFC*/

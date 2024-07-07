@@ -26,7 +26,7 @@ void
 isis_lsp_pkt_flood_complete(node_t *node, isis_lsp_pkt_t *lsp_pkt ){
 
     byte lsp_id_str[ISIS_LSP_ID_STR_SIZE];
-    trace (ISIS_TR(node), TR_ISIS_LSDB, "%s : Flooding of LSP %s completed\n", 
+    tracer (ISIS_TR(node), TR_ISIS_LSDB, "%s : Flooding of LSP %s completed\n", 
             ISIS_LSPDB_MGMT,
             isis_print_lsp_id (lsp_pkt, lsp_id_str));
 }
@@ -55,7 +55,7 @@ isis_lsp_xmit_job(event_dispatcher_t *ev_dis, void *arg, uint32_t arg_size) {
 
     intf_info->lsp_xmit_job = NULL;
 
-     trace (ISIS_TR(intf->att_node), TR_ISIS_LSDB | TR_ISIS_EVENTS,
+     tracer (ISIS_TR(intf->att_node), TR_ISIS_LSDB | TR_ISIS_EVENTS,
         "%s : lsp xmit job triggered on interface %s\n", ISIS_LSPDB_MGMT, intf->if_name.c_str());
 
     if (!isis_node_intf_is_enable(intf)) return;
@@ -81,10 +81,10 @@ isis_lsp_xmit_job(event_dispatcher_t *ev_dis, void *arg, uint32_t arg_size) {
             pkt_block_set_no_modify (pkt_block, true);
             cp2dp_xmit_pkt(intf->att_node, pkt_block, intf);
             ISIS_INTF_INCREMENT_STATS(intf, lsp_pkt_sent);
-            trace (ISIS_TR(intf->att_node), TR_ISIS_LSDB, "%s : LSP %s pushed out of interface %s\n",
+            tracer (ISIS_TR(intf->att_node), TR_ISIS_LSDB, "%s : LSP %s pushed out of interface %s\n",
                 ISIS_LSPDB_MGMT, isis_print_lsp_id(lsp_pkt, lsp_id_str), intf->if_name.c_str());
         } else {
-            trace (ISIS_TR(intf->att_node), TR_ISIS_LSDB, 
+            tracer (ISIS_TR(intf->att_node), TR_ISIS_LSDB, 
                 "%s : LSP %s discarded from output flood Queue of interface %s, %d %d\n",
                 ISIS_LSPDB_MGMT, isis_print_lsp_id(lsp_pkt, lsp_id_str), intf->if_name.c_str(),
                 has_up_adjacency, lsp_pkt->flood_eligibility);
@@ -141,7 +141,7 @@ isis_queue_lsp_pkt_for_transmission(
     glthread_add_next(&intf_info->lsp_xmit_list_head,
                       &lsp_xmit_elem->glue);
 
-    trace (ISIS_TR(intf->att_node), TR_ISIS_LSDB, "%s : LSP %s scheduled to flood out of %s\n",
+    tracer (ISIS_TR(intf->att_node), TR_ISIS_LSDB, "%s : LSP %s scheduled to flood out of %s\n",
             ISIS_LSPDB_MGMT, isis_print_lsp_id(lsp_pkt, lsp_id_str),
             intf->if_name.c_str());
 
@@ -211,7 +211,7 @@ isis_schedule_lsp_flood(node_t *node,
         if (!isis_node_intf_is_enable(intf)) continue;
 
         if (intf == exempt_iif) {
-           trace (ISIS_TR(node), TR_ISIS_LSDB, 
+           tracer (ISIS_TR(node), TR_ISIS_LSDB, 
                 "%s : LSP %s flood skip out of intf %s, Reason :reciepient intf\n",
                 ISIS_LSPDB_MGMT,  isis_print_lsp_id(lsp_pkt, lsp_id_str), 
                 intf->if_name.c_str());
@@ -220,7 +220,7 @@ isis_schedule_lsp_flood(node_t *node,
 
         if (ISIS_INTF_INFO(intf)->intf_grp) continue;
 
-         trace (ISIS_TR(node), TR_ISIS_LSDB, "%s : LSP %s scheduled for flood out of intf %s\n",
+         tracer (ISIS_TR(node), TR_ISIS_LSDB, "%s : LSP %s scheduled for flood out of intf %s\n",
             ISIS_LSPDB_MGMT, isis_print_lsp_id(lsp_pkt, lsp_id_str), intf->if_name.c_str());
         isis_queue_lsp_pkt_for_transmission(intf, lsp_pkt);
         is_lsp_queued = true;
@@ -234,7 +234,7 @@ isis_schedule_lsp_flood(node_t *node,
 
         if (exempt_iif && ISIS_INTF_INFO(exempt_iif)->intf_grp == intf_grp) { 
         
-             trace (ISIS_TR(node), TR_ISIS_LSDB, "%s : LSP %s flood skip out of intf %s, Reason : reciepient intf grp %s\n",
+             tracer (ISIS_TR(node), TR_ISIS_LSDB, "%s : LSP %s flood skip out of intf %s, Reason : reciepient intf grp %s\n",
                         ISIS_LSPDB_MGMT, isis_print_lsp_id(lsp_pkt, lsp_id_str), exempt_iif->if_name.c_str(),
                         ISIS_INTF_INFO(exempt_iif)->intf_grp->name);
             continue;
@@ -243,7 +243,7 @@ isis_schedule_lsp_flood(node_t *node,
         intf = isis_intf_grp_get_first_active_intf_grp_member(node, intf_grp);
         if (!intf || !isis_any_adjacency_up_on_interface(intf)) continue;
         
-       trace (ISIS_TR(node), TR_ISIS_LSDB, "%s : LSP %s scheduled for flood out of intf %s intf-grp %s\n",
+       tracer (ISIS_TR(node), TR_ISIS_LSDB, "%s : LSP %s scheduled for flood out of intf %s intf-grp %s\n",
                     ISIS_LSPDB_MGMT,
                     isis_print_lsp_id(lsp_pkt, lsp_id_str),
                     intf->if_name.c_str(),
@@ -269,7 +269,7 @@ isis_schedule_purge_lsp_flood_cbk (node_t *node, isis_lsp_pkt_t *lsp_pkt) {
     fragment->regen_flags = ISIS_SHOULD_INCL_PURGE_BIT;
     isis_regenerate_lsp_fragment (node, fragment, fragment->regen_flags);
     
-    trace (ISIS_TR(node), TR_ISIS_LSDB | TR_ISIS_EVENTS, 
+    tracer (ISIS_TR(node), TR_ISIS_LSDB | TR_ISIS_EVENTS, 
             "%s : Purging LSP %s\n", ISIS_LSPDB_MGMT,
             isis_print_lsp_id (fragment->lsp_pkt, lsp_id_str));
 

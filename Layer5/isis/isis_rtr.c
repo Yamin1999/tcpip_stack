@@ -193,7 +193,7 @@ isis_launch_prior_shutdown_tasks(node_t *node) {
     /* Set the flags to track what work needs to be done before we die out */
     if (node_info->adjacency_up_count) {
 
-        trace (ISIS_TR(node), TR_ISIS_EVENTS, 
+        tracer (ISIS_TR(node), TR_ISIS_EVENTS, 
             "%s : Generating Pre-shutdown work - Purging Zero LSPs\n", node->node_name);
 
         SET_BIT(node_info->shutdown_pending_work_flags,
@@ -204,7 +204,7 @@ isis_launch_prior_shutdown_tasks(node_t *node) {
     
     if (isis_has_routes(node)) {
 
-        trace (ISIS_TR(node), TR_ISIS_EVENTS, 
+        tracer (ISIS_TR(node), TR_ISIS_EVENTS, 
             "%s : Generating Pre-shutdown work - Route deletion\n", node->node_name);
 
         SET_BIT(node_info->shutdown_pending_work_flags,
@@ -393,13 +393,13 @@ isis_schedule_job(node_t *node,
                   isis_event_type_t event_type) {
 
     if (*task) {
-        trace (ISIS_TR(node), TR_ISIS_SPF, "%s Already Scheduled. Reason : %s\n",
+        tracer (ISIS_TR(node), TR_ISIS_SPF, "%s Already Scheduled. Reason : %s\n",
             job_name, isis_event_str(event_type));
         return;
     }
     
     if (!isis_is_protocol_enable_on_node(node)) {
-        trace (ISIS_TR(node), TR_ISIS_SPF, "Protocol not Enable. %s Will not be Scheduled."
+        tracer (ISIS_TR(node), TR_ISIS_SPF, "Protocol not Enable. %s Will not be Scheduled."
                 " Reason : %s\n", job_name, isis_event_str(event_type));
         return;
     }
@@ -407,7 +407,7 @@ isis_schedule_job(node_t *node,
     *task = task_create_new_job(EV(node), data, cbk, TASK_ONE_SHOT, TASK_PRIORITY_COMPUTE);
 
     if(*task) {
-        trace (ISIS_TR(node), TR_ISIS_SPF, "%s Scheduled. Reason : %s\n",
+        tracer (ISIS_TR(node), TR_ISIS_SPF, "%s Scheduled. Reason : %s\n",
             job_name, isis_event_str(event_type));        
     }
 }

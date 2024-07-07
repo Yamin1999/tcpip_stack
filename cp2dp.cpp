@@ -52,31 +52,6 @@ cp2dp_task_handler  (event_dispatcher_t *ev_dis,  void *arg, uint32_t arg_size) 
     }
 }
 
-void 
-cp2dp_submit (node_t *node, dp_msg_t *dp_msg, bool async) {
-
-    // This function is used to submit a task to the DP
-    // The task is submitted to the DP's event dispatcher
-    // The task is submitted with the highest priority
-    // The task is submitted as a one-shot task
-    // The task is submitted with the task data as arg
-    // The task data size is arg_size
-
-    // Get the event dispatcher of the DP
-    if (async) {
-            task_create_new_job(EV_DP(node), (void *)dp_msg,
-                cp2dp_task_handler, 
-                TASK_ONE_SHOT, 
-                TASK_PRIORITY_CP_TO_DP);
-    }
-    else {
-        task_create_new_job_synchronous(EV_DP(node), (void *)dp_msg,
-                cp2dp_task_handler, 
-                TASK_ONE_SHOT, 
-                TASK_PRIORITY_CP_TO_DP);
-    }
-}
-
 dp_msg_t *
 cp2dp_msg_alloc (node_t *node, uint32_t data_size) {
 
@@ -169,4 +144,29 @@ cp2dp_send_ip_data ( node_t *node,
     pkt_block_reference(pkt_block);
     cp2dp_submit (node, dp_msg, true);
     pkt_block_dereference(pkt_block);
+}
+
+void 
+cp2dp_submit (node_t *node, dp_msg_t *dp_msg, bool async) {
+
+    // This function is used to submit a task to the DP
+    // The task is submitted to the DP's event dispatcher
+    // The task is submitted with the highest priority
+    // The task is submitted as a one-shot task
+    // The task is submitted with the task data as arg
+    // The task data size is arg_size
+
+    // Get the event dispatcher of the DP
+    if (async) {
+            task_create_new_job(EV_DP(node), (void *)dp_msg,
+                cp2dp_task_handler, 
+                TASK_ONE_SHOT, 
+                TASK_PRIORITY_CP_TO_DP);
+    }
+    else {
+        task_create_new_job_synchronous(EV_DP(node), (void *)dp_msg,
+                cp2dp_task_handler, 
+                TASK_ONE_SHOT, 
+                TASK_PRIORITY_CP_TO_DP);
+    }
 }

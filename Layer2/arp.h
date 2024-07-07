@@ -65,7 +65,7 @@ GLTHREAD_TO_STRUCT(arp_pending_list_to_arp_entry, arp_entry_t, arp_pending_list)
 
 #define IS_ARP_ENTRIES_EQUAL(arp_entry_1, arp_entry_2)  \
     (string_compare(arp_entry_1->ip_addr.ip_addr, arp_entry_2->ip_addr.ip_addr, 16) == 0 && \
-        string_compare(arp_entry_1->mac_addr.mac, arp_entry_2->mac_addr.mac, 6) == 0 && \
+        mac_address_compare(arp_entry_1->mac_addr.mac, arp_entry_2->mac_addr.mac) && \
         string_compare(arp_entry_1->oif_name, arp_entry_2->oif_name, IF_NAME_SIZE) == 0 && \
         arp_entry_1->is_sane == arp_entry_2->is_sane &&     \
         arp_entry_1->is_sane == false && \
@@ -88,17 +88,19 @@ arp_entry_create_expiration_timer(
 
 void
 arp_entry_delete_expiration_timer(
+        node_t *node,
 		arp_entry_t *arp_entry);
 
 void
 arp_entry_refresh_expiration_timer(
+        node_t *node,
 		arp_entry_t *arp_entry);
 
 uint16_t
 arp_entry_get_exp_time_left(arp_entry_t *arp_entry);
 
 void
-delete_arp_entry(arp_entry_t *arp_entry);
+delete_arp_entry(node_t *node, arp_entry_t *arp_entry);
 
 void
 arp_entry_delete(node_t *node, unsigned char *ip_addr, uint16_t proto);
@@ -119,7 +121,8 @@ arp_table_update_from_arp_reply(arp_table_t *arp_table,
 
 
 void
-add_arp_pending_entry (arp_entry_t *arp_entry,
+add_arp_pending_entry (node_t *node,
+        arp_entry_t *arp_entry,
         arp_processing_fn cb,
         pkt_block_t *pkt_block);
 

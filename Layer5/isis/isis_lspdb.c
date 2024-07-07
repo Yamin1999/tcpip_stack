@@ -113,7 +113,7 @@ isis_install_lsp(node_t *node,
 
     uint32_t *new_seq_no = isis_get_lsp_pkt_seq_no(new_lsp_pkt);
 
-    trace (ISIS_TR(node), TR_ISIS_LSDB, "%s : Lsp Recvd : %s on intf %s, old lsp : %s\n",
+    tracer (ISIS_TR(node), TR_ISIS_LSDB, "%s : Lsp Recvd : %s on intf %s, old lsp : %s\n",
             ISIS_LSPDB_MGMT,
             lsp_id_str_new,
             iif ? iif->if_name.c_str() : "Nil",
@@ -124,7 +124,7 @@ isis_install_lsp(node_t *node,
     if (self_lsp && duplicate_lsp) {
 
         event_type = isis_event_self_duplicate_lsp;
-        trace (ISIS_TR(node), TR_ISIS_LSDB, "\tEvent : %s : self Duplicate LSP, No Action\n",
+        tracer (ISIS_TR(node), TR_ISIS_LSDB, "\tEvent : %s : self Duplicate LSP, No Action\n",
             isis_event_str(event_type));
         /* Action :
             1. if foriegn lsp then do nothing
@@ -141,7 +141,7 @@ isis_install_lsp(node_t *node,
     else if (self_lsp && !old_lsp_pkt) {
 
         event_type = isis_event_self_fresh_lsp;
-        trace(ISIS_TR(node), TR_ISIS_LSDB, "\tEvent : %s\n", isis_event_str(event_type));
+        tracer(ISIS_TR(node), TR_ISIS_LSDB, "\tEvent : %s\n", isis_event_str(event_type));
         /* Action :
             1. if foriegn rtr has send me my own LSP, and I never had such a LSP in my local db
             then ignore such a LSP.
@@ -150,7 +150,7 @@ isis_install_lsp(node_t *node,
             return;
             assert(0);     
         } else {
-            trace(ISIS_TR(node), TR_ISIS_LSDB, "%s : LSP to be Added in LSPDB and flood\n",
+            tracer(ISIS_TR(node), TR_ISIS_LSDB, "%s : LSP to be Added in LSPDB and flood\n",
                 ISIS_LSPDB_MGMT);
             isis_add_lsp_pkt_in_lspdb(node, new_lsp_pkt);
             isis_ted_update_or_install_lsp(node, new_lsp_pkt);
@@ -161,7 +161,7 @@ isis_install_lsp(node_t *node,
     else if (self_lsp && old_lsp_pkt && (*new_seq_no > *old_seq_no)) {
 
         event_type = isis_event_self_new_lsp;
-        trace(ISIS_TR(node), TR_ISIS_LSDB, "\tEvent : %s\n",isis_event_str(event_type));
+        tracer(ISIS_TR(node), TR_ISIS_LSDB, "\tEvent : %s\n",isis_event_str(event_type));
         /* Action :
             1. if foreign lsp, regenerate self lsp with higher 
                 sequence no and flood on all intf
@@ -170,11 +170,11 @@ isis_install_lsp(node_t *node,
         if (recvd_via_intf) {
             old_lsp_pkt->fragment->seq_no = *new_seq_no;
 
-             trace(ISIS_TR(node), TR_ISIS_LSDB, "%s : LSP %s to be generated with seq no %u\n",
+             tracer(ISIS_TR(node), TR_ISIS_LSDB, "%s : LSP %s to be generated with seq no %u\n",
                 ISIS_LSPDB_MGMT, lsp_id_str_old, *new_seq_no + 1);
             isis_schedule_regen_fragment(node, old_lsp_pkt->fragment, event_type);
         } else {
-            trace(ISIS_TR(node), TR_ISIS_LSDB, "%s : LSP %s to be replaced in LSPDB "
+            tracer(ISIS_TR(node), TR_ISIS_LSDB, "%s : LSP %s to be replaced in LSPDB "
                 "with new LSP %s and flood\n",
                 ISIS_LSPDB_MGMT,
                 lsp_id_str_old, lsp_id_str_new);
@@ -189,13 +189,13 @@ isis_install_lsp(node_t *node,
     else if (self_lsp && old_lsp_pkt && (*new_seq_no < *old_seq_no)) {
 
         event_type = isis_event_self_old_lsp;
-        trace(ISIS_TR(node), TR_ISIS_LSDB, "\tEvent : %s\n",isis_event_str(event_type));
+        tracer(ISIS_TR(node), TR_ISIS_LSDB, "\tEvent : %s\n",isis_event_str(event_type));
         /* Action :
             1. if foreign lsp, then flood existing one on all intf
             2. if self originated lsp then assert, impossible case */
         if (recvd_via_intf) {
 
-           trace(ISIS_TR(node), TR_ISIS_LSDB, "%s : LSP %s to be flooded\n",
+           tracer(ISIS_TR(node), TR_ISIS_LSDB, "%s : LSP %s to be flooded\n",
                 ISIS_LSPDB_MGMT,
                 lsp_id_str_old);
             isis_schedule_lsp_flood(node, old_lsp_pkt, 0);
@@ -208,12 +208,12 @@ isis_install_lsp(node_t *node,
     else if (!self_lsp && duplicate_lsp) {
 
         event_type = isis_event_non_local_duplicate_lsp;
-        trace(ISIS_TR(node), TR_ISIS_LSDB, "\tEvent : %s\n",isis_event_str(event_type));
+        tracer(ISIS_TR(node), TR_ISIS_LSDB, "\tEvent : %s\n",isis_event_str(event_type));
         /* Action :
             1. if foreign lsp then do nothing
             2. if self originated lsp then assert, impossible case */
         if (recvd_via_intf) {
-            trace(ISIS_TR(node), TR_ISIS_LSDB, "%s : Recvd Duplicate LSP %s, no Action\n",
+            tracer(ISIS_TR(node), TR_ISIS_LSDB, "%s : Recvd Duplicate LSP %s, no Action\n",
             ISIS_LSPDB_MGMT, lsp_id_str_new);
         } else {
             assert(0);
@@ -223,13 +223,13 @@ isis_install_lsp(node_t *node,
     else if (!self_lsp && !old_lsp_pkt) {
 
         event_type = isis_event_non_local_fresh_lsp;
-        trace(ISIS_TR(node), TR_ISIS_LSDB, "\tEvent : %s\n",isis_event_str(event_type));
+        tracer(ISIS_TR(node), TR_ISIS_LSDB, "\tEvent : %s\n",isis_event_str(event_type));
         /* Action :
             1. if foreign lsp then install in db and flood forward it
             2. if self originated lsp then assert, impossible case */
         if (recvd_via_intf) {
 
-             trace(ISIS_TR(node), TR_ISIS_LSDB, "%s : LSP %s to be Added in LSPDB and flood\n",
+             tracer(ISIS_TR(node), TR_ISIS_LSDB, "%s : LSP %s to be Added in LSPDB and flood\n",
                 ISIS_LSPDB_MGMT, lsp_id_str_new);
 
             if (!purge_lsp) {
@@ -247,14 +247,14 @@ isis_install_lsp(node_t *node,
     else if (!self_lsp && old_lsp_pkt && (*new_seq_no > *old_seq_no)) {
 
         event_type = isis_event_non_local_new_lsp;
-        trace(ISIS_TR(node), TR_ISIS_LSDB, "\tEvent : %s\n",isis_event_str(event_type));
+        tracer(ISIS_TR(node), TR_ISIS_LSDB, "\tEvent : %s\n",isis_event_str(event_type));
         /* Action :
             1. if foreign lsp then replace in db and flood forward it
             2. if self originated lsp then assert, impossible case */
         if (recvd_via_intf) {
             if (!purge_lsp) {
 
-                trace(ISIS_TR(node), TR_ISIS_LSDB,
+                tracer(ISIS_TR(node), TR_ISIS_LSDB,
                     "%s : LSP %s to be replaced in LSPDB with"
                     " LSP %s and flood\n",
                     ISIS_LSPDB_MGMT,
@@ -262,7 +262,7 @@ isis_install_lsp(node_t *node,
             }
             else {
 
-               trace(ISIS_TR(node), TR_ISIS_LSDB, 
+               tracer(ISIS_TR(node), TR_ISIS_LSDB, 
                 "%s : New LSP %s will cause Purge and flood\n",
                 ISIS_LSPDB_MGMT, lsp_id_str_new);
             }
@@ -286,13 +286,13 @@ isis_install_lsp(node_t *node,
     else if (!self_lsp && old_lsp_pkt && (*new_seq_no < *old_seq_no)) {
 
         event_type = isis_event_non_local_old_lsp;
-        trace(ISIS_TR(node), TR_ISIS_LSDB,  "\tEvent : %s\n", isis_event_str(event_type));
+        tracer(ISIS_TR(node), TR_ISIS_LSDB,  "\tEvent : %s\n", isis_event_str(event_type));
         /* Action :
             1. if foreign lsp then shoot out lsp back on recv intf
             2. if self originated lsp then assert, impossible case */
         if (recvd_via_intf) {
 
-           trace(ISIS_TR(node), TR_ISIS_LSDB, 
+           tracer(ISIS_TR(node), TR_ISIS_LSDB, 
                 "%s : Old LSP %s will be back fired out of intf %s\n",
                 ISIS_LSPDB_MGMT,
                 lsp_id_str_old,
@@ -304,7 +304,7 @@ isis_install_lsp(node_t *node,
         }
     }
 
-    trace(ISIS_TR(node), TR_ISIS_LSDB, 
+    tracer(ISIS_TR(node), TR_ISIS_LSDB, 
         "%s : LSPDB Updated  for new Lsp Recvd : %s, old lsp : %s, Event : %s\n",
             ISIS_LSPDB_MGMT,
             lsp_id_str_new,
@@ -323,13 +323,13 @@ isis_install_lsp(node_t *node,
         case isis_event_self_fresh_lsp:
         case isis_event_non_local_fresh_lsp:
             run_spf_job = true;
-            trace (ISIS_TR(node), TR_ISIS_LSDB | TR_ISIS_SPF,
+            tracer (ISIS_TR(node), TR_ISIS_LSDB | TR_ISIS_SPF,
                 "%s : SPF Job will be scheduled - event %s\n",
                 ISIS_LSPDB_MGMT, isis_event_str (event_type));
             break;
         case isis_event_self_new_lsp:
         case isis_event_non_local_new_lsp:
-                trace (ISIS_TR(node), TR_ISIS_LSDB | TR_ISIS_SPF,
+                tracer (ISIS_TR(node), TR_ISIS_LSDB | TR_ISIS_SPF,
                 "%s : SPF Job will be scheduled based on pkt diff - event %s\n",
                 ISIS_LSPDB_MGMT, isis_event_str (event_type));
             isis_parse_lsp_tlvs(node, new_lsp_pkt, old_lsp_pkt, event_type);
@@ -371,7 +371,7 @@ isis_parse_lsp_tlvs(node_t *node,
         isis_schedule_spf_job(node, event_type);
     }
     else {
-        trace (ISIS_TR(node), TR_ISIS_PKT_LSP | TR_ISIS_SPF, "%s : No pkt diff found\n",
+        tracer (ISIS_TR(node), TR_ISIS_PKT_LSP | TR_ISIS_SPF, "%s : No pkt diff found\n",
         ISIS_LSPDB_MGMT);
     }
 }
@@ -613,7 +613,7 @@ isis_add_lsp_pkt_in_lspdb(node_t *node, isis_lsp_pkt_t *lsp_pkt) {
 
      isis_ref_isis_pkt(lsp_pkt);
      isis_print_lsp_id (lsp_pkt,  lsp_id_str);
-     trace (ISIS_TR(node), TR_ISIS_LSDB | TR_ISIS_EVENTS,  
+     tracer (ISIS_TR(node), TR_ISIS_LSDB | TR_ISIS_EVENTS,  
         "%s : LSP %s added to LSPDB\n", ISIS_LSPDB_MGMT,  lsp_id_str);
      return true;
 }
@@ -647,7 +647,7 @@ isis_remove_lsp_pkt_from_lspdb(node_t *node, isis_lsp_pkt_t *lsp_pkt) {
     lsp_pkt->installed_in_db = false;
     isis_stop_lsp_pkt_installation_timer(lsp_pkt);
     isis_print_lsp_id (lsp_pkt,  lsp_id_str);
-    trace (ISIS_TR(node), TR_ISIS_LSDB | TR_ISIS_EVENTS,  
+    tracer (ISIS_TR(node), TR_ISIS_LSDB | TR_ISIS_EVENTS,  
         "%s : LSP %s removed from LSPDB\n", ISIS_LSPDB_MGMT, lsp_id_str);
     isis_deref_isis_pkt(node, lsp_pkt);
 }

@@ -68,9 +68,9 @@ extern void Interface_config_cli_tree (param_t *root);
 extern void access_list_print_bitmap(node_t *node, c_string access_list_name);
 extern void config_node_build_transport_svc_cli_tree (param_t *param) ;
 extern void show_node_transport_svc_cli_tree (param_t *param) ;
+extern void tcp_ip_build_debug_cli_tree (param_t *root);
 
-extern int
-isis_show_handler (int cmdcode,
+extern int isis_show_handler (int cmdcode,
                   Stack_t *tlv_stack,
                   op_mode enable_or_disable);
 
@@ -721,24 +721,24 @@ nw_init_cli(){
             static param_t node_name;
             init_param(&node_name, LEAF, 0, 0, validate_node_extistence, STRING, "node-name", "Node Name");
             libcli_register_param(&node, &node_name);
-                        {
-                    /*debug node <node-name> access-list...*/
-                    static param_t access_lst;
-                    init_param(&access_lst, CMD, "access-list", 0, 0, INVALID, 0, "Access List");
-                    libcli_register_param(&node_name, &access_lst);
+            {
+                /*debug node <node-name> access-list...*/
+                static param_t access_lst;
+                init_param(&access_lst, CMD, "access-list", 0, 0, INVALID, 0, "Access List");
+                libcli_register_param(&node_name, &access_lst);
+                {
+                    /*debug node <node-name> access-list <access-list-name> ...*/
+                    static param_t access_list_name;
+                    init_param(&access_list_name, LEAF, 0, 0, 0, STRING, "access-list-name", "Access List Name");
+                    libcli_register_param(&access_lst, &access_list_name);
                     {
-                        /*debug node <node-name> access-list <access-list-name> ...*/
-                        static param_t access_list_name;
-                        init_param(&access_list_name, LEAF, 0, 0, 0, STRING, "access-list-name", "Access List Name");
-                        libcli_register_param(&access_lst, &access_list_name);
-                        {
-                            static param_t tcam;
-                            init_param(&tcam, CMD, "tcam", debug_show_node_handler, 0, INVALID, 0, "Tcam format");
-                            libcli_register_param(&access_list_name, &tcam);
-                            libcli_set_param_cmd_code(&tcam, CMDCODE_DEBUG_SHOW_NODE_MTRIE_ACL);
-                        }
+                        static param_t tcam;
+                        init_param(&tcam, CMD, "tcam", debug_show_node_handler, 0, INVALID, 0, "Tcam format");
+                        libcli_register_param(&access_list_name, &tcam);
+                        libcli_set_param_cmd_code(&tcam, CMDCODE_DEBUG_SHOW_NODE_MTRIE_ACL);
                     }
                 }
+            }
              {
                  /*debug node <node-name> mtrie ...*/
                 static param_t mtrie;
@@ -1084,6 +1084,9 @@ nw_init_cli(){
 
             /* Transport Svc Profile CLIs*/
             config_node_build_transport_svc_cli_tree (&node_name);
+
+            /* Debug options */
+            tcp_ip_build_debug_cli_tree (&node_name);
         }
 
         {

@@ -46,7 +46,7 @@ int
 show_ip_igmp_groups_handler(int cmdcode, Stack_t *tlv_stack, op_mode enable_or_disable){
 
     cprintf ("\nenable or disable = %d", enable_or_disable);
-    trace (tr, IGMP_LOG, "igmp logs %s\n", "printed");
+    tracer (tr, IGMP_LOG, "igmp logs %s\n", "printed");
 }
 
 int
@@ -54,8 +54,8 @@ mtrace_handler(int cmdcode, Stack_t *tlv_stack, op_mode enable_or_disable){
 
     cprintf ("\nenable or disable = %d", enable_or_disable);
     
-    trace (tr, MTRACE_LOG, "mtrace logs %s\n", "printed");
-    //trace (tr, MTRACE_LOG, "%s(%d) :: mtrace logs %s\n", FNL, "printed");
+    tracer (tr, MTRACE_LOG, "mtrace logs %s\n", "printed");
+    //tracer (tr, MTRACE_LOG, "%s(%d) :: mtrace logs %s\n", FNL, "printed");
 
     tlv_struct_t *tlv;
     TLV_LOOP_STACK_BEGIN (tlv_stack, tlv) {
