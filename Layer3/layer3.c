@@ -55,6 +55,7 @@
 #include "../FireWall/Connection/conn.h"
 #include "../Interface/InterfaceUApi.h"
 #include "../cp2dp.h"
+#include "../Tracer/tracer.h"
 
 extern int
 nh_flush_nexthops(nexthop_t **nexthop);
@@ -509,6 +510,9 @@ rt_table_delete_route(
     l3_route->nh_count -= count;
 
     if (l3_route->nh_count) {
+        tracer(rt_table->node->tr, DRTM, 
+            "Route %s/%d : Nexthop of type %s deleted successfully from Rib\n", 
+            l3_route->dest, l3_route->mask, proto_index_to_str(nh_proto));
         return;
     }
 
@@ -522,6 +526,9 @@ rt_table_delete_route(
                                             &prefix_bm,
                                             &mask_bm,
                                             (void **)&l3_route) == MTRIE_DELETE_SUCCESS);
+
+    tracer(rt_table->node->tr, DRTM, 
+        "Route %s/%d : deleted successfully from Rib\n",  l3_route->dest, l3_route->mask);
 
     bitmap_free_internal(&prefix_bm);
     bitmap_free_internal(&mask_bm);
@@ -705,7 +712,7 @@ _rt_table_entry_add(rt_table_t *rt_table, l3_route_t *l3_route){
     mtrie_ops_result_code_t rc;
 
     if (!rt_table_evaluate_import_policy(rt_table, l3_route)) {
-        cprintf ("Info : Route Installation Rejected due to Import policy\n");
+        tracer(rt_table->node->tr, DRTM , "Route %s/%d : Installation Rejected due to Import policy\n",  l3_route->dest, l3_route->mask );
         return false;
     }
 
@@ -736,6 +743,8 @@ _rt_table_entry_add(rt_table_t *rt_table, l3_route_t *l3_route){
    mnode->data = (void *)l3_route;
    l3_route_inc_ref_count (l3_route);
    l3_route->install_time = time(NULL);
+    tracer(rt_table->node->tr, DRTM , "Route %s/%d : Successfully added to Rib\n", 
+            l3_route->dest, l3_route->mask);
    rt_table_add_route_to_notify_list(rt_table, l3_route, RT_ADD_F);
    rt_table_kick_start_notif_job(rt_table);
    return true;
@@ -751,6 +760,7 @@ rt_table_add_route (rt_table_t *rt_table,
                                 uint16_t proto_id) {
 
    bool new_route = false;
+    node_t *node = rt_table->node;
 
     nxthop_proto_id_t nxthop_proto = 
         l3_rt_map_proto_id_to_nxthop_index(proto_id);
@@ -780,8 +790,8 @@ rt_table_add_route (rt_table_t *rt_table,
                 if (gw && string_compare(l3_route->nexthops[nxthop_proto][i]->gw_ip, gw, 16) == 0 && 
                     l3_route->nexthops[nxthop_proto][i]->oif == oif) { 
 
-                    cprintf("%s Error : Attempt to Add Duplicate Route %s/%d\n",
-                            rt_table->node->node_name, dst, mask);
+                    tracer(node->tr, DRTM | DERR, 
+                        "Error : Route %s/%d : Attempt to Add Duplicate \n", dst, mask);
                     return;
                 }
            }
@@ -790,8 +800,7 @@ rt_table_add_route (rt_table_t *rt_table,
    }
 
    if( i == MAX_NXT_HOPS){
-        cprintf("%s Error : No Nexthop space left for route %s/%u\n", 
-            rt_table->node->node_name, dst, mask);
+        tracer(node->tr, DRTM | DERR,  "Error : Route %s/%d : No Space left for Nexthop \n", dst, mask);
         return;
    }
 
@@ -824,6 +833,8 @@ rt_table_add_route (rt_table_t *rt_table,
         
 		l3_route_insert_nexthop(l3_route, nexthop, nxthop_proto);
         if (!new_route) {
+            tracer(node->tr, DRTM, "Route %s/%d : Nexthop %s %s added to Rib\n", 
+                dst, mask, nexthop->gw_ip, nexthop->oif ? nexthop->oif->if_name.c_str() : "None");
             rt_table_add_route_to_notify_list (rt_table, l3_route, RT_UPDATE_F);
             rt_table_kick_start_notif_job(rt_table);
         }
@@ -831,8 +842,7 @@ rt_table_add_route (rt_table_t *rt_table,
 
    if (new_route){
        if (!_rt_table_entry_add(rt_table, l3_route)){
-           cprintf("%s Error : Route %s/%d Installation Failed\n", 
-                     rt_table->node->node_name, dst, mask);
+           tracer(node->tr, DRTM | DERR, "Error : Route %s/%d : Installation Failed in Rib\n",  dst, mask);
        }
    }
 }
@@ -1079,7 +1089,7 @@ layer3_ping_fn(node_t *node, c_string dst_ip_addr, uint32_t count){
 
     addr_int = tcp_ip_convert_ip_p_to_n(dst_ip_addr);
     cprintf("\nSrc node : %s, Ping ip : %s", node->node_name, dst_ip_addr);
-    
+
     for (i = 0; i < count ; i ++) {
         cp2dp_send_ip_data (node, NULL, addr_int, ICMP_PROTO);
     }

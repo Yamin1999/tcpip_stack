@@ -7,6 +7,7 @@
 #include "rt_table/nexthop.h"
 #include "layer3.h"
 #include "../LinuxMemoryManager/uapi_mm.h"
+#include "../Tracer/tracer.h"
 
 void
 rt_table_add_route_to_notify_list (
@@ -14,6 +15,7 @@ rt_table_add_route_to_notify_list (
                 l3_route_t *l3route,
                 uint8_t flag) {
 
+    char buffer[48];
     uint8_t old_flags = l3route->rt_flags;
 
     l3_route_inc_ref_count (l3route);
@@ -34,6 +36,8 @@ rt_table_add_route_to_notify_list (
             SET_BIT(l3route->rt_flags, flag);
     }
     glthread_add_next(&rt_table->rt_notify_list_head, &l3route->notif_glue);
+    tracer (rt_table->node->tr, DIPC_DET, "Route %s/%d : Added to notify list with flags %s\n", 
+        l3route->dest, l3route->mask, RT_FLAGS_STR(l3route->rt_flags, buffer, sizeof(buffer)));
     l3_route_inc_ref_count (l3route);
     l3_route_dec_ref_count(l3route);
 }
@@ -55,6 +59,9 @@ rt_table_notif_job_cb(event_dispatcher_t *ev_dis, void *arg, uint32_t arg_size) 
         l3route = notif_glue_to_l3_route(curr);
         rt_route_notif_data.l3route = l3route;
         rt_route_notif_data.node = rt_table->node;
+
+        tracer (rt_table->node->tr, DIPC_DET, "Route %s/%d : Notification Invoked\n",
+            l3route->dest, l3route->mask);
 
         nfc_invoke_notif_chain(NULL,
                                                &rt_table->nfc_rt_updates, 
@@ -136,6 +143,7 @@ static void
 
      } ITERATE_GLTHREAD_END(&rt_table->rt_flash_list_head, curr)
 
+    tracer (rt_table->node->tr, DIPC, "Flash Route Queue of RIB is Purged\n");
  }
 
 static void
@@ -170,13 +178,14 @@ rt_table_flash_job (event_dispatcher_t *ev_dis, void *arg, uint32_t arg_size) {
 
     flash_req = glue_to_route_flash_request(curr);
     rt_table_process_one_flash_client (rt_table, flash_req->cbk);
-    free (flash_req);
+    XFREE (flash_req);
 
     if (!IS_GLTHREAD_LIST_EMPTY(&rt_table->flash_request_list_head)) {
         rt_table->flash_job = task_create_new_job(EV(rt_table->node), 
                                                   rt_table,
                                                   rt_table_flash_job, TASK_ONE_SHOT,
                                                   TASK_PRIORITY_COMPUTE);
+        tracer (rt_table->node->tr, DIPC, "Flash Route Queue Job of RIB is Triggered\n");
     }
     else {
         rt_table_purge_flash_route_queue(rt_table);
@@ -196,6 +205,8 @@ rt_table_add_route_to_flash_list (rt_table_t *rt_table,
 
     SET_BIT(l3route->rt_flags, RT_FLASH_REQ_F);
     glthread_add_next(&rt_table->rt_flash_list_head, &l3route->flash_glue);
+    tracer (rt_table->node->tr, DIPC_DET, "Route %s/%d : Route added to Flash Route Queue of RIB\n",
+        l3route->dest, l3route->mask);
     l3_route_inc_ref_count(l3route);
     l3_route_dec_ref_count(l3route);
 }
@@ -224,6 +235,7 @@ static void
                                                 rt_table_flash_job,
                                                 TASK_ONE_SHOT,
                                                 TASK_PRIORITY_COMPUTE);
+        tracer (rt_table->node->tr, DIPC, "Flash Route Queue Job of RIB is Scheduled\n");
     }
  }
 
@@ -231,12 +243,13 @@ void
 nfc_ipv4_rt_request_flash (node_t *node, nfc_app_cb cbk) {
 
     rt_route_flash_request_t *flash_req =
-        (rt_route_flash_request_t *)calloc(1, sizeof(rt_route_flash_request_t));
+        (rt_route_flash_request_t *)XCALLOC(0, 1, rt_route_flash_request_t);
 
     flash_req->cbk = cbk;
     init_glthread(&flash_req->glue);
 
     glthread_add_last(&(NODE_RT_TABLE(node)->flash_request_list_head), &flash_req->glue);
+    tracer (node->tr, DIPC, "IPV4 route request flash is recvd\n");
     rt_table_kick_start_flash_job(NODE_RT_TABLE(node));
 }
 

@@ -9,7 +9,7 @@
 typedef struct tracer_ tracer_t;
 
 tracer_t *
-tracer_init (const char *tr_str_id, const char *file_name, const char *hdr, int out_fd, uint64_t logging_bits);
+tracer_init (const char *tr_str_id, const char *file_name, const char *hdr, int out_fd, uint64_t logging_bits,  int (*bit_to_str)(char *, uint64_t));
 
 void
 tracer_deinit (tracer_t *tracer) ;

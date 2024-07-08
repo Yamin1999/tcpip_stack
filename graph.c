@@ -101,6 +101,7 @@ extern void  dp_pkt_xmit_intf_job_cbk (event_dispatcher_t *ev_dis, void *pkt, ui
 extern struct hashtable *object_network_create_new_ht() ;
 extern struct hashtable *object_group_create_new_ht() ;
 extern void init_nfc_layer2_proto_reg_db2(node_t *node);
+extern int debug_bit_to_str (char *buffer, uint64_t bits) ;
 
 node_t *
 create_graph_node(graph_t *graph, const c_string node_name){
@@ -122,7 +123,7 @@ create_graph_node(graph_t *graph, const c_string node_name){
 
     memset(file_name, 0, sizeof(file_name));
     sprintf(file_name, "logs/%s-ftrs.txt", node->node_name);
-    node->tr = tracer_init (node_name, file_name, node->node_name, STDOUT_FILENO, 0);
+    node->tr = tracer_init (node_name, file_name, node->node_name, STDOUT_FILENO, 0, debug_bit_to_str );
     tracer_enable_file_logging (node->tr, true);
 
     /* L3 pkt trapping to application is implemented using Netfilter

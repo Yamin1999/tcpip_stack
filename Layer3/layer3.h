@@ -129,6 +129,30 @@ typedef struct rt_table_{
 #define RT_UPDATE_F (1 << 2)
 #define RT_FLASH_REQ_F (1 << 3)
 
+static inline char *
+RT_FLAGS_STR (uint8_t flags, char *buffer, uint16_t buffer_size) {
+
+    memset (buffer, 0, buffer_size);
+
+    if (flags & RT_ADD_F) {
+        strcat(buffer, "ADD_F ");
+    }
+
+    if (flags & RT_DEL_F) {
+        strcat(buffer, "DEL_F ");
+    }
+
+    if (flags & RT_UPDATE_F) {
+        strcat(buffer, "UPDATE_F ");
+    }
+
+    if (flags & RT_FLASH_REQ_F) {
+        strcat(buffer, "FLASH_REQ_F ");
+    }
+
+    return buffer;
+}
+
 typedef enum {
 
     proto_nxthop_first,
@@ -176,6 +200,24 @@ l3_rt_map_proto_id_to_nxthop_index(uint16_t proto_id) {
     }
     return proto_nxthop_max;
 }
+
+static inline nxthop_proto_id_t
+l3_rt_map_nxthop_index_proto_std(uint16_t proto_index) {
+
+    switch(proto_index) {
+        case proto_nxthop_static:
+            return PROTO_STATIC;
+
+        case proto_nxthop_isis:
+            return PROTO_ISIS;
+        default:
+        ;
+    }
+    return PROTO_ANY;
+}
+
+#define proto_index_to_str(proto_index) \
+    (proto_name_str (l3_rt_map_nxthop_index_proto_std (proto_index)))
 
 #define RT_F_PROTO_STATIC   1
 #define RT_F_PROTO_ISIS         2

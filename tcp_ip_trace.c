@@ -1193,3 +1193,107 @@ tcp_ip_build_debug_cli_tree (param_t *root) {
     }
 
 }
+
+int
+debug_bit_to_str (char *buffer, uint64_t bits) {
+
+    int rc = 0;
+
+    if (bits & DARP) {
+        strcat (buffer, "DARP ");
+        rc += 5;
+    }
+    if (bits & DARP_DET) {
+        strcat (buffer, "DARP_DET ");
+        rc += 9;
+    }
+    if (bits & DL3FWD) {
+        strcat (buffer, "DL3FWD ");
+        rc += 7;
+    }
+    if (bits & DL3FWD_DET) {
+        strcat (buffer, "DL3FWD_DET ");
+        rc += 11;
+    }
+    if (bits & DL2FWD) {
+        strcat (buffer, "DL2FWD ");
+        rc += 7;
+    }
+    if (bits & DL2FWD_DET) {
+        strcat (buffer, "DL2FWD_DET ");
+        rc += 11;
+    }
+    if (bits & DRTM) {
+        strcat (buffer, "DRTM ");
+        rc += 5;
+    }
+    if (bits & DRTM_DET) {
+        strcat (buffer, "DRTM_DET ");
+        rc += 9;
+    }
+    if (bits & DACL) {
+        strcat (buffer, "DACL ");
+        rc += 5;
+    }
+    if (bits & DACL_DET) {
+        strcat (buffer, "DACL_DET ");
+        rc += 9;
+    }
+    if (bits & DIPC) {
+        strcat (buffer, "DIPC ");
+        rc += 5;
+    }
+    if (bits & DIPC_DET) {
+        strcat (buffer, "DIPC_DET ");
+        rc += 9;
+    }
+    if (bits & DINTF) {
+        strcat (buffer, "DINTF ");
+        rc += 6;
+    }
+    if (bits & DINTF_DET) {
+        strcat (buffer, "DINTF_DET ");
+        rc += 10;
+    }
+    if (bits & DFLOW) {
+        strcat (buffer, "DFLOW ");
+        rc += 6;
+    }
+    if (bits & DFLOW_DET) {
+        strcat (buffer, "DFLOW_DET ");
+        rc += 10;
+    }
+    if (bits & DTUNNEL) {
+        strcat (buffer, "DTUNNEL ");
+        rc += 8;
+    }
+    if (bits & DTUNNEL_DET) {
+        strcat (buffer, "DTUNNEL_DET ");
+        rc += 12;
+    }
+    if (bits & DL2SW) {
+        strcat (buffer, "DL2SW ");
+        rc += 6;
+    }
+    if (bits & DL2SW_DET) {
+        strcat (buffer, "DL2SW_DET ");
+        rc += 10;
+    }
+    if (bits & DTIMER) {
+        strcat (buffer, "DTIMER ");
+        rc += 7;
+    }
+    if (bits & DTIMER_DET) {
+        strcat (buffer, "DTIMER_DET ");
+        rc += 11;
+    }
+    if (bits & DALWAYS_FLUSH) {
+        strcat (buffer, "DALWAYS_FLUSH ");
+        rc += 13;
+    }
+    if (bits & DERR) {
+        strcat (buffer, "DERR ");
+        rc += 5;
+    }
+    return rc;
+}

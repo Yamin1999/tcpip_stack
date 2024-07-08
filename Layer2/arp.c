@@ -260,6 +260,7 @@ arp_table_entry_add(node_t *node,
 				        arp_entry, ARP_ENTRY_EXP_TIME); 
         }
         tracer(node->tr, DARP, "ARP ARP-entry %s : Added to ARP Table\n", arp_entry->ip_addr.ip_addr);
+        tracer_disable_hdr_print (node->tr);
         tracer(node->tr, DARP_DET, "    ARP Mac : %02x:%02x:%02x:%02x:%02x:%02x\n",
             arp_entry->mac_addr.mac[0], 
             arp_entry->mac_addr.mac[1],
@@ -267,6 +268,7 @@ arp_table_entry_add(node_t *node,
             arp_entry->mac_addr.mac[3],
             arp_entry->mac_addr.mac[4],
             arp_entry->mac_addr.mac[5]);
+        tracer_disable_hdr_print (node->tr);
         tracer(node->tr, DARP_DET, "    ARP OIF = %s, is_sane = %s\n", 
             arp_entry->oif_name, arp_entry_sane(arp_entry) ? "true" : "false");
         return true;
@@ -427,6 +429,17 @@ arp_table_update_from_arp_reply(arp_table_t *arp_table,
         (arp_pending_list_to_arp_entry(arp_pending_list))->is_sane = false;
 
         tracer(node->tr, DARP, "ARP  ARP-Entry %s :  Marked Resolved\n", arp_entry->ip_addr.ip_addr);
+        tracer_disable_hdr_print (node->tr);
+        tracer(node->tr, DARP_DET, "    ARP Mac : %02x:%02x:%02x:%02x:%02x:%02x\n",
+            arp_entry->mac_addr.mac[0], 
+            arp_entry->mac_addr.mac[1],
+            arp_entry->mac_addr.mac[2],
+            arp_entry->mac_addr.mac[3],
+            arp_entry->mac_addr.mac[4],
+            arp_entry->mac_addr.mac[5]);
+        tracer_disable_hdr_print (node->tr);
+        tracer(node->tr, DARP_DET, "    ARP OIF = %s, is_sane = %s\n", 
+            arp_entry->oif_name, arp_entry_sane(arp_entry) ? "true" : "false");        
     }
 
     if(rc == false){

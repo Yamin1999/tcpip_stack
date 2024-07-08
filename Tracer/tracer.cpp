@@ -5,10 +5,12 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <ncurses.h>
+#include <sys/time.h>
+#include <time.h>
 #include "tracer.h"
 
 
-#define HDR_SIZE    32
+#define HDR_SIZE    64
 #define LOG_BUFFER_SIZE 256
 
 #define CLI_INTG
@@ -37,16 +39,19 @@ typedef struct tracer_ {
     struct tracer_ *left;
     struct tracer_ *right;
     uint8_t op_flags;
+    int (*bit_to_str)(char *, uint64_t );
     pthread_spinlock_t spin_lock;
 } tracer_t;
 
 tracer_t *
-tracer_init (const char *tr_str_id, const char *file_name, const char *hdr, int out_fd, uint64_t logging_bits) {
+tracer_init (const char *tr_str_id, const char *file_name, const char *hdr, int out_fd, uint64_t logging_bits, int (*bit_to_str)(char *, uint64_t) ){
 
     assert (tr_str_id);
 
     tracer_t *tr = (tracer_t *)calloc(1, sizeof (tracer_t));
     
+    strncpy ((char *)tr->tr_name, tr_str_id, sizeof (tr->tr_name));
+
     if (file_name) {
         tr->log_file = fopen (file_name, "w+");
         assert (tr->log_file);
@@ -59,6 +64,7 @@ tracer_init (const char *tr_str_id, const char *file_name, const char *hdr, int 
     tr->out_fd = out_fd;
     tr->bits = logging_bits;
     tr->always_flush = false;
+    tr->bit_to_str = bit_to_str;
     pthread_spin_init (&tr->spin_lock, PTHREAD_PROCESS_PRIVATE);
     return tr;
 }
@@ -73,6 +79,29 @@ tracer_deinit (tracer_t *tracer) {
 
     pthread_spin_destroy (&tracer->spin_lock);
     free (tracer);
+}
+
+static int
+time_get_current (char *buffer) {
+
+    struct timeval current_time;
+    struct tm *local_time;
+
+    // Get the current time
+    gettimeofday(&current_time, NULL);
+
+    // Convert to local time format
+    local_time = localtime(&current_time.tv_sec);
+
+    // Print the current time with microseconds precision
+    return snprintf(buffer, 32, "%02d-%02d-%04d %02d:%02d:%02d.%06ld",
+           local_time->tm_mday,
+           local_time->tm_mon + 1,  // tm_mon is months since January (0-11)
+           local_time->tm_year + 1900,  // tm_year is years since 1900
+           local_time->tm_hour,
+           local_time->tm_min,
+           local_time->tm_sec,
+           current_time.tv_usec);
 }
 
 void 
@@ -99,7 +128,11 @@ trace_internal (tracer_t *tracer,
     va_start(args, format);
     memset (tracer->Logbuffer + tracer->hdr_size, 0, tracer->log_msg_len - tracer->hdr_size);
     tracer->log_msg_len = tracer->hdr_size;
-    tracer->log_msg_len += sprintf ((char *)tracer->Logbuffer + tracer->log_msg_len , "%s(%d): ", FN, lineno);
+    tracer->log_msg_len += time_get_current ((char *)tracer->Logbuffer + tracer->log_msg_len);
+    tracer->log_msg_len += sprintf ((char *)tracer->Logbuffer + tracer->log_msg_len , " %s(%d): ", FN, lineno);
+    if (tracer->bit_to_str) {
+        tracer->log_msg_len += tracer->bit_to_str((char *)tracer->Logbuffer + tracer->log_msg_len, bit);
+    }
     tracer->log_msg_len += vsnprintf((char *)tracer->Logbuffer + tracer->log_msg_len, LOG_BUFFER_SIZE - tracer->log_msg_len, format, args);
     tracer->log_msg_len++;   // count \0 character
     va_end(args);
@@ -133,7 +166,7 @@ trace_internal (tracer_t *tracer,
         else {
             cprintf ("%s",  tracer->Logbuffer);
         }
-       refresh();
+        refresh();
         #endif
     }
 
