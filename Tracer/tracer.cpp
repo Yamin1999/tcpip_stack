@@ -7,6 +7,7 @@
 #include <ncurses.h>
 #include <sys/time.h>
 #include <time.h>
+#include <assert.h>
 #include "tracer.h"
 
 
@@ -19,12 +20,12 @@
 extern int cprintf (const char* format, ...) ;
 #endif 
 
-typedef enum log_flags_ {
-
-    ENABLE_FILE_LOG = 1,
-    ENABLE_CONSOLE_LOG = 2,
-    DISABLE_HDR_PRINTING = 4
-}log_flags_t;
+/* Reserved bits, Application is not allowed to use these bits*/
+#define ENABLE_FILE_LOG (1ULL << 63)
+#define ENABLE_CONSOLE_LOG (1ULL << 62)
+#define DISABLE_HDR_PRINTING (1ULL << 61)
+#define DENABLE_ALWAYS_FLUSH (1ULL << 60)
+#define DENABLE_ALL_LOGGING (1ULL << 59)
 
 typedef struct tracer_ {
 
@@ -35,16 +36,18 @@ typedef struct tracer_ {
     FILE *log_file;
     int out_fd;
     uint64_t bits;
-    bool always_flush;
     struct tracer_ *left;
     struct tracer_ *right;
-    uint8_t op_flags;
+    uint64_t op_flags;
     int (*bit_to_str)(char *, uint64_t );
     pthread_spinlock_t spin_lock;
 } tracer_t;
 
 tracer_t *
-tracer_init (const char *tr_str_id, const char *file_name, const char *hdr, int out_fd, uint64_t logging_bits, int (*bit_to_str)(char *, uint64_t) ){
+tracer_init (const char *tr_str_id, 
+                  const char *file_name, 
+                  const char *hdr, int out_fd,
+                  int (*bit_to_str)(char *, uint64_t) ){
 
     assert (tr_str_id);
 
@@ -62,8 +65,6 @@ tracer_init (const char *tr_str_id, const char *file_name, const char *hdr, int 
     }
     tr->log_msg_len = tr->hdr_size;
     tr->out_fd = out_fd;
-    tr->bits = logging_bits;
-    tr->always_flush = false;
     tr->bit_to_str = bit_to_str;
     pthread_spin_init (&tr->spin_lock, PTHREAD_PROCESS_PRIVATE);
     return tr;
@@ -115,7 +116,7 @@ trace_internal (tracer_t *tracer,
 
     pthread_spin_lock (&tracer->spin_lock);
 
-    if (!(tracer->bits & bit)) {
+    if (!(tracer->bits & bit) && !(tracer->bits & DENABLE_ALL_LOGGING)) {
         pthread_spin_unlock (&tracer->spin_lock);
         return;
     }
@@ -146,7 +147,7 @@ trace_internal (tracer_t *tracer,
              fwrite (tracer->Logbuffer, 1 , tracer->log_msg_len, tracer->log_file);
         }
 
-        if (tracer->always_flush) {
+        if ((tracer->bits & DENABLE_ALWAYS_FLUSH)) {
             fflush (tracer->log_file);
         }
     }
@@ -187,6 +188,23 @@ tracer_enable_file_logging (tracer_t *tracer, bool enable) {
     }
 
     pthread_spin_unlock (&tracer->spin_lock);
+}
+
+bool 
+tracer_is_active (tracer_t *tracer, uint64_t log_bit) {
+
+    bool rc = false;
+    pthread_spin_lock (&tracer->spin_lock);
+    rc = tracer->op_flags & ENABLE_CONSOLE_LOG ? true : false;
+    rc |= tracer->op_flags & ENABLE_FILE_LOG ? true : false;
+    if (!rc) {
+        pthread_spin_unlock (&tracer->spin_lock);
+        return false;
+    }
+    rc = (tracer->bits & log_bit) ? true : false;
+    rc |= (tracer->bits & DENABLE_ALL_LOGGING) ? true : false;
+    pthread_spin_unlock (&tracer->spin_lock);
+    return rc;
 }
 
 void 
@@ -241,29 +259,57 @@ tracer_clear_log_file (tracer_t *tracer) {
 bool 
 tracer_is_bit_set (tracer_t *tracer, uint64_t log_bit) {
 
-    return tracer->bits & log_bit;
+    bool rc;
+    pthread_spin_lock (&tracer->spin_lock);
+    rc = tracer->bits & log_bit;
+    pthread_spin_unlock (&tracer->spin_lock);
+    return rc;
 }
 
 bool 
 tracer_is_console_logging_enable (tracer_t *tracer) {
 
-    return tracer->op_flags & ENABLE_CONSOLE_LOG;
+    bool rc;
+    pthread_spin_lock (&tracer->spin_lock);
+    rc = tracer->op_flags & ENABLE_CONSOLE_LOG;
+    pthread_spin_unlock (&tracer->spin_lock);
+    return rc;    
 }
 
 bool 
 tracer_is_file_logging_enable (tracer_t *tracer) {
 
-    return tracer->op_flags & ENABLE_FILE_LOG;
+    bool rc;
+    pthread_spin_lock (&tracer->spin_lock);
+    rc = tracer->op_flags & ENABLE_FILE_LOG;
+    pthread_spin_unlock (&tracer->spin_lock);
+    return rc;        
 }
 
 void 
 tracer_enable_always_flush (tracer_t *tracer, bool always_flush) {
 
     pthread_spin_lock (&tracer->spin_lock);
-    tracer->always_flush = always_flush;
-    pthread_spin_unlock (&tracer->spin_lock);
+
+    if (always_flush)
+       tracer->bits |=  DENABLE_ALWAYS_FLUSH;
+    else 
+        tracer->bits &= ~DENABLE_ALWAYS_FLUSH;
+
+    pthread_spin_unlock (&tracer->spin_lock);        
 }
 
+bool 
+tracer_is_all_logging_enable (tracer_t *tracer) {
+
+    return tracer_is_bit_set (tracer, DENABLE_ALL_LOGGING);
+}
+
+bool
+tracer_get_always_flush_status (tracer_t *tracer) {
+
+    return tracer_is_bit_set (tracer, DENABLE_ALWAYS_FLUSH);
+}
 
 void 
 tracer_flush (tracer_t *tracer) {
@@ -273,4 +319,27 @@ tracer_flush (tracer_t *tracer) {
         fflush (tracer->log_file);
     }
     pthread_spin_unlock (&tracer->spin_lock);
+}
+
+void 
+tracer_enable_all_logging (tracer_t *tracer, bool enable) {
+
+    pthread_spin_lock (&tracer->spin_lock);
+
+    if (enable)
+       tracer->bits |=  DENABLE_ALL_LOGGING;
+    else 
+        tracer->bits &= ~DENABLE_ALL_LOGGING;
+
+    pthread_spin_unlock (&tracer->spin_lock);            
+}
+
+bool 
+tracer_is_reserved_bit (uint64_t bit) {
+
+    return ((bit & ENABLE_FILE_LOG) || 
+                (bit & ENABLE_CONSOLE_LOG) || 
+                (bit & DISABLE_HDR_PRINTING) || 
+                (bit & DENABLE_ALWAYS_FLUSH) || 
+                (bit & DENABLE_ALL_LOGGING));
 }

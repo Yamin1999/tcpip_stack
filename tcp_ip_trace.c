@@ -256,7 +256,7 @@ tcp_dump_gre_hdr(char *buff,
                         pkt_size_t pkt_size){
 
     int rc = 0;
-     rc += sprintf(buff + rc, "GRE hdr : 0x%x\n", gre_hdr->protocol_type);
+     rc += sprintf(buff + rc, "GRE Encap: %s\n", proto_name_str(gre_hdr->protocol_type));
 
     switch (gre_hdr->protocol_type) {
 
@@ -266,7 +266,7 @@ tcp_dump_gre_hdr(char *buff,
                     pkt_size - sizeof(gre_hdr_t));
             break;
 
-        case GRE_ENCAP_ETHERNET:
+        case PROTO_GRE_ENCAP_ETHERNET:
             rc += tcp_dump_ethernet_hdr(buff + rc, 
                     (ethernet_hdr_t *)(gre_hdr + 1), 
                     pkt_size - sizeof(gre_hdr_t));
@@ -328,7 +328,7 @@ tcp_dump(int sock_fd,
          pkt_block_t *pkt_block,
          hdr_type_t hdr_type,
          c_string out_buff, 
-         uint32_t write_offset,
+         uint32_t write_OFFset,
          uint32_t out_buff_size){
 
     int rc = 0;
@@ -340,22 +340,22 @@ tcp_dump(int sock_fd,
     switch(hdr_type){
 
         case ETH_HDR:
-            rc = tcp_dump_ethernet_hdr(out_buff + write_offset, 
+            rc = tcp_dump_ethernet_hdr(out_buff + write_OFFset, 
                 (ethernet_hdr_t *)pkt, pkt_size);
             break;
         case IP_HDR:
-            rc = tcp_dump_ip_hdr(out_buff + write_offset, 
+            rc = tcp_dump_ip_hdr(out_buff + write_OFFset, 
                 (ip_hdr_t *)pkt, pkt_size);
             break;
         case GRE_HDR:
-            rc = tcp_dump_gre_hdr (out_buff + write_offset, 
+            rc = tcp_dump_gre_hdr (out_buff + write_OFFset, 
                 (gre_hdr_t *)pkt, pkt_size);
             break;
         default:
 			rc = nfc_pkt_trace_invoke_notif_to_sbscribers(
 					hdr_type,
                     pkt_block,
-					out_buff + write_offset);
+					out_buff + write_OFFset);
             break;
     }
 
@@ -363,7 +363,7 @@ tcp_dump(int sock_fd,
         return;
     }
 
-    tcp_write_data(sock_fd, log_file1, log_file2, out_buff, write_offset + rc);
+    tcp_write_data(sock_fd, log_file1, log_file2, out_buff, write_OFFset + rc);
 }
 
 void
@@ -418,7 +418,7 @@ tcp_dump_recv_logger(
                  hdr_type,                 /*Starting hdr type of the pkt*/
                  TCP_GET_NODE_RECV_LOG_BUFFER(node),    /*Buffer into which the formatted output 
                                               is to be written*/
-                 rc,                       /*write offset*/
+                 rc,                       /*write OFFset*/
                  TCP_PRINT_BUFFER_SIZE - rc);   /*Buffer Max Size*/
     }
 }
@@ -501,7 +501,7 @@ tcp_dump_send_logger(node_t *node, Interface *intf,
                  pkt_block,            /*Pkt and Pkt size to be written in log file*/
                  hdr_type,                 /*Starting hdr type of the pkt*/
                  TCP_GET_NODE_SEND_LOG_BUFFER(node),    /*Buffer into which the formatted output is to be written*/
-                 rc,                       /*write offset*/
+                 rc,                       /*write OFFset*/
                  TCP_PRINT_BUFFER_SIZE - rc);   /*Buffer Max Size*/
     }
 }
@@ -662,6 +662,80 @@ void tcp_ip_show_log_status(node_t *node){
         cprintf ("\t\taccess list filter : %s\n", 
             log_info->acc_lst_filter->name ? log_info->acc_lst_filter->name : "none");
     }
+
+    cprintf ("\tDebug Logging Status:\n");
+
+    tracer_t *tr = node->dptr;
+    
+    if (tracer_is_bit_set (tr, DARP | DARP_DET)) 
+        cprintf ("\t  ARP : ON\n" );
+    else 
+        cprintf ("\t  ARP : OFF\n" );
+
+    if (tracer_is_bit_set (tr, DL3FWD | DL3FWD_DET)) 
+        cprintf ("\t  DL3FWD : ON\n" );
+    else 
+        cprintf ("\t  DL3FWD : OFF\n" );    
+
+    if (tracer_is_bit_set (tr, DL2FWD | DL2FWD_DET)) 
+        cprintf ("\t  DL2FWD : ON\n" );
+    else 
+        cprintf ("\t  DL2FWD : OFF\n" );        
+    
+    if (tracer_is_bit_set (tr, DRTM | DRTM_DET)) 
+        cprintf ("\t  DRTM : ON\n" );
+    else 
+        cprintf ("\t  DRTM : OFF\n" );
+
+    if (tracer_is_bit_set (tr, DACL | DACL_DET)) 
+        cprintf ("\t  DACL : ON\n" );
+    else 
+        cprintf ("\t  DACL : OFF\n" );
+
+    if (tracer_is_bit_set (tr, DIPC | DIPC_DET)) 
+        cprintf ("\t  DIPC : ON\n" );
+    else 
+        cprintf ("\t  DIPC : OFF\n" );
+
+    if (tracer_is_bit_set (tr, DINTF | DINTF_DET)) 
+        cprintf ("\t  DINTF : ON\n" );
+    else 
+        cprintf ("\t  DINTF : OFF\n" );
+
+    if (tracer_is_bit_set (tr, DFLOW | DFLOW_DET)) 
+        cprintf ("\t  DFLOW : ON\n" );
+    else 
+        cprintf ("\t  DFLOW : OFF\n" );
+
+    if (tracer_is_bit_set (tr, DTUNNEL | DTUNNEL_DET)) 
+        cprintf ("\t  DTUNNEL : ON\n" );
+    else 
+        cprintf ("\t  DTUNNEL : OFF\n" );
+
+    if (tracer_is_bit_set (tr, DL2SW | DL2SW_DET)) 
+        cprintf ("\t  DL2SW : ON\n" );
+    else 
+        cprintf ("\t  DL2SW : OFF\n" );
+
+    if (tracer_is_bit_set (tr, DTIMER | DTIMER_DET)) 
+        cprintf ("\t  DTIMER : ON\n" );
+    else 
+        cprintf ("\t  DTIMER : OFF\n" );
+
+    if (tracer_is_bit_set (tr, DALWAYS_FLUSH)) 
+        cprintf ("\t  DALWAYS_FLUSH : ON\n" );
+    else 
+        cprintf ("\t  DALWAYS_FLUSH : OFF\n" );    
+
+    if (tracer_is_bit_set (tr, DERR)) 
+        cprintf ("\t  DERR : ON\n" );
+    else 
+        cprintf ("\t  DERR : OFF\n" );    
+
+    if (tracer_is_bit_set (tr, DALL_LOGGING))
+        cprintf ("\t  DALL : ON\n" );
+    else 
+        cprintf ("\t  DALL : OFF\n" );
 }
 
 int traceoptions_handler(int cmdcode, 
@@ -1044,14 +1118,30 @@ tcp_ip_debug_handler (  int cmdcode,
     switch (cmdcode) {
 
         case DALWAYS_FLUSH:
-            enable_or_disable == CONFIG_ENABLE ? \
-                tracer_enable_always_flush (node->tr, true) : tracer_enable_always_flush (node->tr, false);
-            return 0;
-    }
+        switch (enable_or_disable) {
+            case CONFIG_ENABLE:
+                tracer_enable_always_flush(node->dptr, true);
+            break;
+            case CONFIG_DISABLE:
+                tracer_enable_always_flush(node->dptr, false);   
+            break;
+        }
+        break;
 
+        case DALL_LOGGING:
+        switch (enable_or_disable) {
+            case CONFIG_ENABLE:
+                tracer_enable_all_logging(node->dptr, true);
+            break;
+            case CONFIG_DISABLE:
+                tracer_enable_all_logging(node->dptr, true);  
+            break;
+        }
+
+    }
     /* Handle rest of the cmd codes */
     enable_or_disable == CONFIG_ENABLE ? \
-        tracer_log_bit_set(node->tr, cmdcode) : tracer_log_bit_unset(node->tr, cmdcode);
+        tracer_log_bit_set(node->dptr, cmdcode) : tracer_log_bit_unset(node->dptr, cmdcode);
 
     return 0;
 }
@@ -1064,6 +1154,7 @@ libcli_register_param_detail (param_t *root, cmd_callback callback, int cmdcode)
     init_param(detail, CMD, "detail", callback, 0, INVALID, 0, "detail");
     libcli_register_param(root, detail);
     libcli_set_param_cmd_code(detail, cmdcode);
+    libcli_set_tail_config_batch_processing (detail);
 }
 
 void 
@@ -1074,6 +1165,14 @@ tcp_ip_build_debug_cli_tree (param_t *root) {
         static param_t debug;
         init_param(&debug, CMD, "debug", 0, 0, INVALID, 0, "debug");
         libcli_register_param(root, &debug);
+
+        {
+            /* config node <node-name> [no] debug all*/
+            static param_t all;
+            init_param(&all, CMD, "all", tcp_ip_debug_handler, 0, INVALID, 0, "all");
+            libcli_register_param(&debug, &all);
+            libcli_set_param_cmd_code(&all, DALL_LOGGING);
+        }
 
         {
             /* config node <node-name> [no] debug arp [detail]*/
@@ -1195,7 +1294,7 @@ tcp_ip_build_debug_cli_tree (param_t *root) {
 }
 
 int
-debug_bit_to_str (char *buffer, uint64_t bits) {
+debug_dp_bits_to_str (char *buffer, uint64_t bits) {
 
     int rc = 0;
 
@@ -1286,10 +1385,6 @@ debug_bit_to_str (char *buffer, uint64_t bits) {
     if (bits & DTIMER_DET) {
         strcat (buffer, "DTIMER_DET ");
         rc += 11;
-    }
-    if (bits & DALWAYS_FLUSH) {
-        strcat (buffer, "DALWAYS_FLUSH ");
-        rc += 13;
     }
     if (bits & DERR) {
         strcat (buffer, "DERR ");

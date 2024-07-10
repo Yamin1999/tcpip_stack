@@ -145,7 +145,9 @@ layer3_ip_route_pkt(node_t *node,
 
     tcp_ip_covert_ip_n_to_p(ip_hdr->dst_ip, (c_string)dest_ip_addr);
 
-    nf_result = nf_invoke_netfilter_hook(
+    tracer (node->dptr, DL3FWD, "Dest : %s : Trying to route ... \n", dest_ip_addr);
+
+        nf_result = nf_invoke_netfilter_hook(
             NF_IP_PRE_ROUTING,
             pkt_block, 
             node,
@@ -166,9 +168,13 @@ layer3_ip_route_pkt(node_t *node,
         if (interface && /* For local ping, interface will be NULL */
             access_list_evaluate_ip_packet(node, interface,
                                            ip_hdr, true) == ACL_DENY) {
+
+            tracer (node->dptr, DL3FWD, "Dest : %s : Pkt Dropped :  L3 ACL Denied\n", dest_ip_addr);
             return;
         }
     }
+
+    tracer (node->dptr, DL3FWD_DET, "Dest : %s : Pkt Qualified L3 ACL Test\n", dest_ip_addr);
 
     l3_route_t *l3_route = l3rib_lookup_lpm(
                                         NODE_RT_TABLE(node), ip_hdr->dst_ip);
@@ -177,8 +183,11 @@ layer3_ip_route_pkt(node_t *node,
         /*Router do not know what to do with the pkt. drop it*/
         //cprintf("Router %s : Cannot Route IP : %s\n", 
         //         node->node_name, dest_ip_addr);
+        tracer (node->dptr, DL3FWD | DERR, "Dest : %s : Pkt Dropped :  No L3 Route\n", dest_ip_addr);
         return;
     }
+
+    tracer (node->dptr, DL3FWD, "Dest : %s : L3 Route Found\n", dest_ip_addr);
 
     /*L3 route exist, 3 cases now : 
      * case 1 : pkt is destined to self(this router only)
@@ -192,7 +201,12 @@ layer3_ip_route_pkt(node_t *node,
         /* case 1 : local delivery:  dst ip address in pkt must exact match with
          * ip of any local interface of the router, including loopback*/
 
+        tracer (node->dptr, DL3FWD, "Dest : %s : L3 Route found is local route\n", dest_ip_addr);
+
         if (is_layer3_local_delivery(node, ip_hdr->dst_ip)) {
+
+            tracer (node->dptr, DL3FWD, "Dest : %s : Pkt is for Local Delivery, IP protocol = %s\n",   
+                 dest_ip_addr, proto_name_str(ip_hdr->protocol));
 
             l4_hdr = (char *)INCREMENT_IPHDR(ip_hdr);
             l5_hdr = l4_hdr;
@@ -215,13 +229,16 @@ layer3_ip_route_pkt(node_t *node,
                                               UDP_HDR);
                     return;
 
-                case IP_IN_IP:
+                case PROTO_IP_IN_IP:
                     /*Packet has reached ERO, now set the packet onto its new 
                       Journey from ERO to final destination*/
                     pkt_block_set_new_pkt(pkt_block, 
                                                             (uint8_t *)INCREMENT_IPHDR(ip_hdr),
                                                             pkt_block->pkt_size - IP_HDR_LEN_IN_BYTES(ip_hdr));
-                    pkt_block_set_starting_hdr_type (pkt_block, IP_IN_IP);
+                    pkt_block_set_starting_hdr_type (pkt_block, PROTO_IP_IN_IP);
+                     
+                     tracer (node->dptr, DL3FWD, "Dest : %s : Pkt is being subjected to L3 Routing again a per Inner Header\n", dest_ip_addr);
+
                     layer3_ip_route_pkt(node,
                                                       interface, 
                                                       pkt_block);
@@ -232,6 +249,7 @@ layer3_ip_route_pkt(node_t *node,
                                                             (uint8_t *)INCREMENT_IPHDR(ip_hdr),
                                                             pkt_block->pkt_size - IP_HDR_LEN_IN_BYTES(ip_hdr));
                     pkt_block_set_starting_hdr_type (pkt_block, GRE_HDR);
+                    tracer (node->dptr, DL3FWD, "Dest : %s : Pkt is being subjected to GRE Decapsulation\n", dest_ip_addr);
                     gre_decapsulate (node, pkt_block, 
                         gre_lookup_tunnel_intf (node, ip_hdr->dst_ip, ip_hdr->src_ip));
                     return;
@@ -239,6 +257,7 @@ layer3_ip_route_pkt(node_t *node,
                 default: ;
             }
 
+            tracer (node->dptr, DL3FWD, "Dest : %s : Pkt is being subjected to Layer 5\n",  dest_ip_addr);
             promote_pkt_from_layer3_to_layer5(
                                                 node, interface,
                                                 pkt_block,
@@ -249,10 +268,19 @@ layer3_ip_route_pkt(node_t *node,
          * subnet of this router, time for l2 routing*/
         nexthop = l3_route_get_active_nexthop(l3_route, pkt_block->exclude_oif);
 
+        tracer (node->dptr, DL3FWD, "Dest : %s :  Nexthop found OIF %s, Gw : %s\n", dest_ip_addr, 
+            nexthop->oif->if_name.c_str(), nexthop->gw_ip);
+
         /* If src ip address is not feeded by application, then take the OIF IP address*/
         if (ip_hdr->src_ip == 0) {
+            
+            char ip_addr_str[16];
             ip_hdr->src_ip = IF_IP(nexthop->oif);
+            tracer (node->dptr, DL3FWD, "Dest : %s : Using OIF IP as Src IP : %s\n", dest_ip_addr, 
+                tcp_ip_covert_ip_n_to_p(ip_hdr->src_ip, ip_addr_str)); 
         }
+
+        tracer (node->dptr, DL3FWD, "Dest : %s :  Demoting Pkt to Layer 2 for L2 Forwarding\n", dest_ip_addr);
 
         demote_pkt_to_layer2 (
                 node,           /*Current processing node*/
@@ -269,9 +297,20 @@ layer3_ip_route_pkt(node_t *node,
 
     ip_hdr->ttl--;
 
+    if (ip_hdr->ttl == 0) {
+
+        tracer (node->dptr, DL3FWD, "Dest : %s :  Pkt Dropped : TTL Expired\n", dest_ip_addr);
+        return;
+    }
+
+    tracer (node->dptr, DL3FWD_DET, "Dest : %s :  TTL Reduced to %d\n", dest_ip_addr, ip_hdr->ttl);
+
     /* If route is non direct, then ask LAyer 2 to send the pkt
      * out of all ecmp nexthops of the route*/
     nexthop = l3_route_get_active_nexthop(l3_route, pkt_block->exclude_oif);
+
+    tracer (node->dptr, DL3FWD, "Dest : %s :  Nexthop found OIF %s, Gw : %s\n", dest_ip_addr, 
+            nexthop->oif->if_name.c_str(), nexthop->gw_ip);
 
     nf_result = nf_invoke_netfilter_hook(
                         NF_IP_FORWARD,
@@ -308,6 +347,8 @@ layer3_ip_route_pkt(node_t *node,
         case NF_STOP:
         break;
     }
+
+    tracer (node->dptr, DL3FWD, "Dest : %s :  Demoting Pkt to Layer 2 for L2 Forwarding\n", dest_ip_addr);
 
     demote_pkt_to_layer2(node, 
             next_hop_ip,
@@ -510,7 +551,7 @@ rt_table_delete_route(
     l3_route->nh_count -= count;
 
     if (l3_route->nh_count) {
-        tracer(rt_table->node->tr, DRTM, 
+        tracer(rt_table->node->dptr, DRTM, 
             "Route %s/%d : Nexthop of type %s deleted successfully from Rib\n", 
             l3_route->dest, l3_route->mask, proto_index_to_str(nh_proto));
         return;
@@ -527,7 +568,7 @@ rt_table_delete_route(
                                             &mask_bm,
                                             (void **)&l3_route) == MTRIE_DELETE_SUCCESS);
 
-    tracer(rt_table->node->tr, DRTM, 
+    tracer(rt_table->node->dptr, DRTM, 
         "Route %s/%d : deleted successfully from Rib\n",  l3_route->dest, l3_route->mask);
 
     bitmap_free_internal(&prefix_bm);
@@ -712,7 +753,7 @@ _rt_table_entry_add(rt_table_t *rt_table, l3_route_t *l3_route){
     mtrie_ops_result_code_t rc;
 
     if (!rt_table_evaluate_import_policy(rt_table, l3_route)) {
-        tracer(rt_table->node->tr, DRTM , "Route %s/%d : Installation Rejected due to Import policy\n",  l3_route->dest, l3_route->mask );
+        tracer(rt_table->node->dptr, DRTM , "Route %s/%d : Installation Rejected due to Import policy\n",  l3_route->dest, l3_route->mask );
         return false;
     }
 
@@ -743,7 +784,7 @@ _rt_table_entry_add(rt_table_t *rt_table, l3_route_t *l3_route){
    mnode->data = (void *)l3_route;
    l3_route_inc_ref_count (l3_route);
    l3_route->install_time = time(NULL);
-    tracer(rt_table->node->tr, DRTM , "Route %s/%d : Successfully added to Rib\n", 
+    tracer(rt_table->node->dptr, DRTM , "Route %s/%d : Successfully added to Rib\n", 
             l3_route->dest, l3_route->mask);
    rt_table_add_route_to_notify_list(rt_table, l3_route, RT_ADD_F);
    rt_table_kick_start_notif_job(rt_table);
@@ -790,7 +831,7 @@ rt_table_add_route (rt_table_t *rt_table,
                 if (gw && string_compare(l3_route->nexthops[nxthop_proto][i]->gw_ip, gw, 16) == 0 && 
                     l3_route->nexthops[nxthop_proto][i]->oif == oif) { 
 
-                    tracer(node->tr, DRTM | DERR, 
+                    tracer(node->dptr, DRTM | DERR, 
                         "Error : Route %s/%d : Attempt to Add Duplicate \n", dst, mask);
                     return;
                 }
@@ -800,7 +841,7 @@ rt_table_add_route (rt_table_t *rt_table,
    }
 
    if( i == MAX_NXT_HOPS){
-        tracer(node->tr, DRTM | DERR,  "Error : Route %s/%d : No Space left for Nexthop \n", dst, mask);
+        tracer(node->dptr, DRTM | DERR,  "Error : Route %s/%d : No Space left for Nexthop \n", dst, mask);
         return;
    }
 
@@ -833,7 +874,7 @@ rt_table_add_route (rt_table_t *rt_table,
         
 		l3_route_insert_nexthop(l3_route, nexthop, nxthop_proto);
         if (!new_route) {
-            tracer(node->tr, DRTM, "Route %s/%d : Nexthop %s %s added to Rib\n", 
+            tracer(node->dptr, DRTM, "Route %s/%d : Nexthop %s %s added to Rib\n", 
                 dst, mask, nexthop->gw_ip, nexthop->oif ? nexthop->oif->if_name.c_str() : "None");
             rt_table_add_route_to_notify_list (rt_table, l3_route, RT_UPDATE_F);
             rt_table_kick_start_notif_job(rt_table);
@@ -842,7 +883,7 @@ rt_table_add_route (rt_table_t *rt_table,
 
    if (new_route){
        if (!_rt_table_entry_add(rt_table, l3_route)){
-           tracer(node->tr, DRTM | DERR, "Error : Route %s/%d : Installation Failed in Rib\n",  dst, mask);
+           tracer(node->dptr, DRTM | DERR, "Error : Route %s/%d : Installation Failed in Rib\n",  dst, mask);
        }
    }
 }
@@ -908,6 +949,7 @@ _layer3_pkt_recv_from_layer2(node_t *node,
                             int L3_protocol_type) {
 
     pkt_size_t pkt_size;
+    char ip_addr_str[16];
 
     assert(pkt_block_verify_pkt (pkt_block, ETH_HDR));
 
@@ -916,7 +958,7 @@ _layer3_pkt_recv_from_layer2(node_t *node,
     switch(L3_protocol_type){
         
         case ETH_IP:
-        case IP_IN_IP:
+        case PROTO_IP_IN_IP:
 
             /* Remove the Data link Hdr from the pkt */
             pkt_block_set_new_pkt( pkt_block,
@@ -924,6 +966,9 @@ _layer3_pkt_recv_from_layer2(node_t *node,
                     pkt_size - ETH_HDR_SIZE_EXCL_PAYLOAD + ETH_FCS_SIZE);
             pkt_block_set_starting_hdr_type(pkt_block, 
                 L3_protocol_type == ETH_IP ? IP_HDR : IP_IN_IP_HDR);
+
+            tracer (node->dptr, DL3FWD, "Dest : %s :  Pkt Arrived in L3-land from Layer 2\n",
+                pkt_ip(pkt_block, ip_addr_str));
 
             layer3_ip_route_pkt(node, interface, pkt_block);
             break;
@@ -955,8 +1000,11 @@ demote_packet_to_layer3 (node_t *node,
 
     byte *pkt;
     ip_hdr_t iphdr;
-    byte ip_addr[16];
+    byte dst_ip_addr_str[16];
     pkt_size_t pkt_size;
+
+    tracer (node->dptr, DL3FWD, "Dest : %s :  Pkt Arrived in L3-land from Top\n", 
+        tcp_ip_covert_ip_n_to_p(dest_ip_address, dst_ip_addr_str));
 
     initialize_ip_hdr(&iphdr);  
       
@@ -984,12 +1032,12 @@ demote_packet_to_layer3 (node_t *node,
 
     memcpy((char *)new_pkt, (char *)&iphdr, IP_HDR_LEN_IN_BYTES((&iphdr)));
 
+
     l3_route_t *l3_route = l3rib_lookup_lpm(NODE_RT_TABLE(node), 
                                           iphdr.dst_ip);
     
     if(!l3_route){
-        cprintf("\nNode : %s : No L3 route %s",
-			node->node_name, tcp_ip_covert_ip_n_to_p(iphdr.dst_ip, ip_addr));   
+        tracer (node->dptr, DL3FWD | DERR, "Dest : %s :  Pkt Dropped : No L3 route\n", dst_ip_addr_str);   
         return;
     }
 
@@ -1013,6 +1061,8 @@ demote_packet_to_layer3 (node_t *node,
                 return;
         }
 
+        tracer (node->dptr, DL3FWD, "Dest : %s :  Direct Route found, Pkt is being demoted to L2 Layer\n", dst_ip_addr_str);
+
         demote_pkt_to_layer2(node,
                          dest_ip_address,
                          0,
@@ -1029,8 +1079,12 @@ demote_packet_to_layer3 (node_t *node,
     nexthop = l3_route_get_active_nexthop(l3_route, pkt_block->exclude_oif);
     
     if(!nexthop){
+        tracer (node->dptr, DL3FWD | DERR, "Dest : %s :  Pkt Dropped : No nexthop found\n", dst_ip_addr_str);
         return;
     }
+
+    tracer (node->dptr, DL3FWD, "Dest : %s :  Nexthop found OIF %s, Gw : %s\n", dst_ip_addr_str, 
+            nexthop->oif->if_name.c_str(), nexthop->gw_ip);
 
     if (pkt_block->exclude_oif &&
             pkt_block->exclude_oif == nexthop->oif) assert(0);
@@ -1068,6 +1122,7 @@ demote_packet_to_layer3 (node_t *node,
             return;
     }
 
+    tracer (node->dptr, DL3FWD, "Dest : %s :  Pkt is being demoted to L2 Layer\n", dst_ip_addr_str);
     demote_pkt_to_layer2(node,
             next_hop_ip,
             nexthop->oif->if_name.c_str(),
@@ -1111,7 +1166,7 @@ layer3_ero_ping_fn(node_t *node,
     addr_int =  tcp_ip_convert_ip_p_to_n(dst_ip_addr);
     inner_ip_hdr->dst_ip = addr_int;
     addr_int = tcp_ip_convert_ip_p_to_n(ero_ip_address);
-    cp2dp_send_ip_data (node, pkt_block, addr_int, IP_IN_IP);
+    cp2dp_send_ip_data (node, pkt_block, addr_int, PROTO_IP_IN_IP);
     pkt_block_dereference(pkt_block);
 }
 
@@ -1157,6 +1212,8 @@ l3_route_inc_ref_count (l3_route_t *l3_route) {
 void
 np_tcp_ip_send_ip_data (node_t *node, pkt_block_t *pkt_block) {
 
+    char ip_addr_str[16];
+
     assert (pkt_block_verify_pkt (pkt_block, IP_HDR));
 
     ip_hdr_t *ip_hdr = (ip_hdr_t *)pkt_block_get_ip_hdr(pkt_block);
@@ -1169,6 +1226,8 @@ np_tcp_ip_send_ip_data (node_t *node, pkt_block_t *pkt_block) {
 
     assert (ip_hdr->dst_ip);
     assert (ip_hdr->total_length);
+
+    tracer (node->dptr, DL3FWD, "Dest : %s : NP Recvd Routing Request\n", pkt_ip(pkt_block, ip_addr_str));
 
     layer3_ip_route_pkt (node, NULL, pkt_block); 
 }

@@ -27,7 +27,7 @@ typedef struct gre_header_ {
 #pragma pack(pop)
 
 void 
-gre_encasulate (pkt_block_t *pkt_block);
+gre_encasulate (node_t *node, pkt_block_t *pkt_block);
 
 void 
 gre_decapsulate (node_t *node, pkt_block_t *pkt_block, Interface *gre_interface) ;

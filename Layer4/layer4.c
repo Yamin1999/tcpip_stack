@@ -48,7 +48,7 @@ promote_pkt_to_layer4(node_t *node,
                       int L4_protocol_number){ /*= TCP/UDP or what */
 
         //cprintf ("%s() : Protocol %d. Pkt Consumed\n", __FUNCTION__, L4_protocol_number);
-        pkt_block_dereference(pkt_block);
+        
 }
 
 /* Public APIs to be used by Higher/Application layers of TCP/IP Stack to demote

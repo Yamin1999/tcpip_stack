@@ -427,7 +427,7 @@ promote_pkt_to_layer2(
             break;
 
         case ETH_IP:
-        case IP_IN_IP:
+        case PROTO_IP_IN_IP:
             promote_pkt_to_layer3(node, iif, 
                     pkt_block,
                     ethernet_hdr->type);

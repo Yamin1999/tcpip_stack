@@ -468,7 +468,12 @@ intf_config_virtual_port_create_handler ( int cmdcode,
 
         case CONFIG_ENABLE:
         {
-            VirtualPort *vport_intf = new VirtualPort(std::string((char *)intf_name));
+            VirtualPort *vport_intf = reinterpret_cast<VirtualPort *>(
+                 node_get_intf_by_name(node, (const char *)intf_name));
+            
+            if (vport_intf) return 0;
+
+            vport_intf = new VirtualPort(std::string((char *)intf_name));
             vport_intf->att_node = node;
             int ifslot = node_get_intf_available_slot(node);
 

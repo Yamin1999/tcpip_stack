@@ -107,8 +107,10 @@ struct node_ {
 
     glthread_t access_lists_db;
     glthread_t prefix_lst_db;
-    /*Node Tracer*/
-    tracer_t *tr;
+    /* Control Plane Tracer*/
+    tracer_t *cptr;
+    /* Data-Path Tracer*/
+    tracer_t *dptr;
     /* Network Object Hashtable */
     hashtable_t *object_network_ght;
      /* Object Group Hashtable */

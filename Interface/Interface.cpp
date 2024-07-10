@@ -1165,7 +1165,7 @@ GRETunnelInterface::SendPacketOut(pkt_block_t *pkt_block)
         pkt_block = pkt_block_copy;
     }
 
-    gre_encasulate (pkt_block);
+    gre_encasulate (this->att_node, pkt_block);
     pkt_block_set_exclude_oif (pkt_block, this);
     pkt_block_get_pkt (pkt_block, &pkt_size);
 

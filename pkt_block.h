@@ -39,6 +39,7 @@ struct pkt_block_ {
     Interface *exclude_oif;
     uint16_t lineno;
     char *fn_name;
+    uint64_t pkt_id;
 } ;
 
 void
@@ -110,6 +111,15 @@ pkt_block_set_recommended_oif (pkt_block_t *pkt_block, Interface *oif) ;
 void
 pkt_block_set_exclude_oif (pkt_block_t *pkt_block, Interface *oif) ;
 
+char *
+pkt_ip (pkt_block_t *pkt_block, char *buffer);
+
+char *
+pkt_ip_str (pkt_block_t *pkt_block, char *buffer);
+
+char *
+pkt_mac_str (pkt_block_t *pkt_block, char *buffer) ;
+
 #define pkt_block_get_new(pkt_ptr, pkt_size)  \
     pkt_block_get_new2 (pkt_ptr, pkt_size, __FUNCTION__, __LINE__)
 
@@ -118,5 +128,8 @@ pkt_block_set_exclude_oif (pkt_block_t *pkt_block, Interface *oif) ;
 
 #define pkt_block_dup(pkt_block_ptr)    \
     pkt_block_dup2(pkt_block_ptr, __FUNCTION__, __LINE__)
+
+char *
+pkt_block_str (pkt_block_t *pkt_block);
 
 #endif

@@ -369,7 +369,7 @@ isis_init (node_t *node ) {
     isis_create_advt_db(node_info, 0);
     init_glthread (&node_info->pending_lsp_gen_queue);
     snprintf (log_file_name, sizeof (log_file_name), "logs/%s-isis-log.txt", node->node_name);
-    node_info->tr = tracer_init ("isis", log_file_name, node->node_name, STDOUT_FILENO, 0, 0);
+    node_info->tr = tracer_init ("isis", log_file_name, node->node_name, STDOUT_FILENO, 0);
     isis_regen_zeroth_fragment(node);
     ISIS_INCREMENT_NODE_STATS(node,
             isis_event_count[isis_event_admin_config_changed]);

@@ -67,12 +67,12 @@ typedef uint16_t pkt_size_t;
 #define MTCP            20
 #define USERAPP1        21
 #define VLAN_8021Q_PROTO    0x8100
-#define IP_IN_IP        4
+#define PROTO_IP_IN_IP        4
 #define NMP_HELLO_MSG_CODE	13 /*Randomly chosen*/
 #define INTF_MAX_METRIC     16777215 /*Choosen as per the standard = 2^24 -1*/
 #define INTF_METRIC_DEFAULT 1
 #define TCP_LOG_BUFFER_LEN	512
-#define GRE_ENCAP_ETHERNET  0x6558
+#define PROTO_GRE_ENCAP_ETHERNET  0x6558
 
  /* Should be less than or equal to UT_PARSER_BUFF_MAX_SIZE */
 #define NODE_PRINT_BUFF_LEN (1024 * 1024)
@@ -113,6 +113,10 @@ proto_name_str (uint16_t proto) {
             return (unsigned char *)"eigrp";
         case GRE_PROTO:
             return (unsigned char *)"gre";
+        case PROTO_GRE_ENCAP_ETHERNET:
+            return (unsigned char *)"gre-en-ethernet";
+        case PROTO_IP_IN_IP:
+            return (unsigned char *)"ip-in-ip";
         default:
             return NULL;
     }
@@ -152,7 +156,7 @@ tcp_ip_convert_internal_proto_to_std_proto (hdr_type_t hdr_type) {
     switch (hdr_type)
     {
     case ETH_HDR:
-        return GRE_ENCAP_ETHERNET;
+        return PROTO_GRE_ENCAP_ETHERNET;
     case IP_HDR:
         return ETH_IP;
     case ARP_HDR:
@@ -164,7 +168,7 @@ tcp_ip_convert_internal_proto_to_std_proto (hdr_type_t hdr_type) {
     case UDP_HDR:
         return UDP_PROTO;
     case IP_IN_IP_HDR:
-        return IP_IN_IP;
+        return PROTO_IP_IN_IP;
     case GRE_HDR:
         return GRE_PROTO;
     default:;

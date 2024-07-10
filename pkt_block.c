@@ -44,6 +44,7 @@ pkt_block_t *
 pkt_block_get_new2(uint8_t *pkt, pkt_size_t pkt_size, const char *fn_name, uint16_t lineno) {
 
     pkt_block_t *pkt_block = (pkt_block_t *)XCALLOC(0, 1, pkt_block_t);
+    pkt_block->pkt_id = 0;
     pkt_block->pkt = pkt;
     pkt_block->pkt_size = pkt_size;
     pkt_block->ref_count = 1;
@@ -56,6 +57,7 @@ pkt_block_t *
 pkt_block_get_new_pkt_buffer2(pkt_size_t pkt_size, const char *fn_name, uint16_t lineno) {
 
     pkt_block_t *pkt_block = (pkt_block_t *)XCALLOC(0, 1, pkt_block_t);
+    pkt_block->pkt_id = 0;
     pkt_block->pkt = (uint8_t *)tcp_ip_get_new_pkt_buffer(pkt_size);
     pkt_block->pkt_size = pkt_size;
     pkt_block->ref_count = 1;
@@ -121,6 +123,12 @@ pkt_block_get_ethernet_hdr(pkt_block_t *pkt_block) {
 
     if (pkt_block->hdr_type == ETH_HDR)
         return (ethernet_hdr_t *) (pkt_block->pkt);
+    else if (pkt_block->hdr_type == GRE_HDR) {
+        gre_hdr_t *gre_hdr = (gre_hdr_t *)pkt_block->pkt;
+        if (gre_hdr->protocol_type == PROTO_GRE_ENCAP_ETHERNET) {
+            return (ethernet_hdr_t *)(gre_hdr + 1);
+        }
+    }
     return NULL;
 }
 
@@ -135,7 +143,7 @@ pkt_block_get_ip_hdr (pkt_block_t *pkt_block) {
          eth_hdr = pkt_block_get_ethernet_hdr(pkt_block);
 
          if (eth_hdr->type == ETH_IP || 
-                eth_hdr->type == IP_IN_IP ) {
+                eth_hdr->type == PROTO_IP_IN_IP ) {
 
              return (ip_hdr_t *)eth_hdr->payload;
          }
@@ -145,6 +153,15 @@ pkt_block_get_ip_hdr (pkt_block_t *pkt_block) {
      else if (pkt_block->hdr_type == IP_HDR) {
 
          return (ip_hdr_t *) (pkt_block->pkt);
+     }
+
+     else if (pkt_block->hdr_type == GRE_HDR) {
+
+         gre_hdr_t *gre_hdr = (gre_hdr_t *)pkt_block->pkt;
+
+         if (gre_hdr->protocol_type == ETH_IP) {
+             return (ip_hdr_t *)(gre_hdr + 1);
+         }
      }
 
      return NULL;
@@ -216,6 +233,7 @@ pkt_block_t *
 pkt_block_dup2(pkt_block_t *pkt_block, const char *fn_name, uint16_t lineno) {
 
     pkt_block_t *pkt_block2 = (pkt_block_t *)XCALLOC(0, 1, pkt_block_t );
+    pkt_block2->pkt_id = 0;
     pkt_block2->pkt = (uint8_t *) tcp_ip_get_new_pkt_buffer(pkt_block->pkt_size);
     memcpy(pkt_block2->pkt , pkt_block->pkt, pkt_block->pkt_size);
     pkt_block2->pkt_size = pkt_block->pkt_size;
@@ -287,10 +305,12 @@ void
 print_pkt_block(pkt_block_t *pkt_block) {
 
     cprintf ("pkt_block->pkt = %p\n", pkt_block->pkt);
+    cprintf ("pkt_block->pkt_id = %lu\n", pkt_block->pkt_id);
     cprintf ("pkt_block->pkt_size = %d\n", pkt_block->pkt_size);
     cprintf ("pkt_block->hdr_type = %d\n", pkt_block->hdr_type);
     cprintf ("pkt_block->ref_count = %d\n", pkt_block->ref_count);
     cprintf ("pkt_block alloc :  %s(%d)\n", pkt_block->fn_name, pkt_block->lineno);
+    cprintf ("pkt_block->no_modify = %d\n", pkt_block->no_modify);
 }
 
 void 
@@ -348,4 +368,106 @@ pkt_block_set_exclude_oif (pkt_block_t *pkt_block, Interface *oif) {
 
     pkt_block->exclude_oif = oif;
     pkt_block->exclude_oif->InterfaceLockDynamic();
+}
+
+char *
+pkt_ip (pkt_block_t *pkt_block, char *buffer) {
+
+    ip_hdr_t *ip_hdr = pkt_block_get_ip_hdr(pkt_block);
+    memset (buffer, 0, sizeof (buffer));
+    tcp_ip_covert_ip_n_to_p (ip_hdr->dst_ip, buffer);
+    return buffer;
+} 
+
+char *
+pkt_ip_str (pkt_block_t *pkt_block, char *buffer) {
+
+    ip_hdr_t *ip_hdr = pkt_block_get_ip_hdr(pkt_block);
+    memset (buffer, 0, sizeof (buffer));
+    strcpy(buffer, "IP:");
+    tcp_ip_covert_ip_n_to_p (ip_hdr->dst_ip, buffer + 3);
+    return buffer;
+} 
+
+char *
+pkt_mac_str (pkt_block_t *pkt_block, char *buffer) {
+
+    ethernet_hdr_t *eth_hdr = pkt_block_get_ethernet_hdr(pkt_block);
+    memset (buffer, 0, sizeof (buffer));
+    sprintf(buffer,  "ETH:%02x:%02x:%02x:%02x:%02x:%02x",
+                    eth_hdr->dst_mac.mac[0], eth_hdr->dst_mac.mac[1], eth_hdr->dst_mac.mac[2],
+                    eth_hdr->dst_mac.mac[3], eth_hdr->dst_mac.mac[4], eth_hdr->dst_mac.mac[5]);    
+    return buffer;
+}
+
+/* This API used inbuilt memory of pkt_block, so use this API with caution */
+char *
+pkt_block_str (pkt_block_t *pkt_block) {
+
+    hdr_type_t hdr_type = pkt_block_get_starting_hdr(pkt_block);
+
+    switch (hdr_type) {
+
+        case ETH_HDR:
+        {
+            ethernet_hdr_t *eth_hdr = pkt_block_get_ethernet_hdr(pkt_block);
+            pkt_size_t old_pkt_size;
+            uint8_t *old_pkt = pkt_block_get_pkt(pkt_block, &old_pkt_size);
+            pkt_block_expand_buffer_left (pkt_block, 4 + 17 + 1);
+            uint8_t *mac_addr_str = pkt_block_get_pkt(pkt_block, NULL);
+            pkt_block_set_new_pkt(pkt_block, old_pkt, old_pkt_size);
+            pkt_mac_str (pkt_block, (char *)mac_addr_str);
+            return (char *)mac_addr_str;
+        }
+        break;
+
+        case IP_HDR:
+        {
+            ip_hdr_t *ip_hdr = pkt_block_get_ip_hdr(pkt_block);
+            pkt_size_t old_pkt_size;
+            uint8_t *old_pkt = pkt_block_get_pkt(pkt_block, &old_pkt_size);
+            pkt_block_expand_buffer_left (pkt_block, 3 + 16 + 1);
+            uint8_t *ip_addr_str = pkt_block_get_pkt(pkt_block, NULL);
+            pkt_block_set_new_pkt(pkt_block, old_pkt, old_pkt_size);
+            pkt_ip_str (pkt_block, (char *)ip_addr_str);
+            return (char *)ip_addr_str;
+        }
+        break;
+
+        case GRE_HDR:
+        {
+            pkt_size_t old_pkt_size;
+            uint8_t *old_pkt = pkt_block_get_pkt(pkt_block, &old_pkt_size);
+            gre_hdr_t *gre_hdr = (gre_hdr_t *)old_pkt;
+            switch (gre_hdr->protocol_type) {
+                case PROTO_GRE_ENCAP_ETHERNET:
+                {
+                    pkt_block_expand_buffer_left (pkt_block, 7 + 4 + 17 + 1);
+                    uint8_t *buffer = pkt_block_get_pkt(pkt_block, NULL);
+                    strncpy (buffer, "GRE-EN:", 7);
+                    pkt_block_set_new_pkt(pkt_block, (uint8_t *)(gre_hdr + 1), old_pkt_size - sizeof(gre_hdr_t));
+                    pkt_block_set_new_pkt(pkt_block, old_pkt, old_pkt_size);
+                    pkt_mac_str (pkt_block, (char *)buffer + 7);
+                    return (char *)buffer;
+                }
+                case ETH_IP:
+                {
+                    pkt_block_expand_buffer_left (pkt_block, 7 + 3 + 16 + 1);
+                    uint8_t *buffer = pkt_block_get_pkt(pkt_block, NULL);
+                    strncpy (buffer, "GRE-EN:", 7);
+                    pkt_block_set_new_pkt(pkt_block, (uint8_t *)(gre_hdr + 1), old_pkt_size - sizeof(gre_hdr_t));                    
+                    pkt_block_set_new_pkt(pkt_block, old_pkt, old_pkt_size);
+                    pkt_ip_str (pkt_block, (char *)buffer + 7);
+                    return (char *)buffer;
+                }
+                break;
+                default:
+                    break;
+            }
+        }
+        break;
+
+    }
+
+    return NULL;
 }

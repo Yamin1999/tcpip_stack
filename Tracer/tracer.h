@@ -9,14 +9,24 @@
 typedef struct tracer_ tracer_t;
 
 tracer_t *
-tracer_init (const char *tr_str_id, const char *file_name, const char *hdr, int out_fd, uint64_t logging_bits,  int (*bit_to_str)(char *, uint64_t));
+tracer_init (const char *tr_str_id, 
+                  const char *file_name, 
+                  const char *hdr, int out_fd,
+                  int (*bit_to_str)(char *, uint64_t)) ;
 
 void
 tracer_deinit (tracer_t *tracer) ;
 
+bool 
+tracer_is_active (tracer_t *tracer, uint64_t log_bit) ;
+
 #define tracer(tr_ptr, bitn, ...) \
+    if (tracer_is_active (tr_ptr, bitn))    \
     trace_internal(tr_ptr, bitn, __FUNCTION__, __LINE__, __VA_ARGS__);
-    
+
+/* Remove the below definition to enable tracer at compile time*/
+//#define tracer(tr_ptr, bitn, ...)
+
 void 
 trace_internal (tracer_t *tracer, uint64_t bit, const char *FN, const int lineno, const char *format, ...);
 
@@ -41,6 +51,9 @@ tracer_log_bit_unset (tracer_t *tracer, uint64_t log_bit);
 bool 
 tracer_is_bit_set (tracer_t *tracer, uint64_t log_bit);
 
+bool 
+tracer_is_all_logging_enable (tracer_t *tracer) ;
+
 void 
 tracer_clear_log_file (tracer_t *tracer);
 
@@ -52,5 +65,14 @@ tracer_enable_always_flush (tracer_t *tracer, bool always_flush);
 
 void 
 tracer_flush (tracer_t *tracer);
+
+bool
+tracer_get_always_flush_status (tracer_t *tracer) ;
+
+bool 
+tracer_is_reserved_bit (uint64_t bit);
+
+void 
+tracer_enable_all_logging (tracer_t *tracer, bool enable);
 
 #endif 

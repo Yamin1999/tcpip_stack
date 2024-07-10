@@ -101,7 +101,7 @@ extern void  dp_pkt_xmit_intf_job_cbk (event_dispatcher_t *ev_dis, void *pkt, ui
 extern struct hashtable *object_network_create_new_ht() ;
 extern struct hashtable *object_group_create_new_ht() ;
 extern void init_nfc_layer2_proto_reg_db2(node_t *node);
-extern int debug_bit_to_str (char *buffer, uint64_t bits) ;
+extern int debug_dp_bits_to_str (char *buffer, uint64_t bits) ;
 
 node_t *
 create_graph_node(graph_t *graph, const c_string node_name){
@@ -121,13 +121,19 @@ create_graph_node(graph_t *graph, const c_string node_name){
 
     tcp_ip_init_node_log_info(node);
 
+    /* Initialize Control Plane Tracers*/
     memset(file_name, 0, sizeof(file_name));
-    sprintf(file_name, "logs/%s-ftrs.txt", node->node_name);
-    node->tr = tracer_init (node_name, file_name, node->node_name, STDOUT_FILENO, 0, debug_bit_to_str );
-    tracer_enable_file_logging (node->tr, true);
+    sprintf(file_name, "logs/%s-cp.txt", node->node_name);
+    node->cptr = tracer_init (node_name, file_name, node->node_name, STDOUT_FILENO,  0 );
+    tracer_enable_file_logging (node->cptr, true);
 
-    /* L3 pkt trapping to application is implemented using Netfilter
-    hooks built over NFC*/
+    /* Initialize Data Plane Tracers*/
+    memset(file_name, 0, sizeof(file_name));
+    sprintf(file_name, "logs/%s-dp.txt", node->node_name);
+    node->dptr = tracer_init (node_name, file_name, node->node_name, STDOUT_FILENO, debug_dp_bits_to_str );
+    tracer_enable_file_logging (node->dptr, true);
+
+    /* L3 pkt trapping to application is implemented using Netfilter hooks built over NFC*/
 	nf_init_netfilters(&node->nf_hook_db);
     tcp_ip_register_default_l3_pkt_trap_rules(node);
     
