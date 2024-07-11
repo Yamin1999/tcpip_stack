@@ -36,5 +36,14 @@ Conquer Interviews for the role of Network Developer Engineer
 Decorate your GitHub, and add a strong project to your HAT, Expected LOCs of this course shall exceed 70k !
 This project will fill up the gap between theoretical knowledge and the Implementation version of it. How does it sound that you have written code by your own hands to resolve ARP, packet forwarding, etc. Decorate your resume and GitHub with this project.
 
-Last updated : 1 July 2024
+How to Run: 
+============
+Download the Repo :   git clone https://github.com/sachinites/tcpip_stack
+Switch to branch DCB : git checkout DCB
+Make sure you have dependencies installed on your system :  ncurses-dev libpq++   
+build the project :   make all
+Run the project : ./tcpstack.exe   ( it is linux/elf binary , run on linux systems only )
+
+
+Last updated : 11 July 2024
 ( Miss you Maa !! )
