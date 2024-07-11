@@ -39,11 +39,14 @@ This project will fill up the gap between theoretical knowledge and the Implemen
 How to Run: 
 ============
 Download the Repo :   git clone https://github.com/sachinites/tcpip_stack
-Switch to branch DCB : git checkout DCB
-Make sure you have dependencies installed on your system :  ncurses-dev libpq++   
-build the project :   make all
-Run the project : ./tcpstack.exe   ( it is linux/elf binary , run on linux systems only )
 
+Switch to branch DCB : git checkout DCB
+
+Make sure you have dependencies installed on your system :  ncurses-dev libpq++   
+
+build the project :   make all
+
+Run the project : ./tcpstack.exe   ( it is linux/elf binary , run on linux systems only )
 
 Last updated : 11 July 2024
 ( Miss you Maa !! )
