@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <vector>
 #include <algorithm>
+#include "../common/l3/pkt_hdrs.h"
 #include "../tcpconst.h"
 #include "../utils.h"
 #include "../BitOp/bitsop.h"
@@ -35,7 +36,7 @@
 #include "../Layer3/gre-tunneling/gre.h"
 #include "../CLIBuilder/libcli.h"
 #include "../Layer2/transport_svc.h"
-
+#include "../Tracer/tracer.h"
 
 extern void
 snp_flow_init_flow_tree_root(avltree_t *avl_root);
@@ -82,6 +83,9 @@ send_xmit_out (Interface *interface, pkt_block_t *pkt_block)
         return -1;
     }
 
+    tracer (sending_node->dptr, DFLOW_DET, "Pkt : %s Wired out of interface %s\n", 
+        pkt_block_str (pkt_block), interface->if_name.c_str());
+
     Interface *other_interface = interface->GetOtherInterface();
 
     ev_dis_pkt_data = (ev_dis_pkt_data_t *)XCALLOC(0, 1, ev_dis_pkt_data_t);
@@ -98,7 +102,6 @@ send_xmit_out (Interface *interface, pkt_block_t *pkt_block)
     if (!pkt_q_enqueue(EV_DP(nbr_node), DP_PKT_Q(nbr_node),
                        (char *)ev_dis_pkt_data, sizeof(ev_dis_pkt_data_t)))
     {
-
         cprintf("%s : Fatal : Ingress Pkt QueueExhausted\n", nbr_node->node_name);
 
         tcp_ip_free_pkt_buffer(ev_dis_pkt_data->pkt, ev_dis_pkt_data->pkt_size);

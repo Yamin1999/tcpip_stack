@@ -51,6 +51,9 @@
 #include "PostgresLibpq/postgresLib.h"
 #include "Tracer/tracer.h"
 
+/* stdandard pkt headers hdr files*/
+#include "common/l3/pkt_hdrs.h"
+
 #include "tcpconst.h"
 #include "graph.h"
 #include "Interface/InterfaceUApi.h"
@@ -58,7 +61,6 @@
 #include "Layer2/layer2.h"
 #include "Layer2/arp.h"
 #include "Layer3/rt_table/nexthop.h"
-#include "Layer3/rt_table/np_rt_table.h"
 #include "Layer3/layer3.h"
 #include "Layer3/rt_notif.h"
 #include "Layer4/udp.h"
@@ -72,7 +74,7 @@
 #include "Layer3/netfilter.h"
 #include "ted/ted.h"
 #include "pkt_block.h"
-#include "cp2dp.h"
+#include "common/cp2dp.h"
 
 extern void
 display_node_interfaces(param_t *param, ser_buff_t *tlv_buf);
