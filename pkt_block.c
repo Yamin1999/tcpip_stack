@@ -27,7 +27,7 @@
 #include "Layer5/layer5.h"
 #include "tcpconst.h"
 #include "pkt_block.h"
-#include "common/l3/pkt_hdrs.h"
+#include "common/l3_hdrs.h"
 void
 pkt_block_mem_init () {
 

@@ -4,6 +4,8 @@
 #include <stdint.h>
 
 /*The Ip hdr format as per the standard specification*/
+
+#pragma pack (push,1)
 typedef struct ip_hdr_{
 
     uint32_t version : 4 ;  /*version number, always 4 for IPv4 protocol*/    
