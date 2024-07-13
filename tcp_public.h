@@ -52,7 +52,10 @@
 #include "Tracer/tracer.h"
 
 /* stdandard pkt headers hdr files*/
-#include "common/l3/pkt_hdrs.h"
+#include "common/cmn_struct.h"
+#include "common/l3_hdrs.h"
+#include "common/l2_hdrs.h"
+#include "common/cp2dp.h"
 
 #include "tcpconst.h"
 #include "graph.h"
@@ -74,7 +77,6 @@
 #include "Layer3/netfilter.h"
 #include "ted/ted.h"
 #include "pkt_block.h"
-#include "common/cp2dp.h"
 
 extern void
 display_node_interfaces(param_t *param, ser_buff_t *tlv_buf);
