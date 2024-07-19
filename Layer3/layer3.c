@@ -169,8 +169,8 @@ layer3_ip_route_pkt(node_t *node,
             access_list_evaluate_ip_packet(node, interface,
                                            ip_hdr, true) == ACL_DENY) {
 
-            tracer (node->dptr, DL3FWD | DACL | DFLOW, "Pkt : %s : Pkt Dropped :  L3 ACL Denied on ingress interface %s\n",
-            pkt_block_str(pkt_block), interface->if_name.c_str());
+            tracer (node->dptr, DL3FWD, "Pkt : %s : Pkt Dropped :  L3 ACL Denied on ingress interface %s\n",
+                pkt_block_str(pkt_block), interface->if_name.c_str());
             return;
         }
     }
