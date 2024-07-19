@@ -465,7 +465,6 @@ show_vlan_members (int cmdcode,
     tlv_struct_t *tlv;
     Interface *member_intf;
     c_string node_name = NULL;
-    std::unordered_map<std::string , TransportService *> *TransPortSvcDB;
     std::unordered_map<std::uint16_t , VlanInterface *> *vlan_intf_db;
 
     TLV_LOOP_STACK_BEGIN(tlv_stack, tlv){
@@ -481,8 +480,6 @@ show_vlan_members (int cmdcode,
 
     if (!vlan_intf_db) return 0;
 
-    TransPortSvcDB = node->TransPortSvcDB;
-
     do {
                
         /* Iterate over vlan interface DB*/
@@ -493,8 +490,6 @@ show_vlan_members (int cmdcode,
 
             cprintf (" vlan %d    config_ref_count = %d, dynamic_ref_count = %d\n", 
                 i, vlan_intf->GetConfigRefCount(), vlan_intf->GetDynamicRefCount());
-
-            if (!TransPortSvcDB) continue;
 
             ITERATE_VLAN_MEMBER_PORTS_TRUNK_BEGIN(vlan_intf, member_intf) {
 

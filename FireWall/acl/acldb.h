@@ -218,8 +218,8 @@ struct access_list_ {
 GLTHREAD_TO_STRUCT(glthread_to_access_list, access_list_t, glue);
 
 acl_proto_t acl_string_to_proto(unsigned char *proto_name) ;
-void acl_entry_free(acl_entry_t *acl_entry);
-void acl_decompile (acl_entry_t *acl_entry) ;
+void acl_entry_free(node_t *node, acl_entry_t *acl_entry);
+void acl_decompile (node_t *node, acl_entry_t *acl_entry) ;
 
 void
 access_list_schedule_notification (node_t *node, access_list_t *access_list);
@@ -235,13 +235,13 @@ access_list_t * access_list_lookup_by_name(node_t *node, char *access_list_name)
 access_list_t * acl_create_new_access_list(char *access_list_name);
 mtrie_t *access_list_get_new_tcam_mtrie ();
 void access_list_add_acl_entry(access_list_t * access_list, acl_entry_t *acl_entry);
-void access_list_check_delete(access_list_t *access_list);
-void acl_entry_install (access_list_t *access_list, acl_entry_t *acl_entry);
-void acl_entry_uninstall (access_list_t *access_list, acl_entry_t *acl_entry) ;
+void access_list_check_delete(node_t *node, access_list_t *access_list);
+void acl_entry_install (node_t *node, access_list_t *access_list, acl_entry_t *acl_entry);
+void acl_entry_uninstall (node_t *node, access_list_t *access_list, acl_entry_t *acl_entry) ;
 bool access_list_is_compiled (access_list_t *access_list);
 bool access_list_should_decompile (access_list_t *access_list) ;
 bool access_list_should_compile (access_list_t *access_list) ;
-void acl_compile (acl_entry_t *acl_entry);
+void acl_compile (node_t *node, acl_entry_t *acl_entry);
 void acl_entry_reset_counters(acl_entry_t *acl_entry);
 void access_list_reset_acl_counters (access_list_t *access_list);
 
@@ -435,7 +435,7 @@ access_list_is_uninstallation_in_progress (access_list_t *access_list){
 }
 
 void
-access_list_cancel_un_installation_operation (access_list_t *access_list);
+access_list_cancel_un_installation_operation (node_t *node, access_list_t *access_list);
 
 c_string
 access_list_get_installation_time_duration (access_list_t *access_list, c_string time_str, size_t size) ;

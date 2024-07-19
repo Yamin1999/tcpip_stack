@@ -196,7 +196,7 @@ og_update_acls_task(event_dispatcher_t *ev, void *arg, uint32_t arg_size)
             ITERATE_GLTHREAD_BEGIN(&access_list->head, curr)
             {
                 acl_entry = glthread_to_acl_entry(curr);
-                acl_decompile(acl_entry);
+                acl_decompile(node, acl_entry);
             }
             ITERATE_GLTHREAD_END(&access_list->head, curr);
             if (!hashtable_iterator_advance(itr)) break;
@@ -245,7 +245,7 @@ og_update_acls_task(event_dispatcher_t *ev, void *arg, uint32_t arg_size)
             ITERATE_GLTHREAD_BEGIN(&access_list->head, curr)
             {
                 acl_entry = glthread_to_acl_entry(curr);
-                acl_compile(acl_entry);
+                acl_compile(node, acl_entry);
             }
             ITERATE_GLTHREAD_END(&access_list->head, curr);
             if (!hashtable_iterator_advance(itr)) break;

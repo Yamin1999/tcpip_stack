@@ -130,7 +130,6 @@ class PhysicalInterface : public Interface {
         mac_addr_t mac_add;
         IntfL2Mode l2_mode;
         
-       
         /* L3 properties */
         uint32_t ip_addr;
         uint8_t mask;

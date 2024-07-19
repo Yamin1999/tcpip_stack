@@ -22,6 +22,7 @@
 #include "../object_network/objects_common.h"
 #include "../object_network/object_grp_update.h"
 #include "../../CLIBuilder/libcli.h"
+#include "../../Tracer/tracer.h"
 
 static void
 acl_get_member_tcam_entry (
@@ -60,30 +61,30 @@ acl_string_to_proto(unsigned char *proto_name) {
 }
 
 void 
-acl_entry_free (acl_entry_t *acl_entry) {
+acl_entry_free (node_t *node, acl_entry_t *acl_entry) {
 
-    acl_decompile(acl_entry);
+    acl_decompile(node, acl_entry);
     acl_entry_delink_src_object_networks(acl_entry);
     acl_entry_delink_dst_object_networks(acl_entry);
     acl_entry_delink_src_object_group(acl_entry);
     acl_entry_delink_dst_object_group(acl_entry);
     assert(IS_GLTHREAD_LIST_EMPTY(&acl_entry->glue));
+    tracer (node->cptr, DACL, "ACL : %s-%u Freed\n", 
+        acl_entry->access_list->name, acl_entry->seq_no);
     XFREE(acl_entry);
 }
 
 void 
-acl_decompile (acl_entry_t *acl_entry) {
+acl_decompile (node_t *node, acl_entry_t *acl_entry) {
+
+    tracer (node->cptr, DACL, "ACL : %s-%u is being decompiled\n",  
+        acl_entry->access_list->name, acl_entry->seq_no);
 
     if (!acl_entry->is_compiled) {
-        sprintf (tlb, "%s : Acl %s-%u is already decompiled\n", 
-            FWALL_ACL, acl_entry->access_list->name, acl_entry->seq_no);
-        tcp_trace(0, 0, tlb);        
-        return;
+        tracer (node->cptr, DACL, "ACL : %s-%u is already decompiled\n",  
+        acl_entry->access_list->name, acl_entry->seq_no); 
+            return;
     }
-
-    sprintf (tlb, "%s : Acl %s-%u is being decompiled\n", 
-            FWALL_ACL, acl_entry->access_list->name, acl_entry->seq_no);
-    tcp_trace(0, 0, tlb);
 
     switch (acl_entry->src_addr.acl_addr_format) {
         case ACL_ADDR_NOT_SPECIFIED:
@@ -332,20 +333,18 @@ access_list_mtrie_app_data_free_cbk (mtrie_node_t *mnode) {
 
 /* Convert the ACL entry into TCAM entry format */
 void
-acl_compile (acl_entry_t *acl_entry) {
+acl_compile (node_t *node, acl_entry_t *acl_entry) {
 
     uint8_t proto_layer = 0;
 
+    tracer (node->cptr, DACL, "ACL : %s-%u is being compiled\n",  
+        acl_entry->access_list->name, acl_entry->seq_no);
+
     if (acl_entry->is_compiled) {
-        sprintf (tlb, "%s : Acl %s-%u is already compiled\n", 
-            FWALL_ACL, acl_entry->access_list->name, acl_entry->seq_no);
-        tcp_trace(0, 0, tlb);
+        tracer (node->cptr, DACL, "ACL : %s-%u is already compiled\n",  
+        acl_entry->access_list->name, acl_entry->seq_no); 
         return;
     }
-
-    sprintf (tlb, "%s : Acl %s-%u is being compiled\n", 
-            FWALL_ACL, acl_entry->access_list->name, acl_entry->seq_no);
-    tcp_trace(0, 0, tlb);
 
     assert(acl_entry->tcam_saddr_count == 0);
     assert(!acl_entry->tcam_saddr_prefix);
@@ -628,12 +627,13 @@ access_list_add_acl_entry (
 }
 
  void 
- access_list_check_delete(access_list_t *access_list) {
+ access_list_check_delete(node_t *node, access_list_t *access_list) {
 
     assert(IS_GLTHREAD_LIST_EMPTY(&access_list->head));
     assert(IS_GLTHREAD_LIST_EMPTY(&access_list->glue));
     assert(!access_list->mtrie);
     assert(access_list->ref_count == 0);
+    tracer (node->cptr, DACL, "AccessList : %s deleted\n", access_list->name ); 
     XFREE(access_list);
  }
 
@@ -663,7 +663,7 @@ acl_process_user_config (node_t *node,
 
     if (access_list_should_compile (access_list)) {
 
-        acl_compile(acl_entry);
+        acl_compile(node, acl_entry);
 
         /* Async Method */
         if (acl_entry->expected_tcam_count > ACL_ENTRY_TCAM_COUNT_THRESHOLD) {
@@ -672,7 +672,7 @@ acl_process_user_config (node_t *node,
         else {
             /* Sync Method */
             pthread_rwlock_wrlock(&access_list->mtrie_update_lock);
-            acl_entry_install(access_list, acl_entry);
+            acl_entry_install(node, access_list, acl_entry);
             pthread_rwlock_unlock(&access_list->mtrie_update_lock);
         }
     }
@@ -700,14 +700,14 @@ access_list_delete_complete(node_t *node, access_list_t *access_list) {
 
         acl_entry = glthread_to_acl_entry(curr);
         remove_glthread(&acl_entry->glue);
-        acl_entry_free(acl_entry);
+        acl_entry_free(node, acl_entry);
 
     }ITERATE_GLTHREAD_END(&access_list->head, curr);
 
     remove_glthread(&access_list->glue);
     access_list->ref_count--;
     pthread_rwlock_destroy(&access_list->mtrie_update_lock);
-    access_list_check_delete(access_list);
+    access_list_check_delete(node, access_list);
     cprintf ("Access List Deleted\n");
     return true;
 }
@@ -1142,7 +1142,8 @@ acl_get_member_tcam_entry (
 
 
 void
-acl_entry_uninstall (access_list_t *access_list, 
+acl_entry_uninstall (node_t *node, 
+                                access_list_t *access_list, 
                                 acl_entry_t *acl_entry) {
 
     mtrie_node_t *mnode;
@@ -1153,11 +1154,13 @@ acl_entry_uninstall (access_list_t *access_list,
     acl_tcam_iterator_t src_port_it, dst_port_it;
 
     if (!acl_entry->is_installed) {
-        sprintf(tlb, "%s : Acl %s-%u is already un-installed\n", FWALL_ACL,
+        tracer(node->cptr, DACL, "ACL : %s-%u is already un-installed\n", 
             access_list->name, acl_entry->seq_no);
-        tcp_trace(0, 0, tlb);
         return;
     }
+
+    tracer(node->cptr, DACL, "ACL : %s-%u is being un-installed\n", 
+            access_list->name, acl_entry->seq_no);
 
     assert(acl_entry->tcam_total_count);
 
@@ -1165,9 +1168,8 @@ acl_entry_uninstall (access_list_t *access_list,
     bitmap_init(&tcam_entry_template.mask, ACL_PREFIX_LEN);
     init_glthread(&tcam_entry_template.glue);
 
-    sprintf(tlb, "%s : Acl %s-%u tcam un-installation begin\n", FWALL_ACL,
+    tracer(node->cptr, DACL_DET, "ACL : %s-%u tcam un-installation begin\n",
             access_list->name, acl_entry->seq_no);
-    tcp_trace(0, 0, tlb);
 
     acl_tcam_iterator_init(acl_entry, &src_it, acl_iterator_src_addr);
     acl_tcam_iterator_init(acl_entry, &dst_it, acl_iterator_dst_addr);
@@ -1219,15 +1221,14 @@ acl_entry_uninstall (access_list_t *access_list,
     bitmap_free_internal(&tcam_entry_template.prefix);
     bitmap_free_internal(&tcam_entry_template.mask);
     acl_entry->is_installed = false;
-    sprintf(tlb, "%s : Acl %s-%u tcam un-installation finished\n", FWALL_ACL,
+    tracer (node->cptr, DACL, "ACL : %s-%u tcam un-installation finished\n",
             access_list->name, acl_entry->seq_no);
-    tcp_trace(0, 0, tlb);
 }
 
 
 /* Install all TCAM entries of a given ACL */
 void
-acl_entry_install (access_list_t *access_list, acl_entry_t *acl_entry) {
+acl_entry_install (node_t *node, access_list_t *access_list, acl_entry_t *acl_entry) {
 
     mtrie_node_t *mnode;
     mtrie_ops_result_code_t rc;
@@ -1236,10 +1237,12 @@ acl_entry_install (access_list_t *access_list, acl_entry_t *acl_entry) {
     acl_tcam_iterator_t dst_it;
     acl_tcam_iterator_t src_port_it, dst_port_it;
 
-    if (acl_entry->is_installed) {
-        sprintf(tlb, "%s : Acl %s-%u is already installed\n", FWALL_ACL,
+    tracer (node->cptr, DACL, "ACL : %s-%u is being installed\n", 
             access_list->name, acl_entry->seq_no);
-        tcp_trace(0, 0, tlb);
+
+    if (acl_entry->is_installed) {
+        tracer (node->cptr, DACL, "ACL : %s-%u is already installed\n", 
+            access_list->name, acl_entry->seq_no);
         return;
     }
 
@@ -1251,9 +1254,8 @@ acl_entry_install (access_list_t *access_list, acl_entry_t *acl_entry) {
     bitmap_init(&tcam_entry_template.mask, ACL_PREFIX_LEN);
     init_glthread(&tcam_entry_template.glue);
 
-    sprintf(tlb, "%s : Acl %s-%u tcam installation begin\n", FWALL_ACL,
+     tracer( node->cptr, DACL_DET, "ACL : %s-%u tcam installation begin\n",
             access_list->name, acl_entry->seq_no);
-    tcp_trace(0, 0, tlb);
 
     acl_tcam_iterator_init(acl_entry, &src_it, acl_iterator_src_addr);
     acl_tcam_iterator_init(acl_entry, &dst_it, acl_iterator_dst_addr);
@@ -1317,9 +1319,8 @@ acl_entry_install (access_list_t *access_list, acl_entry_t *acl_entry) {
     bitmap_free_internal(&tcam_entry_template.prefix);
     bitmap_free_internal(&tcam_entry_template.mask);
     acl_entry->is_installed = true;
-    sprintf(tlb, "%s : Acl %s-%u tcam installation finished\n", FWALL_ACL,
+    tracer(node->cptr, DACL_DET, "ACL : %s-%u tcam installation finished\n",
             access_list->name, acl_entry->seq_no);
-    tcp_trace(0, 0, tlb);
  }
 
 static void 
@@ -1650,7 +1651,7 @@ void
  }
 
 static void
-access_list_send_notif_cbk(event_dispatcher_t *ev_dis, void *data, uint32_t data_size) {
+access_list_send_notif_cbk (event_dispatcher_t *ev_dis, void *data, uint32_t data_size) {
 
     access_list_t *access_list = ( access_list_t  *)data;
     access_list->notif_job = NULL;
@@ -1672,6 +1673,7 @@ access_list_schedule_notification (node_t *node, access_list_t *access_list) {
                                                             TASK_PRIORITY_COMPUTE);
 
     access_list_reference(access_list);
+    tracer (node->cptr, DACL, "Access List : %s notification scheduled\n", access_list->name);
 }
 
 acl_entry_t *
@@ -1737,7 +1739,7 @@ access_list_delete_acl_entry_by_seq_no (node_t *node, access_list_t *access_list
     access_list_reenumerate_seq_no (access_list, curr);
 
     if (!access_list_is_compiled(access_list)) {
-         acl_entry_free(acl_entry);
+         acl_entry_free(node, acl_entry);
          return true;
     }
 
@@ -1746,14 +1748,14 @@ access_list_delete_acl_entry_by_seq_no (node_t *node, access_list_t *access_list
     /*Sync Method*/
     if (acl_entry->tcam_total_count < ACL_ENTRY_TCAM_COUNT_THRESHOLD) {
         pthread_rwlock_wrlock(&access_list->mtrie_update_lock);
-        acl_entry_uninstall(access_list, acl_entry);
+        acl_entry_uninstall(node, access_list, acl_entry);
         pthread_rwlock_unlock(&access_list->mtrie_update_lock);
-        acl_entry_free(acl_entry);
+        acl_entry_free(node, acl_entry);
         return true;
     }
 
     /* Async method */
-    acl_entry_free(acl_entry);
+    acl_entry_free(node, acl_entry);
     access_list_trigger_install_job(node, access_list, NULL);
     return true;
 }
@@ -2348,10 +2350,9 @@ access_list_processing_job_cbk(event_dispatcher_t *ev_dis, void *arg, uint32_t a
         /* Done with the access list */
         if (!curr) {
 
-            sprintf(tlb, "%s : %sInstallation of Access-list %s finished\n",
-                    FWALL_ACL, access_list_processing_info->is_installation ? "" : "Un-",
-                    access_list->name);
-            tcp_trace(node, 0, tlb);
+            tracer(node->cptr, DACL, "Access List : %s : %sInstallation finished\n",
+                    access_list->name,
+                    access_list_processing_info->is_installation ? "" : "Un-");
 
             if (access_list_processing_info->is_installation) {
                 access_list->installation_end_time = time(NULL);
@@ -2360,11 +2361,11 @@ access_list_processing_job_cbk(event_dispatcher_t *ev_dis, void *arg, uint32_t a
             /* Updating the Data Path */
             if (access_list_processing_info->is_installation) {
                 mtrie_t *temp = access_list->mtrie;
+                pthread_rwlock_wrlock(&access_list->mtrie_update_lock);
                 access_list->mtrie = access_list_processing_info->mtrie;
+                pthread_rwlock_unlock(&access_list->mtrie_update_lock);
                 access_list_purge_tcam_mtrie(node, temp);
-                sprintf(tlb, "%s : Data Path Updated for  Access-list %s\n",
-                    FWALL_ACL, access_list->name);
-                tcp_trace(node, 0, tlb);
+                tracer(node->cptr, DACL, "Access List : %s : Data Path Updated\n", access_list->name);
             }
 
             if (access_list_processing_info->og_update_info) {
@@ -2399,7 +2400,7 @@ access_list_processing_job_cbk(event_dispatcher_t *ev_dis, void *arg, uint32_t a
         /* Compile the ACL is not already */
         if (access_list_processing_info->is_installation && 
                 access_list_should_compile(access_list)) {
-            acl_compile(acl_entry);
+            acl_compile(node, acl_entry);
         }
 
         /* Retrieve Iterators */
@@ -2437,10 +2438,10 @@ access_list_processing_job_cbk(event_dispatcher_t *ev_dis, void *arg, uint32_t a
                 goto ACL_PROCESSING_COMPLETE;
         }
 
-         sprintf (tlb, "%s : %sInstallation of ACL %s-%u resume, Total tcam installed = %u\n", 
-                    FWALL_ACL, access_list_processing_info->is_installation ? "" : "Un-",
-                    access_list->name, acl_entry->seq_no, acl_entry->tcam_total_count);
-        tcp_trace(node, 0, tlb);
+         tracer (node->cptr, DACL_DET, "ACL : %s-%u %sInstallation resume, Total tcam installed = %u\n", 
+                    access_list->name, acl_entry->seq_no,
+                    access_list_processing_info->is_installation ? "" : "Un-",
+                    acl_entry->tcam_total_count);
     }
     
     do {
@@ -2496,19 +2497,20 @@ access_list_processing_job_cbk(event_dispatcher_t *ev_dis, void *arg, uint32_t a
     }
     access_list_processing_info->acl_tcams_installed++;
 
-    if ((access_list_processing_info->acl_tcams_installed % 
-                ACCESS_LIST_PREEMPTION_THRESHOLD) == 0 && 
-        event_dispatcher_should_suspend(EV(node))) {
+        if ((access_list_processing_info->acl_tcams_installed % 
+                    ACCESS_LIST_PREEMPTION_THRESHOLD) == 0 && 
+            event_dispatcher_should_suspend(EV(node))) {
 
-        access_list_reschedule_processing_job(access_list_processing_info);
-        sprintf (tlb, "%s : %sInstallation of ACL %s-%u suspended, Total tcam %sinstalled = %u\n", 
-                    FWALL_ACL, access_list_processing_info->is_installation ? "" : "Un-",
-                    access_list->name, acl_entry->seq_no, 
-                    access_list_processing_info->is_installation ? "" : "Un-",
-                    acl_entry->tcam_total_count);
-        tcp_trace(node, 0, tlb);
-        return;
-    }
+            access_list_reschedule_processing_job(access_list_processing_info);
+
+            tracer(node->cptr, DACL_DET, "ACL : %s-%u %sInstallation suspended, Total tcam %sinstalled = %u\n", 
+                        access_list->name, acl_entry->seq_no,
+                        access_list_processing_info->is_installation ? "" : "Un-",
+                        access_list_processing_info->is_installation ? "" : "Un-",
+                        acl_entry->tcam_total_count);
+
+            return;
+        }
 
     } while (acl_iterators_increment (
                 acl_tcam_src_it,
@@ -2518,10 +2520,11 @@ access_list_processing_job_cbk(event_dispatcher_t *ev_dis, void *arg, uint32_t a
 
     ACL_PROCESSING_COMPLETE:
     /* Acl (Un)/Installation in Completed */
-    sprintf(tlb, "%s : %sInstallation of ACL %s-%u finished, Total tcam installed = %u\n",
-            FWALL_ACL, access_list_processing_info->is_installation ? "" : "Un-",
-            access_list->name, acl_entry->seq_no, acl_entry->tcam_total_count);
-    tcp_trace(node, 0, tlb);
+
+    tracer(node->cptr, DACL, "ACL : %s-%u %sInstallation finished, Total tcam %sinstalled = %u\n", 
+                        access_list->name, acl_entry->seq_no,
+                        access_list_processing_info->is_installation ? "" : "Un-",
+                        acl_entry->tcam_total_count);
 
      if (access_list_processing_info->is_installation) {
         access_list_processing_info->current_acl->installation_end_time = time(NULL);
@@ -2533,7 +2536,7 @@ access_list_processing_job_cbk(event_dispatcher_t *ev_dis, void *arg, uint32_t a
 
     if (!access_list_processing_info->current_acl->is_installed) {
         if (access_list_should_decompile(access_list)) {
-            acl_decompile(access_list_processing_info->current_acl);
+            acl_decompile(node, access_list_processing_info->current_acl);
         }
     }
     
@@ -2555,6 +2558,8 @@ access_list_trigger_install_job(node_t *node,
     glthread_t *curr;
     acl_entry_t *acl_entry;
     objects_linked_acl_thread_node_t *objects_linked_acl_thread_node;
+
+    tracer (node->cptr, DACL, "Access List : %s : Installation Job Triggered\n", access_list->name);
 
     access_list_processing_info_t *access_list_processing_info = 
         (access_list_processing_info_t *)XCALLOC(0, 1, access_list_processing_info_t);
@@ -2598,6 +2603,8 @@ access_list_trigger_uninstall_job(node_t *node,
     acl_entry_t *acl_entry;
     objects_linked_acl_thread_node_t *objects_linked_acl_thread_node;
 
+    tracer (node->cptr, DACL, "Access List : %s : UnInstallation Job Triggered\n", access_list->name);
+
     access_list_processing_info_t *access_list_processing_info = 
         (access_list_processing_info_t *)XCALLOC(0, 1, access_list_processing_info_t);
     
@@ -2634,7 +2641,7 @@ access_list_trigger_acl_decompile_job(node_t *node,
                                 acl_entry_t *acl_entry,
                                 object_group_update_info_t *og_update_info) {
 
-   acl_decompile (acl_entry);
+   acl_decompile (node, acl_entry);
 }
 
 void
@@ -2642,11 +2649,11 @@ access_list_trigger_acl_compile_job(node_t *node,
                                 acl_entry_t *acl_entry,
                                 object_group_update_info_t *og_update_info) {
 
-    acl_compile(acl_entry);
+    acl_compile(node, acl_entry);
 }
 
 void
-access_list_cancel_un_installation_operation (access_list_t *access_list) {
+access_list_cancel_un_installation_operation (node_t *node, access_list_t *access_list) {
 
     glthread_t *curr;
     acl_entry_t *acl_entry;
@@ -2695,9 +2702,8 @@ access_list_cancel_un_installation_operation (access_list_t *access_list) {
 
     }ITERATE_GLTHREAD_END(&access_list->head, curr) ;
 
-    sprintf (tlb, "%s : Access List %s , %sInstallation Cancelled Successfully\n",
-                    FWALL_ACL, access_list->name, access_list->processing_info->is_installation ? "" : "Un-");
-    tcp_trace(access_list->processing_info->node, 0, tlb);
+    tracer(node->cptr, DACL, "Access List %s , %sInstallation Cancelled Successfully\n",
+                access_list->name, access_list->processing_info->is_installation ? "" : "Un-");
 
     access_list_dereference (access_list->processing_info->node, access_list);
     XFREE(access_list->processing_info);

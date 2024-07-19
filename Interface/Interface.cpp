@@ -345,11 +345,13 @@ vlan_id_t
 Interface::GetVlanId()
 {
     cprintf ("Error : Operation %s not supported\n", __func__);
+    return 0;
 }
 
 bool Interface::IsVlanTrunked(vlan_id_t vlan_id)
 {
     cprintf ("Error : Operation %s not supported\n", __func__);
+    return false;
 }
 
 void Interface::SetSwitchport(bool enable)
@@ -360,11 +362,13 @@ void Interface::SetSwitchport(bool enable)
 bool Interface::IntfConfigTransportSvc(std::string& trans_svc) 
 {
    cprintf ("Error : Operation %s not supported\n", __func__);
+   return false;
 }
 
 bool Interface::IntfUnConfigTransportSvc(std::string& trans_svc) 
 {
     cprintf ("Error : Operation %s not supported\n", __func__);
+    return false;
 }
 
 bool Interface::GetSwitchport()
@@ -671,18 +675,15 @@ void PhysicalInterface::SetSwitchport(bool enable)
     if (enable)
     {
         this->InterfaceSetIpAddressMask(0, 0);
-        this->l2_mode = LAN_MODE_NONE;
-        this->iftype = INTF_TYPE_VLAN;
+        this->SetL2Mode(LAN_MODE_NONE);
     }
     else
     {
         if (this->access_vlan_intf || this->trans_svc) {
             cprintf("Error : Remove L2 Config first\n");
-            this->switchport = true;
             return;
         }
-        this->l2_mode = LAN_MODE_NONE;
-        this->iftype = INTF_TYPE_PHY;
+        this->SetL2Mode(LAN_MODE_NONE);
     }
     this->switchport = enable;
 }
@@ -751,14 +752,14 @@ bool
 PhysicalInterface::IntfConfigTransportSvc(std::string& trans_svc_name) {
 
     if (!this->switchport) {
-        printf ("Error : Interface %s is not L2 interface\n", this->if_name.c_str());
+        cprintf ("Error : Interface %s is not L2 interface\n", this->if_name.c_str());
         return false;
     }
 
     TransportService *trans_svc_obj = TransportServiceLookUp (this->att_node->TransPortSvcDB, trans_svc_name);
     
     if (!trans_svc_obj) {
-        printf ("Error : Transport Svc do not exist\n");
+        cprintf ("Error : Transport Svc do not exist\n");
         return false;
     }
 
@@ -788,18 +789,16 @@ PhysicalInterface::IntfUnConfigTransportSvc(std::string& trans_svc_name) {
 bool 
 PhysicalInterface::IntfConfigVlan(vlan_id_t vlan_id, bool add)
 {
+    if (!this->GetSwitchport()) return false;
 
-    int i;
-    if (!this->switchport)
-        return false;
     if (this->used_as_underlying_tunnel_intf > 0)
     {
-        cprintf("Error : Intf being used as underlying tunnel interface");
+        cprintf ("Error : Intf being used as underlying tunnel interface\n");
         return false;
     }
 
     if (this->GetL2Mode() == LAN_TRUNK_MODE) {
-        cprintf ("Error : Cannot (Un)configure Access Vlan to Interface in Trunk Mode");
+        cprintf ("Error : Cannot (Un)configure Access Vlan to Interface in Trunk Mode\n");
         return false;
     }
 
@@ -810,19 +809,20 @@ PhysicalInterface::IntfConfigVlan(vlan_id_t vlan_id, bool add)
 
         if (this->access_vlan_intf)
         {
-            cprintf("Error : Access Mode Interface already in vlan %u", this->access_vlan_intf->GetVlanId());
+            cprintf("Error : Access Mode Interface already in vlan %u\n", this->access_vlan_intf->GetVlanId());
             return false;
         }
 
         this->access_vlan_intf = VlanInterface::VlanInterfaceLookUp(this->att_node, vlan_id);
-        
+
         if (!this->access_vlan_intf)
         {
-            cprintf("Error : Vlan Interface not found");
+            cprintf("Error : Vlan Interface not found\n");
             return false;
         }
+
         this->access_vlan_intf->access_member_intf_lst.push_back(this);
-        this->l2_mode = LAN_ACCESS_MODE;
+        this->SetL2Mode(LAN_ACCESS_MODE);
         this->access_vlan_intf->InterfaceLockStatic();
         this->InterfaceLockStatic();
         return true;
@@ -837,12 +837,12 @@ PhysicalInterface::IntfConfigVlan(vlan_id_t vlan_id, bool add)
                 this->InterfaceUnLockStatic();
                 this->access_vlan_intf->InterfaceUnLockStatic();
                 this->access_vlan_intf = NULL;
-                this->l2_mode = LAN_MODE_NONE;
+                this->SetL2Mode(LAN_MODE_NONE);
 
                 return true;
             }
             {
-                cprintf("Error : Interface not in vlan %u", vlan_id);
+                cprintf("Error : Interface not in vlan %u\n", vlan_id);
                 return false;
             }
     }
@@ -940,6 +940,7 @@ void VirtualInterface::PrintInterfaceDetails()
 bool 
 VirtualInterface::IsInterfaceUp(vlan_id_t vlan_id) {
     cprintf ("Error : Operation %s not supported\n", __func__);
+    return true;
 }
 
 
@@ -1017,7 +1018,7 @@ GRETunnelInterface::SetTunnelSource(PhysicalInterface *interface)
     {
         if (this->tunnel_src_intf == interface)
         {
-            return;
+            return true;
         }
 	if (this->tunnel_src_intf &&
 		this->tunnel_src_intf != interface) {

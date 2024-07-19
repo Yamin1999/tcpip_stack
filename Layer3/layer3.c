@@ -169,13 +169,14 @@ layer3_ip_route_pkt(node_t *node,
             access_list_evaluate_ip_packet(node, interface,
                                            ip_hdr, true) == ACL_DENY) {
 
-            tracer (node->dptr, DL3FWD, "Pkt : %s : Pkt Dropped :  L3 ACL Denied on ingress interface %s\n",
+            tracer (node->dptr, DL3FWD | DACL | DFLOW, "Pkt : %s : Pkt Dropped :  L3 ACL Denied on ingress interface %s\n",
             pkt_block_str(pkt_block), interface->if_name.c_str());
             return;
         }
     }
 
-    tracer (node->dptr, DL3FWD_DET, "Dest : %s : Pkt Qualified L3 ACL Test\n", dest_ip_addr);
+    tracer (node->dptr, DL3FWD_DET | DACL_DET | DFLOW_DET, 
+        "Dest : %s : Pkt Qualified L3 ACL Test\n", dest_ip_addr);
 
     l3_route_t *l3_route = l3rib_lookup_lpm(
                                         NODE_RT_TABLE(node), ip_hdr->dst_ip);

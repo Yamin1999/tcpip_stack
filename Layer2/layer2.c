@@ -89,7 +89,7 @@ void
 node_set_intf_vlan_membership(node_t *node, 
                                                      const char *intf_name, 
                                                      vlan_id_t vlan_id,
-                                                     bool Trunk){
+                                                     bool Trunk) {
 
     Interface *interface = node_get_intf_by_name(node, intf_name);
     assert(interface);
@@ -100,7 +100,7 @@ node_set_intf_vlan_membership(node_t *node,
         return;
     }
 
-    if (interface->GetL2Mode() == LAN_TRUNK_MODE &&
+    if (interface->GetL2Mode() == LAN_TRUNK_MODE && 
             Trunk == false) {
          cprintf ("Error : Interface %s already in Trunk mode, cannot be accessed\n", intf_name);
         return;
@@ -108,14 +108,13 @@ node_set_intf_vlan_membership(node_t *node,
 
     if (interface->GetSwitchport() == false) {
          cprintf ("Error : Interface %s is not switchport enabled\n", intf_name);
-        return;
+         return;
     }
 
     /* Create VLAN also*/
-    VlanInterface *vlan_intf =
-                    static_cast<VlanInterface *>(VlanInterface::VlanInterfaceLookUp(node, vlan_id));
+    VlanInterface *vlan_intf = VlanInterface::VlanInterfaceLookUp(node, vlan_id);
 
-    if(!vlan_intf) {
+    if (!vlan_intf) {
 
         vlan_intf = new VlanInterface(vlan_id);
         vlan_intf->att_node = node;
@@ -127,13 +126,15 @@ node_set_intf_vlan_membership(node_t *node,
     }
 
     if (Trunk) {
+
         std::string def_tsp_name(std::string(reinterpret_cast<const char *>(DEFAULT_TSP)));
         TransportService *tsp = TransportServiceCreate(node, def_tsp_name);
         tsp->AddVlan(vlan_id);
         tsp->AttachInterface(interface);
     }
     else {
-        interface->IntfConfigVlan (vlan_id, true);
+
+       interface->IntfConfigVlan (vlan_id, true);
     }
 
 }
